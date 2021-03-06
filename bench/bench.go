@@ -109,9 +109,9 @@ func (e *RedisPutThroughputExperiment) run() {
 }
 
 func main() {
-	e := PutThroughputExperiment{NumClients: 10, NumKeys: 100, WarmupTime: 2 * time.Second, ExperimentTime: 10 * time.Second}
-	e.run()
-	// e := RedisPutThroughputExperiment{NumClients: 10, NumKeys: 100, WarmupTime: 2 * time.Second, ExperimentTime: 10 * time.Second}
+	// e := PutThroughputExperiment{NumClients: 10, NumKeys: 100, WarmupTime: 2 * time.Second, ExperimentTime: 10 * time.Second}
 	// e.run()
+	e := RedisPutThroughputExperiment{NumClients: 10, NumKeys: 100, WarmupTime: 2 * time.Second, ExperimentTime: 10 * time.Second}
+	e.run()
 	return
 }
