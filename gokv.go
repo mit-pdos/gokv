@@ -12,6 +12,7 @@ type GoKVServer struct {
 	lastSeq   map[uint64]uint64
 	kvs       map[uint64]string
 	kvsSize   uint64
+	durable bool
 }
 
 type PutArgs struct {
@@ -22,16 +23,18 @@ type PutArgs struct {
 func (s *GoKVServer) PutRPC(args PutArgs, reply *struct{}) error {
 	s.mu.Lock()
 	oldv, ok := s.kvs[args.Key]
-	if ok {
-		s.kvsSize -= uint64(len([]byte(oldv)))
-		s.kvsSize -= 8 // "value size" size
-		s.kvsSize -= 8 // Key size
-	}
 	s.kvs[args.Key] = args.Value
-	s.kvsSize += uint64(len(s.kvs[args.Key]))
-	s.kvsSize += 8
-	s.kvsSize += 8
-	WriteDurableKVServer(s)
+	if s.durable {
+		if ok {
+			s.kvsSize -= uint64(len([]byte(oldv)))
+			s.kvsSize += uint64(len([]byte(args.Value)))
+		} else {
+			s.kvsSize += uint64(len(s.kvs[args.Key]))
+			s.kvsSize += 8
+			s.kvsSize += 8
+		}
+		WriteDurableKVServer(s)
+	}
 	s.mu.Unlock()
 	return nil
 }
@@ -81,5 +84,6 @@ func MakeGoKVServer() *GoKVServer {
 	srv.lastSeq = make(map[uint64]uint64)
 	srv.kvs = make(map[uint64]string)
 	srv.kvsSize = 8 // for len
+	srv.durable = true
 	return srv
 }

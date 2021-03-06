@@ -8,7 +8,38 @@ import (
 	"strconv"
 	"sync/atomic"
 	"time"
+	"math/rand"
 )
+
+type ValueGenerator interface {
+	genValue() string
+}
+
+type ConstValueGenerator struct {
+	Val string
+}
+
+func (g *ConstValueGenerator) genValue() string {
+	return g.Val
+}
+
+func (g *ConstValueGenerator) String() string {
+    return fmt.Sprintf("ConstGen%+v", *g)
+}
+
+type RandFixedSizeValueGenerator struct {
+	Size int
+}
+
+func (g *RandFixedSizeValueGenerator) genValue() string {
+	b := make([]byte, g.Size)
+	_, _ = rand.Read(b)
+	return string(b)
+}
+
+func (g *RandFixedSizeValueGenerator) String() string {
+    return fmt.Sprintf("FixedSizeGen%+v", *g)
+}
 
 func repeat_until_done(f func(int), done *int32) {
 	go func() {
@@ -23,14 +54,15 @@ type PutThroughputExperiment struct {
 	NumKeys        int
 	WarmupTime     time.Duration
 	ExperimentTime time.Duration
+	ValueGenerator ValueGenerator
 }
 
 func (e *PutThroughputExperiment) run() {
-	fmt.Printf("==Testing put throughput with %+v\n", *e)
+	fmt.Printf("==Testing gokv put throughput with %+v\n", *e)
 	var ck []*gokv.GoKVClerk
 	ck = make([]*gokv.GoKVClerk, e.NumClients)
 	for i := 0; i < e.NumClients; i++ {
-		ck[i] = gokv.MakeKVClerk(uint64(i), "127.0.0.1")
+		ck[i] = gokv.MakeKVClerk(uint64(i), "localhost")
 	}
 
 	var done *int32 = new(int32)
@@ -39,7 +71,7 @@ func (e *PutThroughputExperiment) run() {
 	for i := 0; i < e.NumClients; i++ {
 		ck1 := ck[i]
 		repeat_until_done(func(j int) {
-			ck1.Put(uint64(j%e.NumKeys), "somevalue")
+			ck1.Put(uint64(j%e.NumKeys), e.ValueGenerator.genValue())
 			atomic.AddUint64(numOps, 1)
 		}, done)
 	}
@@ -58,6 +90,7 @@ type RedisPutThroughputExperiment struct {
 	NumKeys        int
 	WarmupTime     time.Duration
 	ExperimentTime time.Duration
+	ValueGenerator ValueGenerator
 }
 
 var ctx = context.Background()
@@ -94,7 +127,7 @@ func (e *RedisPutThroughputExperiment) run() {
 	for i := 0; i < e.NumClients; i++ {
 		ck1 := cks[i]
 		repeat_until_done(func(j int) {
-			ck1.Set(ctx, strconv.Itoa(j%e.NumKeys), "somevalue", 0)
+			ck1.Set(ctx, strconv.Itoa(j%e.NumKeys), e.ValueGenerator.genValue(), 0)
 			atomic.AddUint64(numOps, 1)
 		}, done)
 	}
@@ -108,10 +141,55 @@ func (e *RedisPutThroughputExperiment) run() {
 	fmt.Printf("%f puts/sec\n", float64(nOp)/e.ExperimentTime.Seconds())
 }
 
+type Experiment interface {
+	run()
+}
+
+// func marshalExperiment(ty string, exp interface{}) (b []byte, e error) {
+// return json.Marshal(map[string]interface{}{
+// "type": ty,
+// "exp": exp,
+// })
+// }
+//
+// func (exp *PutThroughputExperiment) MarshalJSON() (b []byte, e error) {
+// return marshalExperiment("PutThroughputExperiment", *exp)
+// }
+
+// func LoadExperiments(data []byte) []Experiment {
+// es := make([]Experiment, 0)
+// // Ignoring text encoding problems, only work with ASCII
+// i := 0
+// for i = 0; i < len(data); i++ {
+// if data[i] == '{' {
+// break
+// }
+// }
+// if i == len(data) {
+// panic("Unable to load experiments")
+// }
+// typeName := string(data[:i])
+// data = data[i:]
+// switch typeName {
+// case "PutThroughput":
+// var e PutThroughputExperiment
+// err := json.Unmarshal(data, e)
+// es = append(es, e)
+// }
+//
+// err := json.Unmarshal(data, &es)
+// if err != nil {
+// panic(err)
+// }
+// return es
+// }
+
 func main() {
-	// e := PutThroughputExperiment{NumClients: 10, NumKeys: 100, WarmupTime: 2 * time.Second, ExperimentTime: 10 * time.Second}
+	// e := PutThroughputExperiment{NumClients: 1000, NumKeys: 1000, WarmupTime: 2 * time.Second, ExperimentTime: 10 * time.Second}
 	// e.run()
-	e := RedisPutThroughputExperiment{NumClients: 10, NumKeys: 100, WarmupTime: 2 * time.Second, ExperimentTime: 10 * time.Second}
-	e.run()
+	// e := RedisPutThroughputExperiment{NumClients: 1000, NumKeys: 1000, WarmupTime: 2 * time.Second, ExperimentTime: 10 * time.Second}
+	for _, e := range experiments {
+		e.run()
+	}
 	return
 }
