@@ -1,13 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/go-redis/redis/v8"
-	"context"
 	"github.com/upamanyu/gokv"
+	"strconv"
 	"sync/atomic"
 	"time"
-	"strconv"
 )
 
 func repeat_until_done(f func(int), done *int32) {
@@ -109,9 +109,9 @@ func (e *RedisPutThroughputExperiment) run() {
 }
 
 func main() {
-	// e := PutThroughputExperiment{NumClients: 10, NumKeys: 100, WarmupTime: 2 * time.Second, ExperimentTime: 10 * time.Second}
-	// e.run()
-	e := RedisPutThroughputExperiment{NumClients: 10, NumKeys: 100, WarmupTime: 2 * time.Second, ExperimentTime: 10 * time.Second}
+	e := PutThroughputExperiment{NumClients: 10, NumKeys: 100, WarmupTime: 2 * time.Second, ExperimentTime: 10 * time.Second}
 	e.run()
+	// e := RedisPutThroughputExperiment{NumClients: 10, NumKeys: 100, WarmupTime: 2 * time.Second, ExperimentTime: 10 * time.Second}
+	// e.run()
 	return
 }
