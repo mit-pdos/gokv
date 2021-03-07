@@ -20,19 +20,33 @@ type PutArgs struct {
 	Value string
 }
 
+// XXX: for correctness under packet duplication, should have generation number
+func (s *GoKVServer) ResetRPC(args *struct{}, reply *struct{}) error {
+	s.mu.Lock()
+
+	s.lastReply = make(map[uint64]uint64)
+	s.lastSeq = make(map[uint64]uint64)
+	s.kvs = make(map[uint64]string)
+	s.kvsSize = 8
+	WriteDurableKVServer(s)
+
+	s.mu.Unlock()
+	return nil
+}
+
 func (s *GoKVServer) PutRPC(args PutArgs, reply *struct{}) error {
 	s.mu.Lock()
 	oldv, ok := s.kvs[args.Key]
+	if ok {
+		s.kvsSize -= uint64(len([]byte(oldv)))
+		s.kvsSize += uint64(len([]byte(args.Value)))
+	} else {
+		s.kvsSize += uint64(len([]byte(args.Value)))
+		s.kvsSize += 8
+		s.kvsSize += 8
+	}
 	s.kvs[args.Key] = args.Value
 	if s.durable {
-		if ok {
-			s.kvsSize -= uint64(len([]byte(oldv)))
-			s.kvsSize += uint64(len([]byte(args.Value)))
-		} else {
-			s.kvsSize += uint64(len(s.kvs[args.Key]))
-			s.kvsSize += 8
-			s.kvsSize += 8
-		}
 		WriteDurableKVServer(s)
 	}
 	s.mu.Unlock()
@@ -65,14 +79,13 @@ func EncByteMap(e *marshal.Enc, m map[uint64]string) {
 }
 
 func WriteDurableKVServer(ks *GoKVServer) {
-	// TODO: need to account for size of values; probably best to enforce a limit on value size
 	num_bytes := uint64(8*(2*len(ks.lastSeq)+2*len(ks.lastReply) + 2)) + ks.kvsSize
 	e := marshal.NewEnc(num_bytes) // 4 uint64s
 	EncMap(&e, ks.lastSeq)
 	EncMap(&e, ks.lastReply)
 	EncByteMap(&e, ks.kvs)
 
-	// TODO: this isn't atomic
+	// TODO: this isn't crash-atomic
 	ioutil.WriteFile("kvdur", e.Finish(), 0644)
 	return
 }
