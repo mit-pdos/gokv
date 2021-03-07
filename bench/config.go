@@ -32,8 +32,8 @@ func genSet(size, numClients int) []Experiment {
 
 func genLT() []Experiment {
 	var e []Experiment
-	for i := 0; i < 30; i ++ {
-		e = append(e, genSet(128, i * 20)...)
+	for i := 0; i < 30; i++ {
+		e = append(e, genSet(128, i*20)...)
 	}
 
 	// e = append(e, genSet(128, 1)...)
@@ -50,4 +50,15 @@ func genLT() []Experiment {
 	return e
 }
 
-var experiments = genLT()
+// var experiments = genLT()
+var experiments = []Experiment{
+	&RedisPutThroughputExperiment{
+		NumClients:     100,
+		NumKeys:        100000,
+		WarmupTime:     w,
+		ExperimentTime: e,
+		ValueGenerator: &RandFixedSizeValueGenerator{
+			Size: 128,
+		},
+	},
+}

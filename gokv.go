@@ -12,7 +12,8 @@ type GoKVServer struct {
 	lastSeq   map[uint64]uint64
 	kvs       map[uint64]string
 	kvsSize   uint64
-	durable bool
+	durable   bool
+	opLog     *AppendableFile
 }
 
 type PutArgs struct {
@@ -34,7 +35,17 @@ func (s *GoKVServer) ResetRPC(args *struct{}, reply *struct{}) error {
 	return nil
 }
 
-func (s *GoKVServer) PutRPC(args PutArgs, reply *struct{}) error {
+func (s *GoKVServer) appendPut(args *PutArgs) {
+	v := []byte(args.Value)
+	num_bytes := uint64(8 + 8 + len(v)) // key + value-len + value
+	e := marshal.NewEnc(num_bytes)
+	e.PutInt(args.Key)
+	e.PutInt(uint64(len(v)))
+	e.PutBytes(v)
+	s.opLog.Append(e.Finish())
+}
+
+func (s *GoKVServer) PutRPC(args *PutArgs, reply *struct{}) error {
 	s.mu.Lock()
 	oldv, ok := s.kvs[args.Key]
 	if ok {
@@ -47,7 +58,9 @@ func (s *GoKVServer) PutRPC(args PutArgs, reply *struct{}) error {
 	}
 	s.kvs[args.Key] = args.Value
 	if s.durable {
-		WriteDurableKVServer(s)
+		s.mu.Unlock()
+		s.appendPut(args)
+		return nil
 	}
 	s.mu.Unlock()
 	return nil
@@ -79,7 +92,7 @@ func EncByteMap(e *marshal.Enc, m map[uint64]string) {
 }
 
 func WriteDurableKVServer(ks *GoKVServer) {
-	num_bytes := uint64(8*(2*len(ks.lastSeq)+2*len(ks.lastReply) + 2)) + ks.kvsSize
+	num_bytes := uint64(8*(2*len(ks.lastSeq)+2*len(ks.lastReply)+2)) + ks.kvsSize
 	e := marshal.NewEnc(num_bytes) // 4 uint64s
 	EncMap(&e, ks.lastSeq)
 	EncMap(&e, ks.lastReply)
@@ -98,5 +111,6 @@ func MakeGoKVServer() *GoKVServer {
 	srv.kvs = make(map[uint64]string)
 	srv.kvsSize = 8 // for len
 	srv.durable = true
+	srv.opLog = CreateAppendableFile("kvdur_log")
 	return srv
 }

@@ -129,7 +129,7 @@ func (e *PutThroughputExperiment) run() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Fprintf(f, "PutThruPut%+v\n", *e)
+	fmt.Fprintf(f, "PutThruput%+v\n", *e)
 	for _, ls := range lss {
 		ls.Write(f)
 	}
@@ -205,7 +205,7 @@ func (e *RedisPutThroughputExperiment) run() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Fprintf(f, "RedisPutThruPut%+v\n", *e)
+	fmt.Fprintf(f, "RedisPutThruput%+v\n", *e)
 	for _, ls := range lss {
 		ls.Write(f)
 	}
