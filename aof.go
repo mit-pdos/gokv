@@ -3,8 +3,10 @@ package gokv
 import (
 	"os"
 	"syscall"
-	"time"
+	// "fmt"
 	"sync"
+	// "time"
+	// "math/rand"
 )
 
 type AppendableFile struct {
@@ -13,7 +15,8 @@ type AppendableFile struct {
 
 	durableCond *sync.Cond
 	lengthCond *sync.Cond
-	length uint64
+
+	membuf []byte
 	durableLength uint64
 }
 
@@ -24,47 +27,56 @@ func CreateAppendableFile(fname string) *AppendableFile {
 	a.durableCond = sync.NewCond(a.mu)
 
 	var err error
-	a.f, err = os.OpenFile(fname, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0666)
+	a.f, err = os.OpenFile(fname, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
 	if err != nil {
 		panic(err)
 	}
 
 	go func() {
 		a.mu.Lock()
+		// numSyncs := 0
+		// lastWritten := uint64(0)
 		for {
-			if a.length == a.durableLength {
+			if len(a.membuf) == 0 {
 				a.lengthCond.Wait()
 				continue
 			}
-			a.mu.Unlock()
-			time.Sleep(2000 * time.Microsecond)
 
-			a.mu.Lock()
-			l := a.length // TODO: do atomic load
+			// if uint64(len(a.membuf)) < 3 * lastWritten / 4 {
+			// a.mu.Unlock()
+			// time.Sleep(time.Duration((rand.Uint64() % 500)) * time.Microsecond)
+			// a.mu.Lock()
+			// }
+			l := a.membuf
+			a.membuf = make([]byte, 65536/2)
 			a.mu.Unlock()
 
+			a.f.Write(append(l))
 			syscall.Fdatasync(int(a.f.Fd()))
 
 			a.mu.Lock()
-			a.durableLength = l
+			a.durableLength += uint64(len(l))
 			a.durableCond.Broadcast()
+			// time.Sleep(time.Duration(rand.Uint64() % 500) * time.Microsecond)
 		}
 	}()
 
 	return a
 }
 
-// Not safe to do concurrent Append
-func (a *AppendableFile) Append(data []byte) {
+func (a *AppendableFile) Append(data []byte) uint64 {
 	a.mu.Lock()
-	_, err := a.f.Write(data)
-	if err != nil {
-		panic(err)
-	}
-	a.length += uint64(len(data))
+	a.membuf = append(a.membuf, data...)
+	r := a.durableLength + uint64(len(a.membuf))
 	a.lengthCond.Signal()
+	a.mu.Unlock()
+	return r
+}
 
-	for a.length > a.durableLength {
+func (a *AppendableFile) WaitAppend(length uint64) {
+	// time.Sleep(time.Duration((rand.Uint64() % 20)) * time.Microsecond)
+	a.mu.Lock()
+	for a.durableLength < length {
 		a.durableCond.Wait()
 	}
 	a.mu.Unlock()

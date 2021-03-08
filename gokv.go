@@ -35,15 +35,16 @@ func (s *GoKVServer) ResetRPC(args *struct{}, reply *struct{}) error {
 	return nil
 }
 
-func (s *GoKVServer) appendPut(args *PutArgs) {
+func (s *GoKVServer) appendPut(args *PutArgs) uint64 {
 	v := []byte(args.Value)
-	// num_bytes := uint64(8 + 8 + len(v)) // key + value-len + value
-	// e := marshal.NewEnc(num_bytes)
-	// e.PutInt(args.Key)
-	// e.PutInt(uint64(len(v)))
-	// e.PutBytes(v)
-	// s.opLog.Append(e.Finish())
-	s.opLog.Append(v)
+	num_bytes := uint64(8 + 8 + len(v)) // key + value-len + value
+	e := marshal.NewEnc(num_bytes)
+	e.PutInt(args.Key)
+	e.PutInt(uint64(len(v)))
+	e.PutBytes(v)
+
+	return s.opLog.Append(e.Finish())
+	// return s.opLog.Append([]byte(fmt.Sprintf("%d\n%d\n%s", args.Key, len(args.Value), args.Value)))
 }
 
 func (s *GoKVServer) PutRPC(args *PutArgs, reply *struct{}) error {
@@ -59,11 +60,13 @@ func (s *GoKVServer) PutRPC(args *PutArgs, reply *struct{}) error {
 		s.kvsSize += 8
 	}
 	s.kvs[args.Key] = args.Value
-	s.mu.Unlock() // BUG: this isn't correct; disk won't be in sync with memory
 	if s.durable {
-		s.appendPut(args)
+		l := s.appendPut(args)
+		s.mu.Unlock()
+		s.opLog.WaitAppend(l)
 		return nil
 	}
+	s.mu.Unlock()
 	return nil
 }
 
