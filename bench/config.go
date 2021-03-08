@@ -52,8 +52,8 @@ func genLT() []Experiment {
 
 // var experiments = genLT()
 var experiments = []Experiment{
-	&RedisPutThroughputExperiment{
-		NumClients:     100,
+	&PutThroughputExperiment{
+		NumClients:     1000,
 		NumKeys:        100000,
 		WarmupTime:     w,
 		ExperimentTime: e,

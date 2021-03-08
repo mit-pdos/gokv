@@ -5,21 +5,22 @@ import csv
 import sys
 
 # TODO: deal with warmup
-def get_latencies(fnames):
+def get_latencies(fname):
     x = []
     ys = []
-    lastStart = -1
+    lastStart = 2**64
     title = ''
     with open(fname,'r') as csvfile:
         reader = csv.reader(csvfile, delimiter=',')
         title = next(reader, None)[0]
         for row in reader:
             i = row[0]
-        # This might be a bit fragile
-        if i.endswith("Beg"):
-            lastStart = int(row[1])
-        else:
-            ys.append( (int(row[1]) - lastStart) / 1e6 )
+            # This might be a bit fragile
+            if i.endswith("Beg"):
+                lastStart = int(row[1])
+            elif int(row[1]) > lastStart:
+                ys.append( (int(row[1]) - lastStart) / 1e6 )
+    print(ys)
     return title, ys
 
 def plot_latencies(fname):
@@ -78,5 +79,5 @@ def plot_latencythruput(fnames):
     plt.legend()
     plt.show()
 
-# plot_timeseries(sys.argv[1])
-plot_latencythruput(sys.argv[1:])
+plot_latencies(sys.argv[1])
+# plot_latencythruput(sys.argv[1:])
