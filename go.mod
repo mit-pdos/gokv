@@ -1,4 +1,4 @@
-module github.com/upamanyus/gokv
+module github.com/mit-pdos/gokv
 
 go 1.15
 

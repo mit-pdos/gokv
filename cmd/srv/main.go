@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/upamanyus/gokv"
+	"github.com/mit-pdos/gokv"
 	"log"
 	"net"
 	"net/http"

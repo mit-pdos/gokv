@@ -2,7 +2,7 @@ package gokv
 
 import (
 	"github.com/tchajed/marshal"
-	"github.com/upamanyus/gokv/aof"
+	"github.com/mit-pdos/gokv/aof"
 	"sync"
 )
 

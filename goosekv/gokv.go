@@ -2,7 +2,7 @@ package goosekv
 
 import (
 	"github.com/tchajed/marshal"
-	"github.com/upamanyus/gokv/aof"
+	"github.com/mit-pdos/gokv/aof"
 	"github.com/mit-pdos/lockservice"
 	"sync"
 )
