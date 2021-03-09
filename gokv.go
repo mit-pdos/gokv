@@ -2,6 +2,7 @@ package gokv
 
 import (
 	"github.com/tchajed/marshal"
+	"github.com/upamanyus/gokv/aof"
 	"sync"
 )
 
@@ -11,7 +12,7 @@ type GoKVServer struct {
 	lastSeq   map[uint64]uint64
 	kvs       map[uint64]string
 	durable   bool
-	opLog     *AppendableFile
+	opLog     *aof.AppendOnlyFile
 }
 
 type PutArgs struct {
@@ -54,6 +55,6 @@ func MakeGoKVServer() *GoKVServer {
 	srv.lastReply = make(map[uint64]uint64)
 	srv.lastSeq = make(map[uint64]uint64)
 	srv.kvs = make(map[uint64]string)
-	srv.opLog = CreateAppendableFile("kvdur_log")
+	srv.opLog = aof.CreateAppendOnlyFile("kvdur_log")
 	return srv
 }

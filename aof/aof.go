@@ -1,13 +1,12 @@
-package gokv
+package aof
 
 import (
-	"os"
-	"syscall"
 	"sync"
+	"github.com/mit-pdos/lockservice/grove_ffi"
 )
 
-type AppendableFile struct {
-	f *os.File
+type AppendOnlyFile struct {
+	fname string
 	mu *sync.Mutex
 
 	durableCond *sync.Cond
@@ -17,17 +16,11 @@ type AppendableFile struct {
 	durableLength uint64
 }
 
-func CreateAppendableFile(fname string) *AppendableFile {
-	a := new(AppendableFile)
+func CreateAppendOnlyFile(fname string) *AppendOnlyFile {
+	a := new(AppendOnlyFile)
 	a.mu = new(sync.Mutex)
 	a.lengthCond = sync.NewCond(a.mu)
 	a.durableCond = sync.NewCond(a.mu)
-
-	var err error
-	a.f, err = os.OpenFile(fname, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
-	if err != nil {
-		panic(err)
-	}
 
 	go func() {
 		a.mu.Lock()
@@ -41,9 +34,7 @@ func CreateAppendableFile(fname string) *AppendableFile {
 			a.membuf = make([]byte, 0)
 			a.mu.Unlock()
 
-			// TODO: replace this with a AtomicAppend() call
-			a.f.Write(append(l))
-			syscall.Fdatasync(int(a.f.Fd()))
+			grove_ffi.AtomicAppend(fname, l)
 
 			a.mu.Lock()
 			a.durableLength += uint64(len(l))
@@ -54,7 +45,7 @@ func CreateAppendableFile(fname string) *AppendableFile {
 	return a
 }
 
-func (a *AppendableFile) Append(data []byte) uint64 {
+func (a *AppendOnlyFile) Append(data []byte) uint64 {
 	a.mu.Lock()
 	a.membuf = append(a.membuf, data...)
 	r := a.durableLength + uint64(len(a.membuf))
@@ -63,7 +54,7 @@ func (a *AppendableFile) Append(data []byte) uint64 {
 	return r
 }
 
-func (a *AppendableFile) WaitAppend(length uint64) {
+func (a *AppendOnlyFile) WaitAppend(length uint64) {
 	a.mu.Lock()
 	for a.durableLength < length {
 		a.durableCond.Wait()

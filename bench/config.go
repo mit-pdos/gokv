@@ -53,8 +53,8 @@ func genLT() []Experiment {
 // var experiments = genLT()
 var experiments = []Experiment{
 	&PutThroughputExperiment{
-		NumClients:     1000,
-		NumKeys:        100000,
+		NumClients:     256,
+		NumKeys:        1000,
 		WarmupTime:     w,
 		ExperimentTime: e,
 		ValueGenerator: &RandFixedSizeValueGenerator{
