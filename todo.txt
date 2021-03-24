@@ -20,3 +20,24 @@ Get() value in the reply table, that goes away.
 More importantly, we also probably don't need to use cid/seq so we can avoid
 needing writing anything to disk. That might substantially improve Get()
 performance.
+
+Actually, still need to use cid/seq (or at least wait for the previous put to be
+made durable on disk) since the Get() can only return a value that was made
+durable. E.g. a Put(k, 10) starts, a Get(k) returns 10, then the server crashes
+and the Put() was not made durable, so it was as though the operation never
+happened. It might be interesting to see if the little optimization to wait for
+a previous Put() would make a worthwhile improvement to performance.
+
+== Another approach to get faster Get() when there are lots of conflicting
+   Put()s:
+Update the in-memory map *after* the operation makes it to the log. To handle
+conflicting updates (e.g. Puts() on one key) use the length at which the Put
+record was placed to order. So, each kv pair would have a "version number" which
+is really where the most recent Put() record was put in the aof.
+
+This only works because Put()s are conflicting (either they overwrite, or they
+commute).
+
+If there were Append()s, then you would need to apply the operations in
+order, and you'd basically end up with a log of operations which needs to get
+applied strictly in order, just like if you wanted SMR.
