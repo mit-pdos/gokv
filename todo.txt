@@ -1,0 +1,9 @@
+* Get rid of gokv.go and only use goosekv/gokv.go
+* Add Get() to goosekv
+* Add InstallShard() to goosekv
+* Make client for sharded KV store (not just for a shard server)
+* benchmarking
+  * YCSB? closed-loop
+    go-ycsb: https://medium.com/@siddontang/use-go-ycsb-to-benchmark-different-databases-8850f6edb3a7
+  * latency-throughput graphs
+* Try to saturate shard server
