@@ -2,15 +2,17 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"github.com/go-redis/redis/v8"
-	"github.com/mit-pdos/gokv"
 	"io"
+	"log"
 	"math/rand"
+	"os"
+	"runtime/pprof"
 	"strconv"
 	"sync/atomic"
 	"time"
-	"os"
 )
 
 // XXX: this doesn't use monotonic time.
@@ -24,7 +26,7 @@ type latencyEvent struct {
 }
 
 type latencySamples struct {
-	events  []latencyEvent
+	events []latencyEvent
 	// latencies []int64
 }
 
@@ -35,19 +37,19 @@ func (l *latencySamples) Write(w io.Writer) {
 }
 
 func (l *latencySamples) AddEvent(eventId string) {
-	l.events = append(l.events, latencyEvent{time:GetTimestamp(), eventId:eventId})
+	l.events = append(l.events, latencyEvent{time: GetTimestamp(), eventId: eventId})
 }
 
 type ValueGenerator interface {
-	genValue() string
+	genValue() []byte
 }
 
 type ConstValueGenerator struct {
 	Val string
 }
 
-func (g *ConstValueGenerator) genValue() string {
-	return g.Val
+func (g *ConstValueGenerator) genValue() []byte {
+	return []byte(g.Val)
 }
 
 func (g *ConstValueGenerator) String() string {
@@ -58,10 +60,10 @@ type RandFixedSizeValueGenerator struct {
 	Size int
 }
 
-func (g *RandFixedSizeValueGenerator) genValue() string {
+func (g *RandFixedSizeValueGenerator) genValue() []byte {
 	b := make([]byte, g.Size)
 	_, _ = rand.Read(b)
-	return string(b)
+	return b
 }
 
 func (g *RandFixedSizeValueGenerator) String() string {
@@ -77,67 +79,87 @@ func repeat_until_done(f func(int), done *int32) {
 }
 
 // TODO: make the output files a parameter
-type PutThroughputExperiment struct {
-	NumClients     int
+type GoosePutThroughputExperiment struct {
+	Rate           float32
 	NumKeys        int
 	WarmupTime     time.Duration
 	ExperimentTime time.Duration
 	ValueGenerator ValueGenerator
 }
 
-func (e *PutThroughputExperiment) run() {
-	fmt.Printf("==Testing gokv put throughput with %+v\n", *e)
-
-	// make clerks
-	var cks []*gokv.GoKVClerk
-	var lss []*latencySamples
-	cks = make([]*gokv.GoKVClerk, e.NumClients)
-	lss = make([]*latencySamples, e.NumClients)
-	for i := 0; i < e.NumClients; i++ {
-		cks[i] = gokv.MakeKVClerk(uint64(i), "localhost")
-		lss[i] = &latencySamples{nil}
-	}
-
-	var done *int32 = new(int32)
-
+// for latency samples, should just keep the latency amount and the time at
+// which it was observed (end of operation)
+func (e *GoosePutThroughputExperiment) run() {
+	fmt.Printf("==Testing open loop gokv put throughput with %+v\n", *e)
+	p := MakeGooseKVClerkPool(uint64(e.Rate), 100)
 	numOps := new(uint64)
-	for i := 0; i < e.NumClients; i++ {
-		ck := cks[i]
-		ls := lss[i]
-		repeat_until_done(func(j int) {
-			ls.AddEvent("PutBeg")
-			ck.Put(uint64(j%e.NumKeys), e.ValueGenerator.genValue())
-			ls.AddEvent("PutEnd")
-			atomic.AddUint64(numOps, 1)
-		}, done)
-	}
+	done := new(int32)
+	delay := time.Nanosecond * time.Duration(1e9/e.Rate)
+	// delay = 100 * time.Nanosecond
+	fmt.Printf("%v\n", delay)
+	j := 0
+	go func() {
+		for ; atomic.LoadInt32(done) == 0; j++ {
+			go func(j int) {
+				p.Put(uint64(j%e.NumKeys), e.ValueGenerator.genValue())
+				atomic.AddUint64(numOps, 1)
+			}(j)
+			time.Sleep(delay)
+		}
+	}()
 
 	time.Sleep(e.WarmupTime)
-
 	DPrintf("Warmup done, starting experiment")
-	for i := range lss {
-		*lss[i] = latencySamples{nil}
-	}
-
 	atomic.StoreUint64(numOps, 0)
 	time.Sleep(e.ExperimentTime)
-	nOp := atomic.LoadUint64(numOps)
-	atomic.StoreInt32(done, 1)
-	fmt.Printf("%f puts/sec\n", float64(nOp)/e.ExperimentTime.Seconds())
 
-	f, err := os.Create(fmt.Sprintf("data/put_thruput_%d.txt", GetTimestamp()/1e6))
-	if err != nil {
-		panic(err)
-	}
-	fmt.Fprintf(f, "PutThruput%+v\n", *e)
-	for _, ls := range lss {
-		ls.Write(f)
-	}
-	f.Close()
+	numOpsCompleted := atomic.LoadUint64(numOps)
+	atomic.StoreInt32(done, 1)
+	fmt.Printf("%f puts/sec; %d started\n", float64(numOpsCompleted)/e.ExperimentTime.Seconds(), j)
+}
+
+// TODO: make the output files a parameter
+type PutThroughputExperiment struct {
+	Rate           float32
+	NumKeys        int
+	WarmupTime     time.Duration
+	ExperimentTime time.Duration
+	ValueGenerator ValueGenerator
+}
+
+// for latency samples, should just keep the latency amount and the time at
+// which it was observed (end of operation)
+func (e *PutThroughputExperiment) run() {
+	fmt.Printf("==Testing open loop gokv put throughput with %+v\n", *e)
+	p := MakeKVClerkPool(uint64(e.Rate), 100)
+	numOps := new(uint64)
+	done := new(int32)
+	delay := time.Nanosecond * time.Duration(1e9/e.Rate)
+	// delay = 100 * time.Nanosecond
+	fmt.Printf("%v\n", delay)
+	j := 0
+	go func() {
+		for ; atomic.LoadInt32(done) == 0; j++ {
+			go func(j int) {
+				p.Put(uint64(j%e.NumKeys), string(e.ValueGenerator.genValue()))
+				atomic.AddUint64(numOps, 1)
+			}(j)
+			time.Sleep(delay)
+		}
+	}()
+
+	time.Sleep(e.WarmupTime)
+	DPrintf("Warmup done, starting experiment")
+	atomic.StoreUint64(numOps, 0)
+	time.Sleep(e.ExperimentTime)
+
+	numOpsCompleted := atomic.LoadUint64(numOps)
+	atomic.StoreInt32(done, 1)
+	fmt.Printf("%f puts/sec; %d started\n", float64(numOpsCompleted)/e.ExperimentTime.Seconds(), j)
 }
 
 type RedisPutThroughputExperiment struct {
-	NumClients     int
+	Rate           float32
 	NumKeys        int
 	WarmupTime     time.Duration
 	ExperimentTime time.Duration
@@ -162,61 +184,60 @@ func (e *RedisPutThroughputExperiment) run() {
 	fmt.Printf("==Testing redis put throughput with %+v\n", *e)
 	doRedisPut() // make sure server is up
 
-	var cks []*redis.Client
-	var lss []*latencySamples
-	cks = make([]*redis.Client, e.NumClients)
-	lss = make([]*latencySamples, e.NumClients)
-	for i := 0; i < e.NumClients; i++ {
-		cks[i] = redis.NewClient(&redis.Options{
-			Addr:     "localhost:6379",
-			Password: "",
-			DB:       0,
-		})
-		lss[i] = &latencySamples{nil}
-	}
-
-	var done *int32 = new(int32)
+	cl := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "",
+		DB:       0,
+	})
 
 	numOps := new(uint64)
-	for i := 0; i < e.NumClients; i++ {
-		ck1 := cks[i]
-		ls := lss[i]
-		repeat_until_done(func(j int) {
-			ls.AddEvent("RPutBeg")
-			ck1.Set(ctx, strconv.Itoa(j%e.NumKeys), e.ValueGenerator.genValue(), 0)
-			ls.AddEvent("RPutEnd")
-			atomic.AddUint64(numOps, 1)
-		}, done)
-	}
+	done := new(int32)
+	delay := time.Nanosecond * time.Duration(1e9/e.Rate)
+	// delay = 100 * time.Nanosecond
+	fmt.Printf("%v\n", delay)
+	j := 0
+	go func() {
+		for ; atomic.LoadInt32(done) == 0; j++ {
+			go func(j int) {
+				cl.Set(ctx, strconv.Itoa(j%e.NumKeys), e.ValueGenerator.genValue(), 0)
+				atomic.AddUint64(numOps, 1)
+			}(j)
+			time.Sleep(delay)
+		}
+	}()
 
 	time.Sleep(e.WarmupTime)
 	DPrintf("Warmup done, starting experiment")
-	for i := range lss {
-		*lss[i] = latencySamples{nil}
-	}
 	atomic.StoreUint64(numOps, 0)
-
 	time.Sleep(e.ExperimentTime)
-	nOp := atomic.LoadUint64(numOps)
-	atomic.StoreInt32(done, 1)
-	fmt.Printf("%f puts/sec\n", float64(nOp)/e.ExperimentTime.Seconds())
 
-	f, err := os.Create(fmt.Sprintf("data/redis_put_thruput_%d.txt", GetTimestamp()/1e6))
-	if err != nil {
-		panic(err)
-	}
-	fmt.Fprintf(f, "RedisPutThruput%+v\n", *e)
-	for _, ls := range lss {
-		ls.Write(f)
-	}
-	f.Close()
+	numOpsCompleted := atomic.LoadUint64(numOps)
+	atomic.StoreInt32(done, 1)
+	fmt.Printf("%f puts/sec; %d started\n", float64(numOpsCompleted)/e.ExperimentTime.Seconds(), j)
 }
 
 type Experiment interface {
 	run()
 }
 
+var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
+
 func main() {
+	_ = make([]byte, 1<<30)
+
+	flag.Parse()
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal("could not create CPU profile: ", err)
+		}
+		defer f.Close() // error handling omitted for example
+		if err := pprof.StartCPUProfile(f); err != nil {
+			log.Fatal("could not start CPU profile: ", err)
+		}
+		defer pprof.StopCPUProfile()
+	}
+
 	for _, e := range experiments {
 		e.run()
 	}

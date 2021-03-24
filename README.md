@@ -18,3 +18,5 @@ I just did that by temporarily getting rid of `go.mod` and doing `go get`.
 With go.mod, it'll end up in `$GOPATH/pkg/mod/...`, which makes it so that
 goose has to be run from the directory with the `go.mod` file, instead of from
 the perennial directory.
+
+Run `export GOPRIVATE=github.com/mit-pdos` before `go get`.

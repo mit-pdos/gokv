@@ -13,6 +13,7 @@ type AppendOnlyFile struct {
 	lengthCond *sync.Cond
 
 	membuf []byte
+	length uint64 // logical length
 	durableLength uint64
 }
 
@@ -31,14 +32,16 @@ func CreateAppendOnlyFile(fname string) *AppendOnlyFile {
 			}
 
 			l := a.membuf
+			newLength := a.length
 			a.membuf = make([]byte, 0)
 			a.mu.Unlock()
 
 			grove_ffi.AtomicAppend(fname, l)
 
 			a.mu.Lock()
-			a.durableLength += uint64(len(l))
+			a.durableLength = newLength
 			a.durableCond.Broadcast()
+			continue
 		}
 	}()
 
@@ -48,7 +51,11 @@ func CreateAppendOnlyFile(fname string) *AppendOnlyFile {
 func (a *AppendOnlyFile) Append(data []byte) uint64 {
 	a.mu.Lock()
 	a.membuf = append(a.membuf, data...)
-	r := a.durableLength + uint64(len(a.membuf))
+	for a.length + uint64(len(data)) < a.length {
+	}
+
+	a.length = a.length + uint64(len(data))
+	r := a.length
 	a.lengthCond.Signal()
 	a.mu.Unlock()
 	return r
