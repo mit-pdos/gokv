@@ -9,11 +9,11 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"runtime"
 	"runtime/pprof"
 	"strconv"
 	"sync/atomic"
 	"time"
-	"runtime"
 )
 
 // XXX: this doesn't use monotonic time.
@@ -187,7 +187,7 @@ type Experiment interface {
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
 
 func main() {
-    runtime.GOMAXPROCS(2)
+	runtime.GOMAXPROCS(2)
 
 	flag.Parse()
 	if *cpuprofile != "" {

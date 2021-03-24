@@ -1,15 +1,15 @@
 package goosekv
 
 import (
-	"sync"
 	"github.com/mit-pdos/lockservice/grove_ffi"
+	"sync"
 )
 
 type GoKVClerk struct {
-	mu *sync.Mutex
+	mu  *sync.Mutex
 	seq uint64
 	cid uint64
-	cl *grove_ffi.RPCClient
+	cl  *grove_ffi.RPCClient
 }
 
 func MakeKVClerk(cid uint64, host string) *GoKVClerk {

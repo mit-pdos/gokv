@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"flag"
+	"fmt"
 	"github.com/mit-pdos/gokv/goosekv"
 	"github.com/mit-pdos/lockservice/grove_ffi"
 	"log"
@@ -30,5 +30,5 @@ func main() {
 	gkv.Start()
 
 	fmt.Println("Started GooseKV server")
-	select{} // sleep forever
+	select {} // sleep forever
 }

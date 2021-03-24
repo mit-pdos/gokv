@@ -25,9 +25,9 @@ func shardOf(key uint64) uint64 {
 }
 
 type PutRequest struct {
-	CID uint64
-	Seq uint64
-	Key uint64
+	CID   uint64
+	Seq   uint64
+	Key   uint64
 	Value []byte
 }
 
@@ -70,4 +70,31 @@ func decodePutReply(replyData []byte) *PutReply {
 	d := marshal.NewDec(replyData)
 	reply.Err = d.GetInt()
 	return reply
+}
+
+type GetRequest struct {
+	CID uint64
+	Seq uint64
+	Key uint64
+}
+
+type GetReply struct {
+	Err   ErrorType
+	Value []byte
+}
+
+func encodeGetRequest(req *GetRequest) []byte {
+	panic("Unimpl")
+}
+
+func decodeGetRequest(rawReq []byte) *GetRequest {
+	panic("Unimpl")
+}
+
+func encodeGetReply(req *GetReply) []byte {
+	panic("Unimpl")
+}
+
+func decodeGetReply(rawReq []byte) *GetReply {
+	panic("Unimpl")
 }

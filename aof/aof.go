@@ -1,19 +1,19 @@
 package aof
 
 import (
-	"sync"
 	"github.com/mit-pdos/lockservice/grove_ffi"
+	"sync"
 )
 
 type AppendOnlyFile struct {
 	fname string
-	mu *sync.Mutex
+	mu    *sync.Mutex
 
 	durableCond *sync.Cond
-	lengthCond *sync.Cond
+	lengthCond  *sync.Cond
 
-	membuf []byte
-	length uint64 // logical length
+	membuf        []byte
+	length        uint64 // logical length
 	durableLength uint64
 }
 
@@ -51,7 +51,7 @@ func CreateAppendOnlyFile(fname string) *AppendOnlyFile {
 func (a *AppendOnlyFile) Append(data []byte) uint64 {
 	a.mu.Lock()
 	a.membuf = append(a.membuf, data...)
-	for a.length + uint64(len(data)) < a.length {
+	for a.length+uint64(len(data)) < a.length {
 	}
 
 	a.length = a.length + uint64(len(data))

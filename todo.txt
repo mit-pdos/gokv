@@ -1,4 +1,5 @@
 * Add Get() to goosekv
+* Implement recovery for shard server
 * Add InstallShard() to goosekv
 * Make client for sharded KV store (not just for a shard server)
 * benchmarking
@@ -6,3 +7,17 @@
     go-ycsb: https://medium.com/@siddontang/use-go-ycsb-to-benchmark-different-databases-8850f6edb3a7
   * latency-throughput graphs
 * Try to saturate shard server
+
+=
+Get()s don't need to go through the reply table. Even if there are multiple
+distinct GetReplies sent to the client, only one of them will actually make it
+back, and the one that gets received first determines the linearization point of
+the Get().
+
+With Get()s of large values, if we put the Value in the reply table, then the
+reply table has to support both GetReply and PutReply types. If we don't put the
+Get() value in the reply table, that goes away.
+
+More importantly, we also probably don't need to use cid/seq so we can avoid
+needing writing anything to disk. That might substantially improve Get()
+performance.
