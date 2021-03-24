@@ -1,4 +1,3 @@
-* Add Get() to goosekv
 * Implement recovery for shard server
 * Add InstallShard() to goosekv
 * Make client for sharded KV store (not just for a shard server)

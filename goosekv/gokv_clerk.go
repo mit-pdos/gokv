@@ -28,8 +28,25 @@ func MakeKVClerkWithRPCClient(cid uint64, cl *grove_ffi.RPCClient) *GoKVClerk {
 	return ck
 }
 
-func (ck *GoKVClerk) Put(key uint64, value []byte) {
+func (ck *GoKVClerk) Put(key uint64, value []byte) ErrorType {
 	args := PutRequest{ck.cid, ck.seq, key, value}
+	ck.seq = ck.seq + 1
+
 	rawRep := make([]byte, 0)
-	ck.cl.RemoteProcedureCall(KV_PUT, encodePutRequest(&args), &rawRep)
+	// TODO: helper for looping RemoteProcedureCall()
+	for ck.cl.RemoteProcedureCall(KV_PUT, encodePutRequest(&args), &rawRep) == true {
+	}
+	return decodePutReply(rawRep).Err
+}
+
+func (ck *GoKVClerk) Get(key uint64, err *ErrorType, value *[]byte) {
+	args := GetRequest{ck.cid, ck.seq, key}
+	ck.seq = ck.seq + 1
+
+	rawRep := make([]byte, 0)
+	for ck.cl.RemoteProcedureCall(KV_GET, encodeGetRequest(&args), &rawRep) == true {
+	}
+	rep := decodeGetReply(rawRep)
+	*err = rep.Err
+	*value = rep.Value
 }
