@@ -1,4 +1,3 @@
-* Get rid of gokv.go and only use goosekv/gokv.go
 * Add Get() to goosekv
 * Add InstallShard() to goosekv
 * Make client for sharded KV store (not just for a shard server)

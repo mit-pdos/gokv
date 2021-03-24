@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"sync/atomic"
 	"time"
+	"runtime"
 )
 
 // XXX: this doesn't use monotonic time.
@@ -79,7 +80,7 @@ func repeat_until_done(f func(int), done *int32) {
 }
 
 // TODO: make the output files a parameter
-type GoosePutThroughputExperiment struct {
+type GooseKVPutThroughputExperiment struct {
 	Rate           float32
 	NumKeys        int
 	WarmupTime     time.Duration
@@ -89,7 +90,7 @@ type GoosePutThroughputExperiment struct {
 
 // for latency samples, should just keep the latency amount and the time at
 // which it was observed (end of operation)
-func (e *GoosePutThroughputExperiment) run() {
+func (e *GooseKVPutThroughputExperiment) run() {
 	fmt.Printf("==Testing open loop gokv put throughput with %+v\n", *e)
 	p := MakeGooseKVClerkPool(uint64(e.Rate), 100)
 	numOps := new(uint64)
@@ -97,54 +98,17 @@ func (e *GoosePutThroughputExperiment) run() {
 	delay := time.Nanosecond * time.Duration(1e9/e.Rate)
 	// delay = 100 * time.Nanosecond
 	fmt.Printf("%v\n", delay)
+
 	j := 0
 	go func() {
 		for ; atomic.LoadInt32(done) == 0; j++ {
+			// start := time.Now()
 			go func(j int) {
 				p.Put(uint64(j%e.NumKeys), e.ValueGenerator.genValue())
 				atomic.AddUint64(numOps, 1)
 			}(j)
-			time.Sleep(delay)
-		}
-	}()
-
-	time.Sleep(e.WarmupTime)
-	DPrintf("Warmup done, starting experiment")
-	atomic.StoreUint64(numOps, 0)
-	time.Sleep(e.ExperimentTime)
-
-	numOpsCompleted := atomic.LoadUint64(numOps)
-	atomic.StoreInt32(done, 1)
-	fmt.Printf("%f puts/sec; %d started\n", float64(numOpsCompleted)/e.ExperimentTime.Seconds(), j)
-}
-
-// TODO: make the output files a parameter
-type PutThroughputExperiment struct {
-	Rate           float32
-	NumKeys        int
-	WarmupTime     time.Duration
-	ExperimentTime time.Duration
-	ValueGenerator ValueGenerator
-}
-
-// for latency samples, should just keep the latency amount and the time at
-// which it was observed (end of operation)
-func (e *PutThroughputExperiment) run() {
-	fmt.Printf("==Testing open loop gokv put throughput with %+v\n", *e)
-	p := MakeKVClerkPool(uint64(e.Rate), 100)
-	numOps := new(uint64)
-	done := new(int32)
-	delay := time.Nanosecond * time.Duration(1e9/e.Rate)
-	// delay = 100 * time.Nanosecond
-	fmt.Printf("%v\n", delay)
-	j := 0
-	go func() {
-		for ; atomic.LoadInt32(done) == 0; j++ {
-			go func(j int) {
-				p.Put(uint64(j%e.NumKeys), string(e.ValueGenerator.genValue()))
-				atomic.AddUint64(numOps, 1)
-			}(j)
-			time.Sleep(delay)
+			time.Sleep(0)
+			// fmt.Println(d)
 		}
 	}()
 
@@ -223,7 +187,7 @@ type Experiment interface {
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
 
 func main() {
-	_ = make([]byte, 1<<30)
+    runtime.GOMAXPROCS(2)
 
 	flag.Parse()
 	if *cpuprofile != "" {
@@ -231,7 +195,7 @@ func main() {
 		if err != nil {
 			log.Fatal("could not create CPU profile: ", err)
 		}
-		defer f.Close() // error handling omitted for example
+		defer f.Close()
 		if err := pprof.StartCPUProfile(f); err != nil {
 			log.Fatal("could not start CPU profile: ", err)
 		}

@@ -3,13 +3,13 @@ package main
 import "time"
 
 var w = 10 * time.Second
-var e = 20 * time.Second
+var e = 60 * time.Second
 
 // TODO: these experiments aren't really independent b/c GoKV will write the
 // whole KV store, so probably should add a Clear() RPC or something
 func genSet(size int, rate float32) []Experiment {
 	return []Experiment{
-		&PutThroughputExperiment{
+		&GooseKVPutThroughputExperiment{
 			Rate:           rate,
 			NumKeys:        1000000,
 			WarmupTime:     w,
@@ -52,7 +52,7 @@ func genLT() []Experiment {
 
 // var experiments = genLT()
 var experiments = []Experiment{
-	&GoosePutThroughputExperiment{
+	&GooseKVPutThroughputExperiment{
 		Rate:           1000000,
 		NumKeys:        1000,
 		WarmupTime:     w,

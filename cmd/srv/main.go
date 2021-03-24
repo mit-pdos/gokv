@@ -2,22 +2,17 @@ package main
 
 import (
 	"fmt"
-	"github.com/mit-pdos/gokv"
+	"flag"
+	"github.com/mit-pdos/gokv/goosekv"
+	"github.com/mit-pdos/lockservice/grove_ffi"
 	"log"
-	"net"
-	"net/http"
-	"net/rpc"
-	"time"
 	"os"
 	"runtime/pprof"
-	"flag"
 )
+
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
 
 func main() {
-	srv := gokv.MakeGoKVServer()
-
-	flag.Parse()
 	if *cpuprofile != "" {
 		f, err := os.Create(*cpuprofile)
 		if err != nil {
@@ -30,17 +25,10 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	rpc.RegisterName("KV", srv)
-	rpc.HandleHTTP()
-	l, e := net.Listen("tcp", ":12345")
-	if e != nil {
-		panic(e)
-	}
+	gkv := goosekv.MakeGoKVShardServer()
+	grove_ffi.SetPort(12345)
+	gkv.Start()
 
-	fmt.Println("Starting server")
-	// go http.Serve(l, nil)
-	func() {
-		log.Fatal(http.Serve(l, nil))
-	}()
-	time.Sleep(10 * time.Second)
+	fmt.Println("Started GooseKV server")
+	select{} // sleep forever
 }

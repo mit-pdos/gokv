@@ -1,66 +1,10 @@
 package main
 
 import (
-	"github.com/mit-pdos/gokv"
 	"github.com/mit-pdos/gokv/goosekv"
 	"github.com/mit-pdos/lockservice/grove_ffi"
-	"net/rpc"
 	"sync"
 )
-
-type KVClerkPool struct {
-	mu *sync.Mutex
-	// queue of free clerks
-	freeClerks []*gokv.GoKVClerk
-	numClerks  uint64
-	cls        []*rpc.Client
-}
-
-// the hope is that after a while, the number of clerks needed to maintain a
-// request rate for an open system benchmark will stabilize.
-func (p *KVClerkPool) Put(key uint64, value string) {
-	p.mu.Lock()
-	var ck *gokv.GoKVClerk
-	if len(p.freeClerks) == 0 {
-		ck = &gokv.GoKVClerk{Cl: p.cls[int(p.numClerks)%len(p.cls)]}
-		p.numClerks++
-		// fmt.Printf("p.numClerks = %v\n", p.numClerks)
-	} else {
-		ck = p.freeClerks[0]
-		p.freeClerks = p.freeClerks[1:]
-	}
-	p.mu.Unlock()
-
-	// we now own ck
-	ck.Put(key, value)
-
-	// done with ck, so asynchronously put it back in the free list
-	go func() {
-		p.mu.Lock()
-		p.freeClerks = append(p.freeClerks, ck)
-		p.mu.Unlock()
-	}()
-}
-
-func MakeKVClerkPool(numInit uint64, numClients uint64) *KVClerkPool {
-	p := new(KVClerkPool)
-	p.mu = new(sync.Mutex)
-	p.freeClerks = make([]*gokv.GoKVClerk, numInit)
-	p.cls = make([]*rpc.Client, numClients)
-	var err error
-	for i := uint64(0); i < numClients; i++ {
-		p.cls[i], err = rpc.DialHTTP("tcp", "localhost"+":12345")
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	for i := uint64(0); i < numInit; i++ {
-		p.freeClerks[i] = &gokv.GoKVClerk{Cl: p.cls[int(i)%len(p.cls)]}
-	}
-	p.numClerks = numInit
-	return p
-}
 
 type GooseKVClerkPool struct {
 	mu *sync.Mutex
