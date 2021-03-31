@@ -39,6 +39,32 @@ func (p *GooseKVClerkPool) Put(key uint64, value []byte) {
 	}()
 }
 
+func (p *GooseKVClerkPool) Get(key uint64) []byte {
+	p.mu.Lock()
+	var ck *goosekv.GoKVClerk
+	if len(p.freeClerks) == 0 {
+		ck = goosekv.MakeKVClerkWithRPCClient(p.numClerks, p.cls[p.numClerks%uint64(len(p.cls))])
+		p.numClerks++
+	} else {
+		ck = p.freeClerks[0]
+		p.freeClerks = p.freeClerks[1:]
+	}
+	p.mu.Unlock()
+
+	value := make([]byte, 0)
+	var e goosekv.ErrorType
+	// we now own ck
+	ck.Get(key, &e, &value)
+
+	// done with ck, so asynchronously put it back in the free list
+	go func() {
+		p.mu.Lock()
+		p.freeClerks = append(p.freeClerks, ck)
+		p.mu.Unlock()
+	}()
+	return value
+}
+
 func MakeGooseKVClerkPool(numInit uint64, numClients uint64) *GooseKVClerkPool {
 	p := new(GooseKVClerkPool)
 	p.mu = new(sync.Mutex)

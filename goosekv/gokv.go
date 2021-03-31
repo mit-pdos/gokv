@@ -42,6 +42,7 @@ func (s *GoKVShardServer) put_inner(args *PutRequest, reply *PutReply) {
 	} else {
 		reply.Err = EDontHaveShard
 	}
+
 	// XXX: this is a bit hacky (same as above)
 	s.lastReply[args.CID] = GetReply{Err:reply.Err}
 }
@@ -95,7 +96,7 @@ func MakeGoKVShardServer() *GoKVShardServer {
 	srv.lastSeq = make(map[uint64]uint64)
 	srv.kvss = make(map[uint64]map[uint64][]byte)
 	srv.shardMap = make(map[uint64]bool)
-	srv.opLog = aof.CreateAppendOnlyFile("kvdur_log")
+	srv.opLog = aof.CreateAppendOnlyFile("redis-db/kvdur_log")
 	return srv
 }
 
