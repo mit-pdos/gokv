@@ -84,17 +84,36 @@ type GetReply struct {
 }
 
 func encodeGetRequest(req *GetRequest) []byte {
-	panic("Unimpl")
+	e := marshal.NewEnc(3*8)
+	e.PutInt(req.CID)
+	e.PutInt(req.Seq)
+	e.PutInt(req.Key)
+	return e.Finish()
 }
 
 func decodeGetRequest(rawReq []byte) *GetRequest {
-	panic("Unimpl")
+	req := new(GetRequest)
+	d := marshal.NewDec(rawReq)
+	req.CID = d.GetInt()
+	req.Seq = d.GetInt()
+	req.Key = d.GetInt()
+	return req
 }
 
-func encodeGetReply(req *GetReply) []byte {
-	panic("Unimpl")
+func encodeGetReply(rep *GetReply) []byte {
+	num_bytes := uint64(8 + 8 + len(rep.Value)) // CID + Seq + key + value-len + value
+	e := marshal.NewEnc(num_bytes)
+	e.PutInt(rep.Err)
+	e.PutInt(uint64(len(rep.Value)))
+	e.PutBytes(rep.Value)
+	return e.Finish()
 }
 
-func decodeGetReply(rawReq []byte) *GetReply {
-	panic("Unimpl")
+func decodeGetReply(rawRep []byte) *GetReply {
+	rep := new(GetReply)
+	d := marshal.NewDec(rawRep)
+	rep.Err = d.GetInt()
+	rep.Value = d.GetBytes(d.GetInt())
+
+	return rep
 }
