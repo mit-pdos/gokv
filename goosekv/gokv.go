@@ -82,7 +82,11 @@ func (s *GoKVShardServer) GetRPC(args *GetRequest, reply *GetReply) {
 }
 
 // TODO: InstallShard()
-// TODO: recovery
+
+func RecoverGoKVShardServer() *GoKVShardServer {
+	// want to go through the entire operation log
+	return nil
+}
 
 func MakeGoKVShardServer() *GoKVShardServer {
 	srv := new(GoKVShardServer)

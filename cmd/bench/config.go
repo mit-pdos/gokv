@@ -1,6 +1,8 @@
 package main
 
-import "time"
+import (
+	"time"
+)
 
 var w = 10 * time.Second
 var e = 60 * time.Second

@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"sync/atomic"
 	"time"
+	. "github.com/mit-pdos/gokv/bench"
 )
 
 // XXX: this doesn't use monotonic time.
@@ -79,7 +80,6 @@ func repeat_until_done(f func(int), done *int32) {
 	}()
 }
 
-// TODO: make the output files a parameter
 type GooseKVPutThroughputExperiment struct {
 	Rate           float32
 	NumKeys        int
@@ -88,8 +88,6 @@ type GooseKVPutThroughputExperiment struct {
 	ValueGenerator ValueGenerator
 }
 
-// for latency samples, should just keep the latency amount and the time at
-// which it was observed (end of operation)
 func (e *GooseKVPutThroughputExperiment) run() {
 	fmt.Printf("==Testing open loop gokv put throughput with %+v\n", *e)
 	p := MakeGooseKVClerkPool(uint64(e.Rate), 100)
