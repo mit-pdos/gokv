@@ -61,4 +61,18 @@ func (ck *MemKVShardClerk) Get(key uint64, err *ErrorType, value *[]byte) {
 }
 
 func (ck *MemKVShardClerk) InstallShard(sid uint64, kvs map[uint64][]byte) {
+	args := InstallShardRequest{CID:ck.cid, Seq:ck.seq, Sid:sid, Kvs:kvs}
+	ck.seq = ck.seq + 1
+
+	rawRep := make([]byte, 0)
+	for ck.cl.Call(KV_INS_SHARD, encodeInstallShardRequest(&args), &rawRep) == true {
+	}
+}
+
+func (ck *MemKVShardClerk) MoveShard(sid uint64, dst string) {
+	args := MoveShardRequest{Sid:sid, Dst:dst}
+
+	rawRep := make([]byte, 0)
+	for ck.cl.Call(KV_MOV_SHARD, encodeMoveShardRequest(&args), &rawRep) == true {
+	}
 }
