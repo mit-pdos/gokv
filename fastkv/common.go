@@ -35,6 +35,7 @@ type PutRequest struct {
 // doesn't include the operation type
 func encodePutRequest(args *PutRequest) []byte {
 	num_bytes := uint64(8 + 8 + 8 + 8 + len(args.Value)) // CID + Seq + key + value-len + value
+	// num_bytes = uint64(8 + len(args.Value))
 	e := marshal.NewEnc(num_bytes)
 	e.PutInt(args.CID)
 	e.PutInt(args.Seq)

@@ -2,8 +2,7 @@ package fastkv
 
 import (
 	"github.com/mit-pdos/gokv/aof"
-	"github.com/mit-pdos/lockservice/grove_common"
-	"github.com/mit-pdos/lockservice/grove_ffi"
+	"github.com/upamanyus/urpc/rpc"
 	"sync"
 )
 
@@ -124,7 +123,7 @@ func MakeGoKVShardServer() *GoKVShardServer {
 }
 
 func (gkv *GoKVShardServer) Start() {
-	handlers := make(map[uint64]grove_common.RawRpcFunc)
+	handlers := make(map[uint64]func([]byte, *[]byte))
 
 	handlers[KV_PUT] = func(rawReq []byte, rawReply *[]byte) {
 		rep := new(PutReply)
@@ -144,5 +143,6 @@ func (gkv *GoKVShardServer) Start() {
 		return
 		gkv.FastUnsafeGetRPC(decodeFastGetRequest(rawReq), rep)
 	}
-	grove_ffi.StartRPCServer(handlers)
+	s := rpc.MakeRPCServer(handlers)
+	go s.Serve(":12345")
 }

@@ -41,4 +41,4 @@ fieldcount=1
 
 warmuptime=5
 redis.addr=localhost:6379
-redis.pool_size=15000
+redis.pool_size=20000
