@@ -16,6 +16,7 @@ const (
 const NSHARD = 65536
 
 // rpc ids
+const KV_FRESHCID = 0
 const KV_PUT = 1
 const KV_GET = 2
 const KV_INS_SHARD = 3
@@ -135,4 +136,14 @@ type MoveShardRequest struct {
 }
 
 type MoveShardReply struct {
+}
+
+func encodeCID(cid uint64) []byte {
+	e := marshal.NewEnc(8)
+	e.PutInt(cid)
+	return e.Finish()
+}
+
+func decodeCID(rawCID []byte) uint64 {
+	return marshal.NewDec(rawCID).GetInt()
 }

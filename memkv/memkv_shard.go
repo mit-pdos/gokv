@@ -9,6 +9,7 @@ type MemKVShardServer struct {
 	mu        *sync.Mutex
 	lastReply map[uint64]GetReply
 	lastSeq   map[uint64]uint64
+	nextCID uint64  // next CID that can be granted to a client
 
 	shardMap [NSHARD]bool
 	// if anything is in shardMap, then we have a map[] initialized in kvss
@@ -110,8 +111,20 @@ func MakeMemKVShardServer() *MemKVShardServer {
 	return srv
 }
 
+func (s *MemKVShardServer) GetCIDRPC() uint64 {
+	s.mu.Lock()
+	r := s.nextCID
+	s.nextCID = s.nextCID + 1
+	s.mu.Unlock()
+	return r
+}
+
 func (mkv *MemKVShardServer) Start() {
 	handlers := make(map[uint64]func([]byte, *[]byte))
+
+	handlers[KV_FRESHCID] = func(rawReq []byte, rawReply *[]byte) {
+		*rawReply = encodeCID(mkv.GetCIDRPC())
+	}
 
 	handlers[KV_PUT] = func(rawReq []byte, rawReply *[]byte) {
 		rep := new(PutReply)

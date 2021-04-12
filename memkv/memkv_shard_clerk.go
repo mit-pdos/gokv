@@ -12,6 +12,17 @@ type MemKVShardClerk struct {
 	cl  *rpc.RPCClient
 }
 
+func MakeFreshKVClerk(host string) *MemKVShardClerk {
+	ck := new(MemKVShardClerk)
+	ck.cl = rpc.MakeRPCClient(host)
+	rawRep := make([]byte, 0)
+	ck.cl.Call(KV_FRESHCID, make([]byte, 0), &rawRep)
+	ck.cid = decodeCID(rawRep)
+	ck.seq = 1
+
+	return ck
+}
+
 func MakeKVClerk(cid uint64, host string) *MemKVShardClerk {
 	ck := new(MemKVShardClerk)
 	ck.cl = rpc.MakeRPCClient(host)
