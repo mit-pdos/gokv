@@ -20,6 +20,7 @@ const KV_FRESHCID = 0
 const KV_PUT = 1
 const KV_GET = 2
 const KV_INS_SHARD = 3
+const KV_MOV_SHARD = 3
 
 func shardOf(key uint64) uint64 {
 	return key % NSHARD
@@ -127,7 +128,14 @@ type InstallShardRequest struct {
 	Kvs map[uint64][]byte
 }
 
-type InstallShardReply struct {
+func encodeInstallShardRequest(req *InstallShardRequest) []byte {
+	// TODO: deal with map encoding; maybe put try to get it in tchajed/marshal?
+	panic("unimpl")
+}
+
+func decodeInstallShardRequest(rawReq []byte) *InstallShardRequest {
+	// TODO: deal with map encoding; maybe put try to get it in tchajed/marshal?
+	panic("unimpl")
 }
 
 type MoveShardRequest struct {
@@ -135,7 +143,12 @@ type MoveShardRequest struct {
 	Dst string
 }
 
-type MoveShardReply struct {
+func encodeMoveShardRequest(req *MoveShardRequest) []byte {
+	panic("unimpl")
+}
+
+func decodeMoveShardRequest(rawReq []byte) *MoveShardRequest {
+	panic("unimpl")
 }
 
 func encodeCID(cid uint64) []byte {

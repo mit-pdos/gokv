@@ -2,11 +2,9 @@ package memkv
 
 import (
 	"github.com/upamanyus/urpc/rpc"
-	"sync"
 )
 
 type MemKVShardClerk struct {
-	mu  *sync.Mutex
 	seq uint64
 	cid uint64
 	cl  *rpc.RPCClient
@@ -60,4 +58,7 @@ func (ck *MemKVShardClerk) Get(key uint64, err *ErrorType, value *[]byte) {
 	rep := decodeGetReply(rawRep)
 	*err = rep.Err
 	*value = rep.Value
+}
+
+func (ck *MemKVShardClerk) InstallShard(sid uint64, kvs map[uint64][]byte) {
 }

@@ -14,6 +14,7 @@ type MemKVShardServer struct {
 	shardMap [NSHARD]bool
 	// if anything is in shardMap, then we have a map[] initialized in kvss
 	kvss [NSHARD](map[uint64][]byte)
+	peers map[string]*MemKVShardClerk
 }
 
 type PutArgs struct {
@@ -80,7 +81,7 @@ func (s *MemKVShardServer) GetRPC(args *GetRequest, reply *GetReply) {
 // will only grant half the ghost state, and physical state will keep track of
 // the fact that the shard is only good for read-only operations up until that
 // flag is updated (i.e. until RemoveShard() is run).
-func (s *MemKVShardServer) install_shard_inner(args *InstallShardRequest, reply *InstallShardReply) {
+func (s *MemKVShardServer) install_shard_inner(args *InstallShardRequest) {
 	last, ok := s.lastSeq[args.CID]
 	if ok && args.Seq <= last {
 		return
@@ -91,14 +92,31 @@ func (s *MemKVShardServer) install_shard_inner(args *InstallShardRequest, reply 
 	s.kvss[args.Sid] = args.Kvs
 }
 
-// TODO: InstallShard()
-func (s *MemKVShardServer) InstallShardRPC(args *InstallShardRequest, reply *InstallShardReply) {
+func (s *MemKVShardServer) InstallShardRPC(args *InstallShardRequest) {
 	s.mu.Lock()
-	s.install_shard_inner(args, reply)
+	s.install_shard_inner(args)
 	s.mu.Unlock()
 }
 
-func (s *MemKVShardServer) MoveShardRPC(args *MoveShardRequest, reply *MoveShardReply) {
+func (s *MemKVShardServer) MoveShardRPC(args *MoveShardRequest) {
+	s.mu.Lock()
+	if !s.shardMap[args.Sid] {
+		s.mu.Unlock()
+		return
+	}
+
+	_, ok := s.peers[args.Dst]
+	if !ok {
+		s.mu.Unlock()
+		ck := MakeFreshKVClerk(args.Dst)
+		s.mu.Lock()
+		s.peers[args.Dst] = ck
+	}
+	kvs := s.kvss[args.Sid]
+	s.kvss[args.Sid] = nil
+	s.shardMap[args.Sid] = false
+	s.mu.Unlock() // no need for lock anymore
+	s.peers[args.Dst].InstallShard(args.Sid, kvs)
 }
 
 func MakeMemKVShardServer() *MemKVShardServer {
@@ -136,6 +154,20 @@ func (mkv *MemKVShardServer) Start() {
 		rep := new(GetReply)
 		mkv.GetRPC(decodeGetRequest(rawReq), rep)
 		*rawReply = encodeGetReply(rep)
+	}
+
+	handlers[KV_INS_SHARD] = func(rawReq []byte, rawReply *[]byte) {
+		// NOTE: decoding, i.e. construction of in-memory map, happens before we get
+		// the lock
+		mkv.InstallShardRPC(decodeInstallShardRequest(rawReq))
+		*rawReply = make([]byte, 0)
+	}
+
+	handlers[KV_MOV_SHARD] = func(rawReq []byte, rawReply *[]byte) {
+		// NOTE: decoding, i.e. construction of in-memory map, happens before we get
+		// the lock
+		mkv.MoveShardRPC(decodeMoveShardRequest(rawReq))
+		*rawReply = make([]byte, 0)
 	}
 
 	s := rpc.MakeRPCServer(handlers)
