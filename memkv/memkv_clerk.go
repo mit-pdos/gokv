@@ -5,9 +5,9 @@ import (
 )
 
 type MemKVCoordClerk struct {
-	seq uint64
-	cid uint64
-	cl  *rpc.RPCClient
+	seq      uint64
+	cid      uint64
+	cl       *rpc.RPCClient
 	shardMap [NSHARD]HostName // maps from sid -> host that currently owns it
 }
 
@@ -21,7 +21,7 @@ func (ck *MemKVCoordClerk) GetShardMap() *[NSHARD]HostName {
 }
 
 type ShardClerkSet struct {
-	cls  map[HostName]*MemKVShardClerk
+	cls map[HostName]*MemKVShardClerk
 }
 
 func (s *ShardClerkSet) getClerk(host HostName) *MemKVShardClerk {
@@ -37,11 +37,11 @@ func (s *ShardClerkSet) getClerk(host HostName) *MemKVShardClerk {
 // might be good to not need to duplicate shardMap[] for a pool of clerks that's
 // safe for concurrent use
 type MemKVClerk struct {
-	seq uint64
-	cid uint64
+	seq         uint64
+	cid         uint64
 	shardClerks *ShardClerkSet
-	coordCk  MemKVCoordClerk
-	shardMap [NSHARD]HostName // maps from sid -> host that currently owns it
+	coordCk     MemKVCoordClerk
+	shardMap    [NSHARD]HostName // maps from sid -> host that currently owns it
 }
 
 func (ck *MemKVClerk) Get(key uint64) []byte {

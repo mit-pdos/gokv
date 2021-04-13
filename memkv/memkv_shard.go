@@ -9,11 +9,11 @@ type MemKVShardServer struct {
 	mu        *sync.Mutex
 	lastReply map[uint64]GetReply
 	lastSeq   map[uint64]uint64
-	nextCID uint64  // next CID that can be granted to a client
+	nextCID   uint64 // next CID that can be granted to a client
 
 	shardMap [NSHARD]bool
 	// if anything is in shardMap, then we have a map[] initialized in kvss
-	kvss [NSHARD](map[uint64][]byte)
+	kvss  [NSHARD](map[uint64][]byte)
 	peers map[HostName]*MemKVShardClerk
 }
 
@@ -115,7 +115,7 @@ func (s *MemKVShardServer) MoveShardRPC(args *MoveShardRequest) {
 	kvs := s.kvss[args.Sid]
 	s.kvss[args.Sid] = nil
 	s.shardMap[args.Sid] = false
-	s.mu.Unlock() // no need for lock anymore
+	s.mu.Unlock()                                 // no need for lock anymore
 	s.peers[args.Dst].InstallShard(args.Sid, kvs) // FIXME: need to put mutex in clerk, or put this under server lock
 }
 

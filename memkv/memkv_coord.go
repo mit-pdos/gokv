@@ -1,18 +1,18 @@
 package memkv
 
 import (
-	"sync"
 	"github.com/upamanyus/urpc/rpc"
+	"sync"
 )
 
 const COORD_MOVE = 1
 const COORD_GET = 2
 
 type MemKVCoord struct {
-	mu *sync.Mutex
-	seq uint64
-	cid uint64
-	cl  *rpc.RPCClient
+	mu       *sync.Mutex
+	seq      uint64
+	cid      uint64
+	cl       *rpc.RPCClient
 	shardMap [NSHARD]HostName // maps from sid -> host that currently owns it
 }
 

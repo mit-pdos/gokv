@@ -89,7 +89,7 @@ type GetReply struct {
 }
 
 func encodeGetRequest(req *GetRequest) []byte {
-	e := marshal.NewEnc(3*8)
+	e := marshal.NewEnc(3 * 8)
 	e.PutInt(req.CID)
 	e.PutInt(req.Seq)
 	e.PutInt(req.Key)
@@ -163,7 +163,7 @@ func decodeCID(rawCID []byte) uint64 {
 	return marshal.NewDec(rawCID).GetInt()
 }
 
-func encodeShardMap(shardMap *[NSHARD]HostName)[]byte {
+func encodeShardMap(shardMap *[NSHARD]HostName) []byte {
 	panic("unimpl")
 }
 
