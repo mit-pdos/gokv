@@ -4,6 +4,8 @@ import (
 	"github.com/tchajed/marshal"
 )
 
+type HostName = string
+
 type ValueType = uint64
 
 type ErrorType = uint64
@@ -140,7 +142,7 @@ func decodeInstallShardRequest(rawReq []byte) *InstallShardRequest {
 
 type MoveShardRequest struct {
 	Sid uint64
-	Dst string
+	Dst HostName
 }
 
 func encodeMoveShardRequest(req *MoveShardRequest) []byte {
@@ -159,4 +161,12 @@ func encodeCID(cid uint64) []byte {
 
 func decodeCID(rawCID []byte) uint64 {
 	return marshal.NewDec(rawCID).GetInt()
+}
+
+func encodeShardMap(shardMap *[NSHARD]HostName)[]byte {
+	panic("unimpl")
+}
+
+func decodeShardMap(raw []byte) *[NSHARD]HostName {
+	panic("unimpl")
 }

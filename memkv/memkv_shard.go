@@ -14,7 +14,7 @@ type MemKVShardServer struct {
 	shardMap [NSHARD]bool
 	// if anything is in shardMap, then we have a map[] initialized in kvss
 	kvss [NSHARD](map[uint64][]byte)
-	peers map[string]*MemKVShardClerk
+	peers map[HostName]*MemKVShardClerk
 }
 
 type PutArgs struct {

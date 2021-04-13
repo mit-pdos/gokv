@@ -10,9 +10,9 @@ type MemKVShardClerk struct {
 	cl  *rpc.RPCClient
 }
 
-func MakeFreshKVClerk(host string) *MemKVShardClerk {
+func MakeFreshKVClerk(host HostName) *MemKVShardClerk {
 	ck := new(MemKVShardClerk)
-	ck.cl = rpc.MakeRPCClient(host)
+	ck.cl = rpc.MakeRPCClient(host) // TODO: make this a byte-array as well
 	rawRep := make([]byte, 0)
 	ck.cl.Call(KV_FRESHCID, make([]byte, 0), &rawRep)
 	ck.cid = decodeCID(rawRep)
@@ -21,7 +21,7 @@ func MakeFreshKVClerk(host string) *MemKVShardClerk {
 	return ck
 }
 
-func MakeKVClerk(cid uint64, host string) *MemKVShardClerk {
+func MakeKVClerk(cid uint64, host HostName) *MemKVShardClerk {
 	ck := new(MemKVShardClerk)
 	ck.cl = rpc.MakeRPCClient(host)
 	ck.cid = cid
@@ -48,7 +48,7 @@ func (ck *MemKVShardClerk) Put(key uint64, value []byte) ErrorType {
 	return decodePutReply(rawRep).Err
 }
 
-func (ck *MemKVShardClerk) Get(key uint64, err *ErrorType, value *[]byte) {
+func (ck *MemKVShardClerk) Get(key uint64, value *[]byte) ErrorType {
 	args := GetRequest{ck.cid, ck.seq, key}
 	ck.seq = ck.seq + 1
 
@@ -56,8 +56,8 @@ func (ck *MemKVShardClerk) Get(key uint64, err *ErrorType, value *[]byte) {
 	for ck.cl.Call(KV_GET, encodeGetRequest(&args), &rawRep) == true {
 	}
 	rep := decodeGetReply(rawRep)
-	*err = rep.Err
 	*value = rep.Value
+	return rep.Err
 }
 
 func (ck *MemKVShardClerk) InstallShard(sid uint64, kvs map[uint64][]byte) {
@@ -69,7 +69,7 @@ func (ck *MemKVShardClerk) InstallShard(sid uint64, kvs map[uint64][]byte) {
 	}
 }
 
-func (ck *MemKVShardClerk) MoveShard(sid uint64, dst string) {
+func (ck *MemKVShardClerk) MoveShard(sid uint64, dst HostName) {
 	args := MoveShardRequest{Sid:sid, Dst:dst}
 
 	rawRep := make([]byte, 0)
