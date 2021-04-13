@@ -116,7 +116,7 @@ func (s *MemKVShardServer) MoveShardRPC(args *MoveShardRequest) {
 	s.kvss[args.Sid] = nil
 	s.shardMap[args.Sid] = false
 	s.mu.Unlock() // no need for lock anymore
-	s.peers[args.Dst].InstallShard(args.Sid, kvs)
+	s.peers[args.Dst].InstallShard(args.Sid, kvs) // FIXME: need to put mutex in clerk, or put this under server lock
 }
 
 func MakeMemKVShardServer() *MemKVShardServer {
@@ -164,8 +164,6 @@ func (mkv *MemKVShardServer) Start() {
 	}
 
 	handlers[KV_MOV_SHARD] = func(rawReq []byte, rawReply *[]byte) {
-		// NOTE: decoding, i.e. construction of in-memory map, happens before we get
-		// the lock
 		mkv.MoveShardRPC(decodeMoveShardRequest(rawReq))
 		*rawReply = make([]byte, 0)
 	}
