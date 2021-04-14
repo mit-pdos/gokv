@@ -4,25 +4,25 @@ import (
 	"github.com/tchajed/marshal"
 )
 
-type HostName = string
+type HostName = uint64
 
 type ValueType = uint64
 
 type ErrorType = uint64
 
 const (
-	ENone = iota
-	EDontHaveShard
+	ENone = uint64(0)
+	EDontHaveShard = uint64(1)
 )
 
-const NSHARD = 65536
+const NSHARD = uint64(65536)
 
 // rpc ids
-const KV_FRESHCID = 0
-const KV_PUT = 1
-const KV_GET = 2
-const KV_INS_SHARD = 3
-const KV_MOV_SHARD = 3
+const KV_FRESHCID = uint64(0)
+const KV_PUT = uint64(1)
+const KV_GET = uint64(2)
+const KV_INS_SHARD = uint64(3)
+const KV_MOV_SHARD = uint64(3)
 
 func shardOf(key uint64) uint64 {
 	return key % NSHARD
@@ -163,10 +163,10 @@ func decodeCID(rawCID []byte) uint64 {
 	return marshal.NewDec(rawCID).GetInt()
 }
 
-func encodeShardMap(shardMap *[NSHARD]HostName) []byte {
+func encodeShardMap(shardMap *[]HostName) []byte {
 	panic("unimpl")
 }
 
-func decodeShardMap(raw []byte) *[NSHARD]HostName {
+func decodeShardMap(raw []byte) []HostName {
 	panic("unimpl")
 }

@@ -14,7 +14,7 @@ type MemKVCoordClerk struct {
 func (ck *MemKVCoordClerk) MoveShard(sid uint64, dst uint64) {
 }
 
-func (ck *MemKVCoordClerk) GetShardMap() *[NSHARD]HostName {
+func (ck *MemKVCoordClerk) GetShardMap() []HostName {
 	rawRep := new([]byte)
 	ck.cl.Call(COORD_GET, make([]byte, 0), rawRep)
 	return decodeShardMap(*rawRep)
@@ -27,10 +27,12 @@ type ShardClerkSet struct {
 func (s *ShardClerkSet) getClerk(host HostName) *MemKVShardClerk {
 	ck, ok := s.cls[host]
 	if !ok {
-		ck = MakeFreshKVClerk(host)
-		s.cls[host] = ck
+		ck2 := MakeFreshKVClerk(host)
+		s.cls[host] = ck2
+		return ck2
+	} else {
+		return ck
 	}
-	return ck
 }
 
 // NOTE: a single clerk keeps quite a bit of state, via the shardMap[], so it
@@ -41,23 +43,24 @@ type MemKVClerk struct {
 	cid         uint64
 	shardClerks *ShardClerkSet
 	coordCk     MemKVCoordClerk
-	shardMap    [NSHARD]HostName // maps from sid -> host that currently owns it
+	shardMap    []HostName // size == NSHARD; maps from sid -> host that currently owns it
 }
 
 func (ck *MemKVClerk) Get(key uint64) []byte {
+	val := new([]byte)
 	for {
 		sid := shardOf(key)
 		shardServer := ck.shardMap[sid]
 
 		shardCk := ck.shardClerks.getClerk(shardServer)
-		val := new([]byte)
 		err := shardCk.Get(key, val)
 		if err == EDontHaveShard {
-			ck.shardMap = *ck.coordCk.GetShardMap()
+			ck.shardMap = ck.coordCk.GetShardMap()
 		} else if err == ENone {
-			return *val
+			break
 		}
 	}
+	return *val
 }
 
 func (ck *MemKVClerk) Put(key uint64, value []byte) {
@@ -69,11 +72,12 @@ func (ck *MemKVClerk) Put(key uint64, value []byte) {
 		err := shardCk.Put(key, value)
 
 		if err == EDontHaveShard {
-			ck.shardMap = *ck.coordCk.GetShardMap()
+			ck.shardMap = ck.coordCk.GetShardMap()
 		} else if err == ENone {
-			return
+			break
 		}
 	}
+	return
 }
 
 // TODO: add an Append(key, value) (oldValue []byte) call

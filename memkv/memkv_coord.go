@@ -6,18 +6,17 @@ import (
 	"sync"
 )
 
-const COORD_MOVE = 1
-const COORD_GET = 2
+const COORD_MOVE = uint64(1)
+const COORD_GET = uint64(2)
 
 type MemKVCoord struct {
-	mu           *sync.Mutex
-	shardServers []HostName
-	shardMap     [NSHARD]HostName // maps from sid -> host that currently owns it
+	mu       *sync.Mutex
+	config   map[HostName]string
+	shardMap []HostName // maps from sid -> host that currently owns it
 }
 
 func (c *MemKVCoord) AddServerRPC(host string) {
 	c.mu.Lock()
-	c.shardServers = append(c.shardServers, host)
 	panic("shard rebalancing unimpl")
 	c.mu.Unlock()
 }
@@ -31,9 +30,12 @@ func (c *MemKVCoord) GetShardMapRPC(_ []byte, rep *[]byte) {
 func MakeMemKVCoordServer() *MemKVCoord {
 	s := new(MemKVCoord)
 	s.mu = new(sync.Mutex)
-	s.shardServers = []string{"localhost:37001", "localhost:37002"}
-	for i := 0; i < NSHARD; i++ {
-		s.shardMap[i] = s.shardServers[i%len(s.shardServers)]
+	s.config = make(map[HostName]string)
+	s.config[1] = "localhost:37001"
+	s.config[2] = "localhost:37002"
+
+	for i := uint64(0); i < NSHARD; i++ {
+		s.shardMap[i] = i % 2 // s.config[i%uint64(len(s.shardServers))]
 	}
 	return s
 }

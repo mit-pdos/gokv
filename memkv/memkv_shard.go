@@ -6,15 +6,19 @@ import (
 	"sync"
 )
 
+type KvMap struct {
+	kvs map[uint64][]byte
+}
+
 type MemKVShardServer struct {
 	mu        *sync.Mutex
 	lastReply map[uint64]GetReply
 	lastSeq   map[uint64]uint64
 	nextCID   uint64 // next CID that can be granted to a client
 
-	shardMap [NSHARD]bool
+	shardMap []bool // \box(size=NSHARDS)
 	// if anything is in shardMap, then we have a map[] initialized in kvss
-	kvss  [NSHARD](map[uint64][]byte)
+	kvss  []KvMap // \box(size=NSHARDS)
 	peers map[HostName]*MemKVShardClerk
 }
 
@@ -35,7 +39,7 @@ func (s *MemKVShardServer) put_inner(args *PutRequest, reply *PutReply) {
 	sid := shardOf(args.Key)
 
 	if s.shardMap[sid] == true {
-		s.kvss[sid][args.Key] = args.Value // give ownership of the slice to the server
+		s.kvss[sid].kvs[args.Key] = args.Value // give ownership of the slice to the server
 		reply.Err = ENone
 	} else {
 		reply.Err = EDontHaveShard
@@ -62,7 +66,7 @@ func (s *MemKVShardServer) get_inner(args *GetRequest, reply *GetReply) {
 	sid := shardOf(args.Key)
 
 	if s.shardMap[sid] == true {
-		reply.Value = append(make([]byte, 0), s.kvss[sid][args.Key]...)
+		reply.Value = append(make([]byte, 0), s.kvss[sid].kvs[args.Key]...)
 		reply.Err = ENone
 	} else {
 		reply.Err = EDontHaveShard
@@ -90,7 +94,7 @@ func (s *MemKVShardServer) install_shard_inner(args *InstallShardRequest) {
 	s.lastSeq[args.CID] = args.Seq
 
 	s.shardMap[args.Sid] = true
-	s.kvss[args.Sid] = args.Kvs
+	s.kvss[args.Sid] = KvMap{kvs:args.Kvs}
 }
 
 func (s *MemKVShardServer) InstallShardRPC(args *InstallShardRequest) {
@@ -114,10 +118,10 @@ func (s *MemKVShardServer) MoveShardRPC(args *MoveShardRequest) {
 		s.peers[args.Dst] = ck
 	}
 	kvs := s.kvss[args.Sid]
-	s.kvss[args.Sid] = nil
+	s.kvss[args.Sid] = KvMap{kvs:nil}
 	s.shardMap[args.Sid] = false
 	s.mu.Unlock()                                 // no need for lock anymore
-	s.peers[args.Dst].InstallShard(args.Sid, kvs) // FIXME: need to put mutex in clerk, or put this under server lock
+	s.peers[args.Dst].InstallShard(args.Sid, kvs.kvs) // FIXME: need to put mutex in clerk, or put this under server lock
 }
 
 func MakeMemKVShardServer() *MemKVShardServer {
