@@ -6,9 +6,7 @@ import (
 	"sync"
 )
 
-type KvMap struct {
-	kvs map[uint64][]byte
-}
+type KvMap = map[uint64][]byte
 
 type MemKVShardServer struct {
 	mu        *sync.Mutex
@@ -39,7 +37,7 @@ func (s *MemKVShardServer) put_inner(args *PutRequest, reply *PutReply) {
 	sid := shardOf(args.Key)
 
 	if s.shardMap[sid] == true {
-		s.kvss[sid].kvs[args.Key] = args.Value // give ownership of the slice to the server
+		s.kvss[sid][args.Key] = args.Value // give ownership of the slice to the server
 		reply.Err = ENone
 	} else {
 		reply.Err = EDontHaveShard
@@ -66,7 +64,7 @@ func (s *MemKVShardServer) get_inner(args *GetRequest, reply *GetReply) {
 	sid := shardOf(args.Key)
 
 	if s.shardMap[sid] == true {
-		reply.Value = append(make([]byte, 0), s.kvss[sid].kvs[args.Key]...)
+		reply.Value = append(make([]byte, 0), s.kvss[sid][args.Key]...)
 		reply.Err = ENone
 	} else {
 		reply.Err = EDontHaveShard
@@ -94,7 +92,7 @@ func (s *MemKVShardServer) install_shard_inner(args *InstallShardRequest) {
 	s.lastSeq[args.CID] = args.Seq
 
 	s.shardMap[args.Sid] = true
-	s.kvss[args.Sid] = KvMap{kvs:args.Kvs}
+	s.kvss[args.Sid] = args.Kvs
 }
 
 func (s *MemKVShardServer) InstallShardRPC(args *InstallShardRequest) {
@@ -118,10 +116,10 @@ func (s *MemKVShardServer) MoveShardRPC(args *MoveShardRequest) {
 		s.peers[args.Dst] = ck
 	}
 	kvs := s.kvss[args.Sid]
-	s.kvss[args.Sid] = KvMap{kvs:nil}
+	s.kvss[args.Sid] = nil
 	s.shardMap[args.Sid] = false
 	s.mu.Unlock()                                 // no need for lock anymore
-	s.peers[args.Dst].InstallShard(args.Sid, kvs.kvs) // FIXME: need to put mutex in clerk, or put this under server lock
+	s.peers[args.Dst].InstallShard(args.Sid, kvs) // FIXME: need to put mutex in clerk, or put this under server lock
 }
 
 func MakeMemKVShardServer() *MemKVShardServer {
