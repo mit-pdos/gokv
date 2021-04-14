@@ -1,7 +1,8 @@
 package memkv
 
 import (
-	"github.com/upamanyus/urpc/rpc"
+	"github.com/mit-pdos/lockservice/grove_ffi"
+	"github.com/mit-pdos/lockservice/grove_common"
 	"sync"
 )
 
@@ -138,7 +139,7 @@ func (s *MemKVShardServer) GetCIDRPC() uint64 {
 }
 
 func (mkv *MemKVShardServer) Start() {
-	handlers := make(map[uint64]func([]byte, *[]byte))
+	handlers := make(map[uint64]grove_common.RawRpcFunc)
 
 	handlers[KV_FRESHCID] = func(rawReq []byte, rawReply *[]byte) {
 		*rawReply = encodeCID(mkv.GetCIDRPC())
@@ -167,7 +168,5 @@ func (mkv *MemKVShardServer) Start() {
 		mkv.MoveShardRPC(decodeMoveShardRequest(rawReq))
 		*rawReply = make([]byte, 0)
 	}
-
-	s := rpc.MakeRPCServer(handlers)
-	go s.Serve(":12345")
+	grove_ffi.StartRPCServer(handlers)
 }
