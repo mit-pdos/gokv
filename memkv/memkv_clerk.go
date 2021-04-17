@@ -1,13 +1,13 @@
 package memkv
 
 import (
-	"github.com/upamanyus/urpc/rpc"
+	"github.com/mit-pdos/lockservice/grove_ffi"
 )
 
 type MemKVCoordClerk struct {
 	seq      uint64
 	cid      uint64
-	cl       *rpc.RPCClient
+	cl       *grove_ffi.RPCClient
 	shardMap [NSHARD]HostName // maps from sid -> host that currently owns it
 }
 
@@ -39,8 +39,6 @@ func (s *ShardClerkSet) getClerk(host HostName) *MemKVShardClerk {
 // might be good to not need to duplicate shardMap[] for a pool of clerks that's
 // safe for concurrent use
 type MemKVClerk struct {
-	seq         uint64
-	cid         uint64
 	shardClerks *ShardClerkSet
 	coordCk     MemKVCoordClerk
 	shardMap    []HostName // size == NSHARD; maps from sid -> host that currently owns it
@@ -54,11 +52,11 @@ func (ck *MemKVClerk) Get(key uint64) []byte {
 
 		shardCk := ck.shardClerks.getClerk(shardServer)
 		err := shardCk.Get(key, val)
-		if err == EDontHaveShard {
-			ck.shardMap = ck.coordCk.GetShardMap()
-		} else if err == ENone {
+		if err == ENone {
 			break
 		}
+		ck.shardMap = ck.coordCk.GetShardMap()
+		continue
 	}
 	return *val
 }
@@ -71,11 +69,11 @@ func (ck *MemKVClerk) Put(key uint64, value []byte) {
 		shardCk := ck.shardClerks.getClerk(shardServer)
 		err := shardCk.Put(key, value)
 
-		if err == EDontHaveShard {
-			ck.shardMap = ck.coordCk.GetShardMap()
-		} else if err == ENone {
+		if err == ENone {
 			break
 		}
+		ck.shardMap = ck.coordCk.GetShardMap()
+		continue
 	}
 	return
 }

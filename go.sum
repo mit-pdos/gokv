@@ -42,6 +42,10 @@ github.com/mattn/go-isatty v0.0.12/go.mod h1:cbi8OIDigv2wuxKPP5vlRcQ1OAZbq2CE4Ky
 github.com/mit-pdos/goose-nfsd v0.0.0-20210314175046-2ab6d49307fb/go.mod h1:twTpJ5VWh2M6W9i00jgxuTqMwL+uAoMEpDChT05RMtk=
 github.com/mit-pdos/lockservice v0.0.0-20210324194740-5e95cdf7f4fd h1:xaVZSyRIo+aQbY20GSd0M/6Tma0QXmLZ65eH6c6P2JM=
 github.com/mit-pdos/lockservice v0.0.0-20210324194740-5e95cdf7f4fd/go.mod h1:JT8ZzuCk3lfmaHsm9Me+zPCxLbL4aIWPTkz8qZzC55k=
+github.com/mit-pdos/lockservice v0.0.0-20210414190130-532029fc7043 h1:9DkexWp4pRSVoMOPFAhACYsu3vt+AwRfV3GMdA45WCs=
+github.com/mit-pdos/lockservice v0.0.0-20210414190130-532029fc7043/go.mod h1:dDhQ55VvlWB2IUW84QMXnvtDNqKgWek2VKpsiRO9w1k=
+github.com/mit-pdos/lockservice v0.0.0-20210417173448-fa08a3aa3f49 h1:GoemziGenSmNKd9nS3g5cAxyS67cK7UvMc3afQf/7/0=
+github.com/mit-pdos/lockservice v0.0.0-20210417173448-fa08a3aa3f49/go.mod h1:dDhQ55VvlWB2IUW84QMXnvtDNqKgWek2VKpsiRO9w1k=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e h1:fD57ERR4JtEqsWbfPhv4DMiApHyliiK5xCTNVSPiaAs=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
 github.com/nxadm/tail v1.4.4 h1:DQuhQpB1tVlglWS2hLQ5OV6B5r8aGxSrPc5Qo6uTN78=
@@ -76,6 +80,8 @@ github.com/tchajed/marshal v0.0.0-20210312145633-4d998c90d194 h1:ClGVtLtcuQWIr9u
 github.com/tchajed/marshal v0.0.0-20210312145633-4d998c90d194/go.mod h1:TPo3bTYJkH87/4rXlxe0bpVWLnN+b5kjJnoXHLBfdaA=
 github.com/upamanyus/urpc v0.0.0-20210411234332-bd074b7f3bfe h1:P9Gx6i3mkbm2pPIhsnbeXRgzGO2uBagAIbMRKgFXZcg=
 github.com/upamanyus/urpc v0.0.0-20210411234332-bd074b7f3bfe/go.mod h1:bzfuXLBnQZiX+8U/vGNFH+suv3RQE0r9Ty0CWAmbHZM=
+github.com/upamanyus/urpc v0.0.0-20210412143254-587eba24740c h1:0D+7HtAuOBL/oxaTJa5R5VfBTItoYcCdTJs1zNpng7k=
+github.com/upamanyus/urpc v0.0.0-20210412143254-587eba24740c/go.mod h1:bzfuXLBnQZiX+8U/vGNFH+suv3RQE0r9Ty0CWAmbHZM=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/zeldovich/go-rpcgen v0.1.0/go.mod h1:CaF7Ys1EaK+D18PEYCmjISruqU1z98Cw+F/fwNUj4KQ=
 go.opentelemetry.io/otel v0.19.0 h1:Lenfy7QHRXPZVsw/12CWpxX6d/JkrX8wrx2vO8G80Ng=

@@ -1,8 +1,8 @@
 package memkv
 
 import (
-	"github.com/mit-pdos/lockservice/grove_ffi"
 	"github.com/mit-pdos/lockservice/grove_common"
+	"github.com/mit-pdos/lockservice/grove_ffi"
 	"sync"
 )
 
@@ -27,7 +27,8 @@ type PutArgs struct {
 
 func (s *MemKVShardServer) put_inner(args *PutRequest, reply *PutReply) {
 	last, ok := s.lastSeq[args.CID]
-	if ok && args.Seq <= last {
+	seq := args.Seq
+	if ok && seq <= last {
 		// XXX: this is a bit hacky
 		reply.Err = s.lastReply[args.CID].Err
 		return
@@ -55,7 +56,8 @@ func (s *MemKVShardServer) PutRPC(args *PutRequest, reply *PutReply) {
 
 func (s *MemKVShardServer) get_inner(args *GetRequest, reply *GetReply) {
 	last, ok := s.lastSeq[args.CID]
-	if ok && args.Seq <= last {
+	seq := args.Seq
+	if ok && seq <= last {
 		*reply = s.lastReply[args.CID]
 		return
 	}
@@ -86,13 +88,15 @@ func (s *MemKVShardServer) GetRPC(args *GetRequest, reply *GetReply) {
 // flag is updated (i.e. until RemoveShard() is run).
 func (s *MemKVShardServer) install_shard_inner(args *InstallShardRequest) {
 	last, ok := s.lastSeq[args.CID]
-	if ok && args.Seq <= last {
+	seq := args.Seq
+	if ok && seq <= last {
 		return
 	}
 	s.lastSeq[args.CID] = args.Seq
 
 	s.shardMap[args.Sid] = true
 	s.kvss[args.Sid] = args.Kvs
+	s.lastReply[args.CID] = GetReply{Err: 0, Value: nil}
 }
 
 func (s *MemKVShardServer) InstallShardRPC(args *InstallShardRequest) {
@@ -118,8 +122,8 @@ func (s *MemKVShardServer) MoveShardRPC(args *MoveShardRequest) {
 	kvs := s.kvss[args.Sid]
 	s.kvss[args.Sid] = nil
 	s.shardMap[args.Sid] = false
-	s.mu.Unlock()                                 // no need for lock anymore
-	s.peers[args.Dst].InstallShard(args.Sid, kvs) // FIXME: need to put mutex in clerk, or put this under server lock
+	s.peers[args.Dst].InstallShard(args.Sid, kvs) // XXX: if we want to do this without the lock, need a lock in the clerk itself
+	s.mu.Unlock()
 }
 
 func MakeMemKVShardServer() *MemKVShardServer {
@@ -127,8 +131,8 @@ func MakeMemKVShardServer() *MemKVShardServer {
 	srv.mu = new(sync.Mutex)
 	srv.lastReply = make(map[uint64]GetReply)
 	srv.lastSeq = make(map[uint64]uint64)
-	// srv.kvss = make(map[uint64][]byte)
-	// srv.shardMap = make(map[uint64]bool)
+	srv.shardMap = make([]bool, NSHARD)
+	srv.kvss = make([]KvMap, NSHARD)
 	return srv
 }
 

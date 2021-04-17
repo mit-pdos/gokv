@@ -2,9 +2,10 @@ package memkv
 
 import (
 	"github.com/tchajed/marshal"
+	"github.com/mit-pdos/lockservice/grove_ffi"
 )
 
-type HostName = uint64
+type HostName = grove_ffi.HostName
 
 type ValueType = uint64
 
@@ -22,7 +23,7 @@ const KV_FRESHCID = uint64(0)
 const KV_PUT = uint64(1)
 const KV_GET = uint64(2)
 const KV_INS_SHARD = uint64(3)
-const KV_MOV_SHARD = uint64(3)
+const KV_MOV_SHARD = uint64(4)
 
 func shardOf(key uint64) uint64 {
 	return key % NSHARD
