@@ -131,14 +131,54 @@ type InstallShardRequest struct {
 	Kvs map[uint64][]byte
 }
 
+// NOTE: probably can just amortize this by keeping track of this with the map itself
+func SizeOfMarshalledMap(m map[uint64][]byte) uint64 {
+	s := uint64(8)
+	for _, value := range m {
+		s += (uint64(len(value)) + 8 + 8)
+	}
+	return s
+}
+
+func EncSliceMap(e marshal.Enc, m map[uint64][]byte) {
+	e.PutInt(uint64(len(m)))
+	for key, value := range m {
+		e.PutInt(key)
+		e.PutInt(uint64(len(value)))
+		e.PutBytes(value)
+	}
+}
+
+func DecSliceMap(d marshal.Dec) map[uint64][]byte {
+	sz := d.GetInt()
+	m := make(map[uint64][]byte)
+	var i = uint64(0)
+	for i < sz {
+		k := d.GetInt()
+		v := d.GetBytes(d.GetInt())
+		m[k] = v
+		i = i + 1
+	}
+	return m
+}
+
 func encodeInstallShardRequest(req *InstallShardRequest) []byte {
-	// TODO: deal with map encoding; maybe put try to get it in tchajed/marshal?
-	panic("unimpl")
+	e := marshal.NewEnc(8 + 8 + 8 + SizeOfMarshalledMap(req.Kvs) )
+	e.PutInt(req.CID)
+	e.PutInt(req.Seq)
+	e.PutInt(req.Sid)
+	EncSliceMap(e, req.Kvs)
+	return e.Finish()
 }
 
 func decodeInstallShardRequest(rawReq []byte) *InstallShardRequest {
-	// TODO: deal with map encoding; maybe put try to get it in tchajed/marshal?
-	panic("unimpl")
+	d := marshal.NewDec(rawReq)
+	req := new(InstallShardRequest)
+	req.CID = d.GetInt()
+	req.Seq = d.GetInt()
+	req.Sid = d.GetInt()
+	req.Kvs = DecSliceMap(d)
+	return req
 }
 
 type MoveShardRequest struct {
