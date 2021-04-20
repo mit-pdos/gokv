@@ -9,14 +9,30 @@ import (
 const COORD_MOVE = uint64(1)
 const COORD_GET = uint64(2)
 
+type ShardClerkSet struct {
+	cls map[HostName]*MemKVShardClerk
+}
+
+func (s *ShardClerkSet) GetClerk(host HostName) *MemKVShardClerk {
+	ck, ok := s.cls[host]
+	if !ok {
+		ck2 := MakeFreshKVClerk(host)
+		s.cls[host] = ck2
+		return ck2
+	} else {
+		return ck
+	}
+}
+
 type MemKVCoord struct {
 	mu       *sync.Mutex
 	config   map[HostName]string
 	shardMap []HostName // maps from sid -> host that currently owns it
 	hostShards map[HostName]uint64 // maps from host -> num shard that it currently has
+	shardClerks ShardClerkSet
 }
 
-func (c *MemKVCoord) AddServerRPC(host string) {
+func (c *MemKVCoord) AddServerRPC(newhost HostName) {
 	c.mu.Lock()
 	// Greedily rebalances shards using minimum number of migrations
 
@@ -30,19 +46,19 @@ func (c *MemKVCoord) AddServerRPC(host string) {
 	numShardFloor := NSHARD/numHosts
 	numShardCeil := NSHARD/numHosts + 1
 	nf_left := numHosts - (NSHARD - numHosts * NSHARD/numHosts) // number of servers that will have one fewer shard than other servers
-	for _, host := range c.shardMap {
+	for sid, host := range c.shardMap {
 		n := c.hostShards[host]
 		if n > numShardFloor {
 			if n == numShardCeil {
 				if nf_left > 0 {
 					nf_left = nf_left - 1
 					c.hostShards[host] = n - 1
-					// FIXME: MoveShardRPC()
+					c.shardClerks.GetClerk(host).MoveShard(uint64(sid), newhost)
 				}
 				// else, we have already made enough hosts have the minimum number of shard servers
 			} else {
 				c.hostShards[host] = n - 1
-				// FIXME: MoveShardRPC()
+				c.shardClerks.GetClerk(host).MoveShard(uint64(sid), newhost)
 			}
 		}
 	}
@@ -58,12 +74,9 @@ func (c *MemKVCoord) GetShardMapRPC(_ []byte, rep *[]byte) {
 func MakeMemKVCoordServer() *MemKVCoord {
 	s := new(MemKVCoord)
 	s.mu = new(sync.Mutex)
-	s.config = make(map[HostName]string)
-	s.config[1] = "localhost:37001"
-	s.config[2] = "localhost:37002"
 
 	for i := uint64(0); i < NSHARD; i++ {
-		s.shardMap[i] = i % 2 // s.config[i%uint64(len(s.shardServers))]
+		s.shardMap[i] = i % 2
 	}
 	return s
 }

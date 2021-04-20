@@ -21,21 +21,6 @@ func (ck *MemKVCoordClerk) GetShardMap() []HostName {
 	return decodeShardMap(*rawRep)
 }
 
-type ShardClerkSet struct {
-	cls map[HostName]*MemKVShardClerk
-}
-
-func (s *ShardClerkSet) getClerk(host HostName) *MemKVShardClerk {
-	ck, ok := s.cls[host]
-	if !ok {
-		ck2 := MakeFreshKVClerk(host)
-		s.cls[host] = ck2
-		return ck2
-	} else {
-		return ck
-	}
-}
-
 // NOTE: a single clerk keeps quite a bit of state, via the shardMap[], so it
 // might be good to not need to duplicate shardMap[] for a pool of clerks that's
 // safe for concurrent use
@@ -51,7 +36,7 @@ func (ck *MemKVClerk) Get(key uint64) []byte {
 		sid := shardOf(key)
 		shardServer := ck.shardMap[sid]
 
-		shardCk := ck.shardClerks.getClerk(shardServer)
+		shardCk := ck.shardClerks.GetClerk(shardServer)
 		err := shardCk.Get(key, val)
 		if err == ENone {
 			break
@@ -67,7 +52,7 @@ func (ck *MemKVClerk) Put(key uint64, value []byte) {
 		sid := shardOf(key)
 		shardServer := ck.shardMap[sid]
 
-		shardCk := ck.shardClerks.getClerk(shardServer)
+		shardCk := ck.shardClerks.GetClerk(shardServer)
 		err := shardCk.Put(key, value)
 
 		if err == ENone {
