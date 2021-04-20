@@ -5,10 +5,7 @@ import (
 )
 
 type MemKVCoordClerk struct {
-	seq      uint64
-	cid      uint64
 	cl       *grove_ffi.RPCClient
-	shardMap [NSHARD]HostName // maps from sid -> host that currently owns it
 }
 
 func (ck *MemKVCoordClerk) MoveShard(sid uint64, dst uint64) {
@@ -62,6 +59,14 @@ func (ck *MemKVClerk) Put(key uint64, value []byte) {
 		continue
 	}
 	return
+}
+
+func MakeMemKVClerk(coord HostName) *MemKVClerk {
+	ck := new(MemKVClerk)
+	ck.coordCk.cl = grove_ffi.MakeRPCClient(coord)
+	ck.shardClerks = MakeShardClerkSet()
+	ck.shardMap = ck.coordCk.GetShardMap()
+	return ck
 }
 
 // TODO: add an Append(key, value) (oldValue []byte) call

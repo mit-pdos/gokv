@@ -1,8 +1,7 @@
 package memkv
 
 import (
-	"github.com/mit-pdos/lockservice/grove_common"
-	"github.com/mit-pdos/lockservice/grove_ffi"
+	"github.com/mit-pdos/gokv/urpc/rpc"
 	"sync"
 )
 

@@ -13,6 +13,10 @@ type ShardClerkSet struct {
 	cls map[HostName]*MemKVShardClerk
 }
 
+func MakeShardClerkSet() *ShardClerkSet {
+	return &ShardClerkSet{cls: make(map[HostName]*MemKVShardClerk)}
+}
+
 func (s *ShardClerkSet) GetClerk(host HostName) *MemKVShardClerk {
 	ck, ok := s.cls[host]
 	if !ok {
@@ -75,6 +79,7 @@ func MakeMemKVCoordServer() *MemKVCoord {
 	s := new(MemKVCoord)
 	s.mu = new(sync.Mutex)
 
+	s.shardMap = make([]HostName, NSHARD)
 	for i := uint64(0); i < NSHARD; i++ {
 		s.shardMap[i] = i % 2
 	}
