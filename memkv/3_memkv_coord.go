@@ -1,8 +1,7 @@
 package memkv
 
 import (
-	"github.com/mit-pdos/lockservice/grove_common"
-	"github.com/mit-pdos/lockservice/grove_ffi"
+	"github.com/mit-pdos/gokv/urpc/rpc"
 	"sync"
 )
 
@@ -29,10 +28,10 @@ func (s *ShardClerkSet) GetClerk(host HostName) *MemKVShardClerk {
 }
 
 type MemKVCoord struct {
-	mu       *sync.Mutex
-	config   map[HostName]string
-	shardMap []HostName // maps from sid -> host that currently owns it
-	hostShards map[HostName]uint64 // maps from host -> num shard that it currently has
+	mu          *sync.Mutex
+	config      map[HostName]string
+	shardMap    []HostName          // maps from sid -> host that currently owns it
+	hostShards  map[HostName]uint64 // maps from host -> num shard that it currently has
 	shardClerks ShardClerkSet
 }
 
@@ -47,9 +46,9 @@ func (c *MemKVCoord) AddServerRPC(newhost HostName) {
 	//
 	// (NSHARD - numHosts * floor(NSHARD/numHosts)) will have size (floor(NSHARD/numHosts) + 1)
 	numHosts := uint64(10)
-	numShardFloor := NSHARD/numHosts
+	numShardFloor := NSHARD / numHosts
 	numShardCeil := NSHARD/numHosts + 1
-	nf_left := numHosts - (NSHARD - numHosts * NSHARD/numHosts) // number of servers that will have one fewer shard than other servers
+	nf_left := numHosts - (NSHARD - numHosts*NSHARD/numHosts) // number of servers that will have one fewer shard than other servers
 	for sid, host := range c.shardMap {
 		n := c.hostShards[host]
 		if n > numShardFloor {
@@ -75,19 +74,20 @@ func (c *MemKVCoord) GetShardMapRPC(_ []byte, rep *[]byte) {
 	c.mu.Unlock()
 }
 
-func MakeMemKVCoordServer() *MemKVCoord {
+func MakeMemKVCoordServer(initserver string) *MemKVCoord {
 	s := new(MemKVCoord)
 	s.mu = new(sync.Mutex)
 
 	s.shardMap = make([]HostName, NSHARD)
 	for i := uint64(0); i < NSHARD; i++ {
-		s.shardMap[i] = i % 2
+		s.shardMap[i] = initserver
 	}
 	return s
 }
 
-func (c *MemKVCoord) Start() {
-	handlers := make(map[uint64]grove_common.RawRpcFunc)
+func (c *MemKVCoord) Start(host string) {
+	handlers := make(map[uint64]func([]byte, *[]byte))
 	handlers[COORD_GET] = c.GetShardMapRPC
-	grove_ffi.StartRPCServer(handlers)
+	s := rpc.MakeRPCServer(handlers)
+	s.Serve(host, 1)
 }

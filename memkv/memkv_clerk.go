@@ -1,11 +1,11 @@
 package memkv
 
 import (
-	"github.com/mit-pdos/lockservice/grove_ffi"
+	"github.com/mit-pdos/gokv/urpc/rpc"
 )
 
 type MemKVCoordClerk struct {
-	cl       *grove_ffi.RPCClient
+	cl *rpc.RPCClient
 }
 
 func (ck *MemKVCoordClerk) MoveShard(sid uint64, dst uint64) {
@@ -63,7 +63,7 @@ func (ck *MemKVClerk) Put(key uint64, value []byte) {
 
 func MakeMemKVClerk(coord HostName) *MemKVClerk {
 	ck := new(MemKVClerk)
-	ck.coordCk.cl = grove_ffi.MakeRPCClient(coord)
+	ck.coordCk.cl = rpc.MakeRPCClient(coord)
 	ck.shardClerks = MakeShardClerkSet()
 	ck.shardMap = ck.coordCk.GetShardMap()
 	return ck

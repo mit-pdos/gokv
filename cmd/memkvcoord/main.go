@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/mit-pdos/lockservice/grove_ffi"
 	"github.com/mit-pdos/gokv/memkv"
+	"fmt"
 	"flag"
 	"log"
 	"os"
@@ -18,9 +18,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	grove_ffi.SetPort(37000) // static port for memkv_coord
 	log.Printf("Started coordinator server on port %d", port)
-	s := memkv.MakeMemKVCoordServer()
-	s.Start()
+	s := memkv.MakeMemKVCoordServer("localhost:37001")
+	s.Start(fmt.Sprintf("localhost:%d", port))
 	select{}
 }

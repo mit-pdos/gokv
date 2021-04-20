@@ -8,6 +8,7 @@ import (
 type KvMap = map[uint64][]byte
 
 type MemKVShardServer struct {
+	me        string //
 	mu        *sync.Mutex
 	lastReply map[uint64]GetReply
 	lastSeq   map[uint64]uint64
@@ -132,6 +133,10 @@ func MakeMemKVShardServer() *MemKVShardServer {
 	srv.lastSeq = make(map[uint64]uint64)
 	srv.shardMap = make([]bool, NSHARD)
 	srv.kvss = make([]KvMap, NSHARD)
+	for i := uint64(0); i < NSHARD; i++ {
+		srv.shardMap[i] = true
+		srv.kvss[i] = make(map[uint64][]byte)
+	}
 	return srv
 }
 
@@ -143,8 +148,8 @@ func (s *MemKVShardServer) GetCIDRPC() uint64 {
 	return r
 }
 
-func (mkv *MemKVShardServer) Start() {
-	handlers := make(map[uint64]grove_common.RawRpcFunc)
+func (mkv *MemKVShardServer) Start(host string) {
+	handlers := make(map[uint64]func([]byte, *[]byte))
 
 	handlers[KV_FRESHCID] = func(rawReq []byte, rawReply *[]byte) {
 		*rawReply = encodeCID(mkv.GetCIDRPC())
@@ -173,5 +178,6 @@ func (mkv *MemKVShardServer) Start() {
 		mkv.MoveShardRPC(decodeMoveShardRequest(rawReq))
 		*rawReply = make([]byte, 0)
 	}
-	grove_ffi.StartRPCServer(handlers)
+	s := rpc.MakeRPCServer(handlers)
+	s.Serve(host, 1)
 }

@@ -1,11 +1,11 @@
 package main
 
 import (
-	"github.com/mit-pdos/lockservice/grove_ffi"
 	"github.com/mit-pdos/gokv/memkv"
 	"flag"
 	"log"
 	"os"
+	"fmt"
 )
 
 func main() {
@@ -20,9 +20,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	grove_ffi.SetPort(port)
 	log.Printf("Started shard server on port %d", port)
 	s := memkv.MakeMemKVShardServer()
-	s.Start()
+	s.Start(fmt.Sprintf("localhost:%d", port))
 	select{}
 }

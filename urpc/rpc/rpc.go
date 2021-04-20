@@ -9,8 +9,7 @@ type RPCServer struct {
 	handlers map[uint64]func([]byte, *[]byte)
 }
 
-func (srv *RPCServer) rpcHandle(rpcid uint64, seqno uint64, senderHost []byte, data []byte) {
-	sender := MakeSender(string(senderHost))
+func (srv *RPCServer) rpcHandle(sender *Sender, rpcid uint64, seqno uint64, data []byte) {
 	/*
 	start := time.Now()
 	defer func() {
@@ -41,15 +40,13 @@ func (srv *RPCServer) Serve(host string, numWorkers int) {
 
 func (srv *RPCServer) readThread(recv *Receiver) {
 	for {
-		data := Receive(recv)
+		data, sender := Receive(recv)
 		d := marshal.NewDec(data)
 		rpcid := d.GetInt()
 		seqno := d.GetInt()
-		senderLen := d.GetInt()
-		sender := d.GetBytes(senderLen)
 		reqLen := d.GetInt()
 		req := d.GetBytes(reqLen)
-		go srv.rpcHandle(rpcid, seqno, sender, req)
+		go srv.rpcHandle(sender, rpcid, seqno, req)
 	}
 }
 
@@ -62,16 +59,14 @@ type callback struct {
 type RPCClient struct {
 	mu   *sync.Mutex
 	send *Sender // for requests
-	me string // host for responses
 	seq  uint64 // next fresh sequence number
 
 	pending map[uint64]*callback
 }
 
-func (cl *RPCClient) replyThread() {
-	recv := MakeReceiver(cl.me)
+func (cl *RPCClient) replyThread(recv *Receiver) {
 	for {
-		data := Receive(recv)
+		data, _ := Receive(recv)
 		d := marshal.NewDec(data)
 		seqno := d.GetInt()
 		// TODO: Can we just "read the rest of the bytes"?
@@ -90,15 +85,15 @@ func (cl *RPCClient) replyThread() {
 	}
 }
 
-func MakeRPCClient(host string, me string) *RPCClient {
+func MakeRPCClient(host string) *RPCClient {
 	cl := new(RPCClient)
-	cl.send = MakeSender(host)
-	cl.me = me
+	var recv *Receiver
+	cl.send, recv = MakeSender(host)
 	cl.mu = new(sync.Mutex)
 	cl.seq = 1
 	cl.pending = make(map[uint64]*callback)
 
-	go cl.replyThread()
+	go cl.replyThread(recv)
 	return cl
 }
 
@@ -110,14 +105,10 @@ func (cl *RPCClient) Call(rpcid uint64, args []byte, reply *[]byte) bool {
 	cl.seq = cl.seq + 1
 	cl.pending[seqno] = &cb
 	cl.mu.Unlock()
-	me := []byte(cl.me)
 
-	e := marshal.NewEnc(8 + 8 + (8 + uint64(len(me))) + (8 + uint64(len(args))))
+	e := marshal.NewEnc(8 + 8 + (8 + uint64(len(args))))
 	e.PutInt(rpcid)
 	e.PutInt(seqno)
-	// TODO: would be nice if the marshal lib had support for len+data pairs...
-	e.PutInt(uint64(len(me)))
-	e.PutBytes(me)
 	e.PutInt(uint64(len(args)))
 	e.PutBytes(args)
 	reqData := e.Finish()

@@ -2,10 +2,9 @@ package memkv
 
 import (
 	"github.com/tchajed/marshal"
-	"github.com/mit-pdos/lockservice/grove_ffi"
 )
 
-type HostName = grove_ffi.HostName
+type HostName = string
 
 type ValueType = uint64
 
@@ -189,7 +188,9 @@ type MoveShardRequest struct {
 func encodeMoveShardRequest(req *MoveShardRequest) []byte {
 	e := marshal.NewEnc(8*2)
 	e.PutInt(req.Sid)
-	e.PutInt(req.Dst)
+	v := []byte(req.Dst)
+	e.PutInt(uint64(len(v)))
+	e.PutBytes(v)
 	return e.Finish()
 }
 
@@ -197,7 +198,7 @@ func decodeMoveShardRequest(rawReq []byte) *MoveShardRequest {
 	req := new(MoveShardRequest)
 	d := marshal.NewDec(rawReq)
 	req.Sid = d.GetInt()
-	req.Dst = d.GetInt()
+	req.Dst = string(d.GetBytes(d.GetInt()))
 	return req
 }
 
@@ -211,12 +212,23 @@ func decodeCID(rawCID []byte) uint64 {
 	return marshal.NewDec(rawCID).GetInt()
 }
 
+func marshalledShardMapSize(shardMap *[]HostName) uint64 {
+	s := uint64(0)
+	for i := uint64(0); i < NSHARD; i++ {
+		s += 8
+		s += uint64(len([]byte((*shardMap)[i])))
+	}
+	return s
+}
+
 func encodeShardMap(shardMap *[]HostName) []byte {
 	// requires that shardMap is a list
-	num_bytes := 8 * NSHARD
+	num_bytes := marshalledShardMapSize(shardMap)
 	e := marshal.NewEnc(num_bytes)
 	for i := uint64(0); i < NSHARD; i++ {
-		e.PutInt((*shardMap)[i])
+		v := []byte((*shardMap)[i])
+		e.PutInt(uint64(len(v)))
+		e.PutBytes(v)
 	}
 	return e.Finish()
 }
@@ -225,7 +237,7 @@ func decodeShardMap(raw []byte) []HostName {
 	shardMap := make([]HostName, NSHARD)
 	d := marshal.NewDec(raw)
 	for i := uint64(0); i < NSHARD; i++ {
-		shardMap[i] = d.GetInt()
+		shardMap[i] = string(d.GetBytes(d.GetInt()))
 	}
 	return shardMap
 }

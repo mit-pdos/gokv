@@ -1,18 +1,18 @@
 package memkv
 
 import (
-	"github.com/mit-pdos/lockservice/grove_ffi"
+	"github.com/mit-pdos/gokv/urpc/rpc"
 )
 
 type MemKVShardClerk struct {
 	seq uint64
 	cid uint64
-	cl  *grove_ffi.RPCClient
+	cl  *rpc.RPCClient
 }
 
 func MakeFreshKVClerk(host HostName) *MemKVShardClerk {
 	ck := new(MemKVShardClerk)
-	ck.cl = grove_ffi.MakeRPCClient(host)
+	ck.cl = rpc.MakeRPCClient(host)
 	rawRep := new([]byte)
 	for ck.cl.Call(KV_FRESHCID, make([]byte, 0), rawRep) == true {
 	}
