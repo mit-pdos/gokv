@@ -13,11 +13,39 @@ type MemKVCoord struct {
 	mu       *sync.Mutex
 	config   map[HostName]string
 	shardMap []HostName // maps from sid -> host that currently owns it
+	hostShards map[HostName]uint64 // maps from host -> num shard that it currently has
 }
 
 func (c *MemKVCoord) AddServerRPC(host string) {
 	c.mu.Lock()
-	panic("shard rebalancing unimpl")
+	// Greedily rebalances shards using minimum number of migrations
+
+	// currently, (NSHARD/numHosts) +/- 1 shard should be assigned to each server
+	//
+	// We keep a map[HostName]uint64 to remember how many shards we've given
+	// each shard server. Then, we iterate over shardMap[], and move a shard if the current holder does.
+	//
+	// (NSHARD - numHosts * floor(NSHARD/numHosts)) will have size (floor(NSHARD/numHosts) + 1)
+	numHosts := uint64(10)
+	numShardFloor := NSHARD/numHosts
+	numShardCeil := NSHARD/numHosts + 1
+	nf_left := numHosts - (NSHARD - numHosts * NSHARD/numHosts) // number of servers that will have one fewer shard than other servers
+	for _, host := range c.shardMap {
+		n := c.hostShards[host]
+		if n > numShardFloor {
+			if n == numShardCeil {
+				if nf_left > 0 {
+					nf_left = nf_left - 1
+					c.hostShards[host] = n - 1
+					// FIXME: MoveShardRPC()
+				}
+				// else, we have already made enough hosts have the minimum number of shard servers
+			} else {
+				c.hostShards[host] = n - 1
+				// FIXME: MoveShardRPC()
+			}
+		}
+	}
 	c.mu.Unlock()
 }
 

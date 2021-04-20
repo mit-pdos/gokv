@@ -5,16 +5,17 @@ import (
 )
 
 type MemKVShardClerk struct {
-	seq    uint64
-	cid    uint64
-	cl     *grove_ffi.RPCClient
+	seq uint64
+	cid uint64
+	cl  *grove_ffi.RPCClient
 }
 
 func MakeFreshKVClerk(host HostName) *MemKVShardClerk {
 	ck := new(MemKVShardClerk)
 	ck.cl = grove_ffi.MakeRPCClient(host)
 	rawRep := new([]byte)
-	ck.cl.Call(KV_FRESHCID, make([]byte, 0), rawRep)
+	for ck.cl.Call(KV_FRESHCID, make([]byte, 0), rawRep) == true {
+	}
 	ck.cid = decodeCID(*rawRep)
 	ck.seq = 1
 
@@ -52,11 +53,15 @@ func (ck *MemKVShardClerk) Get(key uint64, value *[]byte) ErrorType {
 }
 
 func (ck *MemKVShardClerk) InstallShard(sid uint64, kvs map[uint64][]byte) {
-	args := InstallShardRequest{CID: ck.cid, Seq: ck.seq, Sid: sid, Kvs: kvs}
+	args := new(InstallShardRequest)
+	args.CID = ck.cid
+	args.Seq = ck.seq
+	args.Sid = sid
+	args.Kvs = kvs
 	ck.seq = ck.seq + 1
 
 	rawRep := new([]byte)
-	for ck.cl.Call(KV_INS_SHARD, encodeInstallShardRequest(&args), rawRep) == true {
+	for ck.cl.Call(KV_INS_SHARD, encodeInstallShardRequest(args), rawRep) == true {
 	}
 }
 

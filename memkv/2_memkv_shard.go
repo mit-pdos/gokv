@@ -107,20 +107,20 @@ func (s *MemKVShardServer) InstallShardRPC(args *InstallShardRequest) {
 
 func (s *MemKVShardServer) MoveShardRPC(args *MoveShardRequest) {
 	s.mu.Lock()
+	_, ok := s.peers[args.Dst]
+	if !ok {
+		// s.mu.Unlock()
+		ck := MakeFreshKVClerk(args.Dst)
+		// s.mu.Lock()
+		s.peers[args.Dst] = ck
+	}
+
 	if !s.shardMap[args.Sid] {
 		s.mu.Unlock()
 		return
 	}
-
-	_, ok := s.peers[args.Dst]
-	if !ok {
-		s.mu.Unlock()
-		ck := MakeFreshKVClerk(args.Dst)
-		s.mu.Lock()
-		s.peers[args.Dst] = ck
-	}
 	kvs := s.kvss[args.Sid]
-	s.kvss[args.Sid] = nil
+	s.kvss[args.Sid] = make(KvMap)
 	s.shardMap[args.Sid] = false
 	s.peers[args.Dst].InstallShard(args.Sid, kvs) // XXX: if we want to do this without the lock, need a lock in the clerk itself
 	s.mu.Unlock()

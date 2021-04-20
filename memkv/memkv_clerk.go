@@ -16,7 +16,8 @@ func (ck *MemKVCoordClerk) MoveShard(sid uint64, dst uint64) {
 
 func (ck *MemKVCoordClerk) GetShardMap() []HostName {
 	rawRep := new([]byte)
-	ck.cl.Call(COORD_GET, make([]byte, 0), rawRep)
+	for ck.cl.Call(COORD_GET, make([]byte, 0), rawRep) == true {
+	}
 	return decodeShardMap(*rawRep)
 }
 
