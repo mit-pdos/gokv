@@ -165,9 +165,20 @@ func decodeCID(rawCID []byte) uint64 {
 }
 
 func encodeShardMap(shardMap *[]HostName) []byte {
-	panic("unimpl")
+	// requires that shardMap is a list
+	num_bytes := 8 * NSHARD
+	e := marshal.NewEnc(num_bytes)
+	for i := uint64(0); i < NSHARD; i++ {
+		e.PutInt((*shardMap)[i])
+	}
+	return e.Finish()
 }
 
 func decodeShardMap(raw []byte) []HostName {
-	panic("unimpl")
+	shardMap := make([]HostName, NSHARD)
+	d := marshal.NewDec(raw)
+	for i := uint64(0); i < NSHARD; i++ {
+		shardMap[i] = d.GetInt()
+	}
+	return shardMap
 }
