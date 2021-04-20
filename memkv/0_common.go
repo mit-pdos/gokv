@@ -147,11 +147,18 @@ type MoveShardRequest struct {
 }
 
 func encodeMoveShardRequest(req *MoveShardRequest) []byte {
-	panic("unimpl")
+	e := marshal.NewEnc(8*2)
+	e.PutInt(req.Sid)
+	e.PutInt(req.Dst)
+	return e.Finish()
 }
 
 func decodeMoveShardRequest(rawReq []byte) *MoveShardRequest {
-	panic("unimpl")
+	req := new(MoveShardRequest)
+	d := marshal.NewDec(rawReq)
+	req.Sid = d.GetInt()
+	req.Dst = d.GetInt()
+	return req
 }
 
 func encodeCID(cid uint64) []byte {
