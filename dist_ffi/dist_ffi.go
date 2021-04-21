@@ -16,7 +16,12 @@ type Sender struct {
     conn net.Conn
 }
 
-func Connect(host string) (*Sender, *Receiver) {
+type SenderReceiver struct {
+	S *Sender
+	R *Receiver
+}
+
+func Connect(host string) SenderReceiver {
 	conn, err := net.Dial("tcp", host)
 	// We ignore errors (all packets are just silently dropped)
 	if err != nil { // keeping this around so it's easier to debug code
@@ -24,7 +29,7 @@ func Connect(host string) (*Sender, *Receiver) {
 	}
 	c := make(chan MsgAndSender)
 	go receiveOnSocket(conn, c)
-	return &Sender { conn }, &Receiver { c }
+	return SenderReceiver { S:&Sender { conn }, R:&Receiver { c } }
 }
 
 func Send(send *Sender, data []byte) {
@@ -83,8 +88,14 @@ func Listen(host string) *Receiver {
 	return &Receiver { c }
 }
 
+type ErrMsgSender struct {
+	E bool
+	M []byte
+	S *Sender
+}
+
 // This will never actually return NULL, but as long as clients and proofs do not rely on this that is okay.
-func Receive(recv *Receiver) (*Sender, []byte) {
+func Receive(recv *Receiver) ErrMsgSender {
 	a := <-recv.c
-	return a.s, a.m
+	return ErrMsgSender{E:false, M:a.m, S:a.s}
 }

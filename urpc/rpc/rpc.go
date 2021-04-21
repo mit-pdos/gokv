@@ -19,7 +19,8 @@ func (srv *RPCServer) rpcHandle(sender *dist_ffi.Sender, rpcid uint64, seqno uin
 	*/
 	replyData := make([]byte, 0)
 
-	srv.handlers[rpcid](data, &replyData) // call the function
+	f := srv.handlers[rpcid] // for Goose
+	f(data, &replyData) // call the function
 
 	e := marshal.NewEnc(8 + 8 + uint64(len(replyData)))
 	e.PutInt(seqno)
@@ -43,7 +44,12 @@ func (srv *RPCServer) Serve(host string, numWorkers uint64) {
 
 func (srv *RPCServer) readThread(recv *dist_ffi.Receiver) {
 	for {
-		sender, data := dist_ffi.Receive(recv)
+		r := dist_ffi.Receive(recv)
+		if r.E {
+			continue
+		}
+		data := r.M
+		sender := r.S
 		d := marshal.NewDec(data)
 		rpcid := d.GetInt()
 		seqno := d.GetInt()
@@ -69,7 +75,12 @@ type RPCClient struct {
 
 func (cl *RPCClient) replyThread(recv *dist_ffi.Receiver) {
 	for {
-		_, data := dist_ffi.Receive(recv)
+		r := dist_ffi.Receive(recv)
+		if r.E {
+			continue
+		}
+		data := r.M
+
 		d := marshal.NewDec(data)
 		seqno := d.GetInt()
 		// TODO: Can we just "read the rest of the bytes"?
@@ -91,12 +102,16 @@ func (cl *RPCClient) replyThread(recv *dist_ffi.Receiver) {
 func MakeRPCClient(host string) *RPCClient {
 	cl := new(RPCClient)
 	var recv *dist_ffi.Receiver
-	cl.send, recv = dist_ffi.Connect(host)
+	a := dist_ffi.Connect(host)
+	cl.send = a.S
+	recv = a.R
 	cl.mu = new(sync.Mutex)
 	cl.seq = 1
 	cl.pending = make(map[uint64]*callback)
 
-	go cl.replyThread(recv)
+	go func () {
+		cl.replyThread(recv) // Goose doesn't support parameters in a go statement
+	} ()
 	return cl
 }
 
