@@ -32,7 +32,7 @@ func MakeRPCServer(handlers map[uint64]func([]byte, *[]byte)) *RPCServer {
 }
 
 func (srv *RPCServer) Serve(host string, numWorkers int) {
-	recv := MakeReceiver(host)
+	recv := Listen(host)
 	for i := 0; i < numWorkers; i++ {
 		go srv.readThread(recv)
 	}
@@ -40,7 +40,7 @@ func (srv *RPCServer) Serve(host string, numWorkers int) {
 
 func (srv *RPCServer) readThread(recv *Receiver) {
 	for {
-		data, sender := Receive(recv)
+		sender, data := Receive(recv)
 		d := marshal.NewDec(data)
 		rpcid := d.GetInt()
 		seqno := d.GetInt()
@@ -66,7 +66,7 @@ type RPCClient struct {
 
 func (cl *RPCClient) replyThread(recv *Receiver) {
 	for {
-		data, _ := Receive(recv)
+		_, data := Receive(recv)
 		d := marshal.NewDec(data)
 		seqno := d.GetInt()
 		// TODO: Can we just "read the rest of the bytes"?
@@ -88,7 +88,7 @@ func (cl *RPCClient) replyThread(recv *Receiver) {
 func MakeRPCClient(host string) *RPCClient {
 	cl := new(RPCClient)
 	var recv *Receiver
-	cl.send, recv = MakeSender(host)
+	cl.send, recv = Connect(host)
 	cl.mu = new(sync.Mutex)
 	cl.seq = 1
 	cl.pending = make(map[uint64]*callback)
