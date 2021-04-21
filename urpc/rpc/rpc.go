@@ -3,13 +3,14 @@ package rpc
 import (
 	"github.com/tchajed/marshal"
 	"sync"
+	"github.com/mit-pdos/gokv/dist_ffi"
 )
 
 type RPCServer struct {
 	handlers map[uint64]func([]byte, *[]byte)
 }
 
-func (srv *RPCServer) rpcHandle(sender *Sender, rpcid uint64, seqno uint64, data []byte) {
+func (srv *RPCServer) rpcHandle(sender *dist_ffi.Sender, rpcid uint64, seqno uint64, data []byte) {
 	/*
 	start := time.Now()
 	defer func() {
@@ -24,29 +25,31 @@ func (srv *RPCServer) rpcHandle(sender *Sender, rpcid uint64, seqno uint64, data
 	e.PutInt(seqno)
 	e.PutInt(uint64(len(replyData)))
 	e.PutBytes(replyData)
-	Send(sender, e.Finish()) // TODO: contention? should we buffer these in userspace too?
+	dist_ffi.Send(sender, e.Finish()) // TODO: contention? should we buffer these in userspace too?
 }
 
 func MakeRPCServer(handlers map[uint64]func([]byte, *[]byte)) *RPCServer {
 	return &RPCServer{handlers: handlers}
 }
 
-func (srv *RPCServer) Serve(host string, numWorkers int) {
-	recv := Listen(host)
-	for i := 0; i < numWorkers; i++ {
-		go srv.readThread(recv)
+func (srv *RPCServer) Serve(host string, numWorkers uint64) {
+	recv := dist_ffi.Listen(host)
+	for i := uint64(0); i < numWorkers; i++ {
+		go func () {
+			srv.readThread(recv)
+		}()
 	}
 }
 
-func (srv *RPCServer) readThread(recv *Receiver) {
+func (srv *RPCServer) readThread(recv *dist_ffi.Receiver) {
 	for {
-		sender, data := Receive(recv)
+		sender, data := dist_ffi.Receive(recv)
 		d := marshal.NewDec(data)
 		rpcid := d.GetInt()
 		seqno := d.GetInt()
 		reqLen := d.GetInt()
 		req := d.GetBytes(reqLen)
-		srv.rpcHandle(sender, rpcid, seqno, req)
+		srv.rpcHandle(sender, rpcid, seqno, req) // XXX: this could (and probably should) be in a goroutine
 	}
 }
 
@@ -58,15 +61,15 @@ type callback struct {
 
 type RPCClient struct {
 	mu   *sync.Mutex
-	send *Sender // for requests
+	send *dist_ffi.Sender // for requests
 	seq  uint64 // next fresh sequence number
 
 	pending map[uint64]*callback
 }
 
-func (cl *RPCClient) replyThread(recv *Receiver) {
+func (cl *RPCClient) replyThread(recv *dist_ffi.Receiver) {
 	for {
-		_, data := Receive(recv)
+		_, data := dist_ffi.Receive(recv)
 		d := marshal.NewDec(data)
 		seqno := d.GetInt()
 		// TODO: Can we just "read the rest of the bytes"?
@@ -87,8 +90,8 @@ func (cl *RPCClient) replyThread(recv *Receiver) {
 
 func MakeRPCClient(host string) *RPCClient {
 	cl := new(RPCClient)
-	var recv *Receiver
-	cl.send, recv = Connect(host)
+	var recv *dist_ffi.Receiver
+	cl.send, recv = dist_ffi.Connect(host)
 	cl.mu = new(sync.Mutex)
 	cl.seq = 1
 	cl.pending = make(map[uint64]*callback)
@@ -114,7 +117,7 @@ func (cl *RPCClient) Call(rpcid uint64, args []byte, reply *[]byte) bool {
 	reqData := e.Finish()
 	// fmt.Fprintf(os.Stderr, "%+v\n", reqData)
 
-	Send(cl.send, reqData)
+	dist_ffi.Send(cl.send, reqData)
 
 	// wait for reply
 	cl.mu.Lock()

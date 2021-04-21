@@ -1,4 +1,4 @@
-package rpc
+package dist_ffi
 
 import (
 	"github.com/tchajed/marshal"
