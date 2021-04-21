@@ -42,7 +42,7 @@ func receiveOnSocket(conn net.Conn, c chan MsgAndSender) {
 		header := make([]byte, 8)
 		_, err := io.ReadFull(conn, header)
 		if err != nil {
-			panic(err)
+			return
 		}
 		d := marshal.NewDec(header)
 		dataLen := d.GetInt()
