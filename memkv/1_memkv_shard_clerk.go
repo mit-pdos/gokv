@@ -16,7 +16,7 @@ func MakeFreshKVClerk(host HostName) *MemKVShardClerk {
 	rawRep := new([]byte)
 	for ck.cl.Call(KV_FRESHCID, make([]byte, 0), rawRep) == true {
 	}
-	ck.cid = decodeCID(*rawRep)
+	ck.cid = decodeUint64(*rawRep)
 	ck.seq = 1
 
 	return ck

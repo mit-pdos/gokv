@@ -6,6 +6,8 @@ import (
 	"github.com/mit-pdos/gokv/dist_ffi"
 )
 
+type HostName = uint64
+
 type RPCServer struct {
 	handlers map[uint64]func([]byte, *[]byte)
 }
@@ -33,8 +35,8 @@ func MakeRPCServer(handlers map[uint64]func([]byte, *[]byte)) *RPCServer {
 	return &RPCServer{handlers: handlers}
 }
 
-func (srv *RPCServer) Serve(host string, numWorkers uint64) {
-	recv := dist_ffi.Listen(host)
+func (srv *RPCServer) Serve(host HostName, numWorkers uint64) {
+	recv := dist_ffi.Listen(dist_ffi.Address(host))
 	for i := uint64(0); i < numWorkers; i++ {
 		go func () {
 			srv.readThread(recv)
@@ -99,10 +101,10 @@ func (cl *RPCClient) replyThread(recv *dist_ffi.Receiver) {
 	}
 }
 
-func MakeRPCClient(host string) *RPCClient {
+func MakeRPCClient(host HostName) *RPCClient {
 	cl := new(RPCClient)
 	var recv *dist_ffi.Receiver
-	a := dist_ffi.Connect(host)
+	a := dist_ffi.Connect(dist_ffi.Address(host))
 	cl.send = a.S
 	recv = a.R
 	cl.mu = new(sync.Mutex)

@@ -2,6 +2,7 @@ package memkv
 
 import (
 	"github.com/mit-pdos/gokv/urpc/rpc"
+	"github.com/tchajed/marshal"
 	"log"
 	"sync"
 )
@@ -51,7 +52,8 @@ func (c *MemKVCoord) AddServerRPC(newhost HostName) {
 	numHosts := uint64(len(c.hostShards))
 	numShardFloor := NSHARD / numHosts
 	numShardCeil := NSHARD/numHosts + 1
-	nf_left := numHosts - (NSHARD - numHosts*NSHARD/numHosts) // number of servers that will have one fewer shard than other servers
+	var nf_left uint64
+	nf_left = numHosts - (NSHARD - numHosts*NSHARD/numHosts) // number of servers that will have one fewer shard than other servers
 	for sid, host := range c.shardMap {
 		n := c.hostShards[host]
 		if n > numShardFloor {
@@ -85,7 +87,7 @@ func (c *MemKVCoord) GetShardMapRPC(_ []byte, rep *[]byte) {
 	c.mu.Unlock()
 }
 
-func MakeMemKVCoordServer(initserver string) *MemKVCoord {
+func MakeMemKVCoordServer(initserver HostName) *MemKVCoord {
 	s := new(MemKVCoord)
 	s.mu = new(sync.Mutex)
 
@@ -99,10 +101,11 @@ func MakeMemKVCoordServer(initserver string) *MemKVCoord {
 	return s
 }
 
-func (c *MemKVCoord) Start(host string) {
+func (c *MemKVCoord) Start(host HostName) {
 	handlers := make(map[uint64]func([]byte, *[]byte))
 	handlers[COORD_ADD] = func(rawReq []byte, rawRep *[]byte) {
-		c.AddServerRPC(string(rawReq))
+		s := marshal.NewDec(rawReq).GetInt()
+		c.AddServerRPC(s)
 	}
 	handlers[COORD_GET] = c.GetShardMapRPC
 	s := rpc.MakeRPCServer(handlers)

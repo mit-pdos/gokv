@@ -8,9 +8,9 @@ type MemKVCoordClerk struct {
 	cl *rpc.RPCClient
 }
 
-func (ck *MemKVCoordClerk) AddShardServer(dst string) {
+func (ck *MemKVCoordClerk) AddShardServer(dst HostName) {
 	rawRep := new([]byte)
-	for ck.cl.Call(COORD_ADD, []byte(dst), rawRep) == true {
+	for ck.cl.Call(COORD_ADD, encodeUint64(dst), rawRep) == true {
 	}
 	return
 }
@@ -65,7 +65,7 @@ func (ck *MemKVClerk) Put(key uint64, value []byte) {
 	return
 }
 
-func (ck *MemKVClerk) Add(host string) {
+func (ck *MemKVClerk) Add(host HostName) {
 	ck.coordCk.AddShardServer(host)
 }
 

@@ -4,7 +4,7 @@ import (
 	"github.com/tchajed/marshal"
 )
 
-type HostName = string
+type HostName = uint64
 
 type ValueType = uint64
 
@@ -132,7 +132,8 @@ type InstallShardRequest struct {
 
 // NOTE: probably can just amortize this by keeping track of this with the map itself
 func SizeOfMarshalledMap(m map[uint64][]byte) uint64 {
-	s := uint64(8)
+	var s uint64
+	s = 8
 	for _, value := range m {
 		s += (uint64(len(value)) + 8 + 8)
 	}
@@ -186,11 +187,9 @@ type MoveShardRequest struct {
 }
 
 func encodeMoveShardRequest(req *MoveShardRequest) []byte {
-	v := []byte(req.Dst)
-	e := marshal.NewEnc(8 + 8 + uint64(len(v)))
+	e := marshal.NewEnc(8 + 8)
 	e.PutInt(req.Sid)
-	e.PutInt(uint64(len(v)))
-	e.PutBytes(v)
+	e.PutInt(req.Dst)
 	return e.Finish()
 }
 
@@ -198,37 +197,25 @@ func decodeMoveShardRequest(rawReq []byte) *MoveShardRequest {
 	req := new(MoveShardRequest)
 	d := marshal.NewDec(rawReq)
 	req.Sid = d.GetInt()
-	req.Dst = string(d.GetBytes(d.GetInt()))
+	req.Dst = d.GetInt()
 	return req
 }
 
-func encodeCID(cid uint64) []byte {
+func encodeUint64(i uint64) []byte {
 	e := marshal.NewEnc(8)
-	e.PutInt(cid)
+	e.PutInt(i)
 	return e.Finish()
 }
 
-func decodeCID(rawCID []byte) uint64 {
-	return marshal.NewDec(rawCID).GetInt()
-}
-
-func marshalledShardMapSize(shardMap *[]HostName) uint64 {
-	s := uint64(0)
-	for i := uint64(0); i < NSHARD; i++ {
-		s += 8
-		s += uint64(len([]byte((*shardMap)[i])))
-	}
-	return s
+func decodeUint64(raw []byte) uint64 {
+	return marshal.NewDec(raw).GetInt()
 }
 
 func encodeShardMap(shardMap *[]HostName) []byte {
 	// requires that shardMap is a list
-	num_bytes := marshalledShardMapSize(shardMap)
-	e := marshal.NewEnc(num_bytes)
+	e := marshal.NewEnc(8 * NSHARD)
 	for i := uint64(0); i < NSHARD; i++ {
-		v := []byte((*shardMap)[i])
-		e.PutInt(uint64(len(v)))
-		e.PutBytes(v)
+		e.PutInt((*shardMap)[i])
 	}
 	return e.Finish()
 }
@@ -237,7 +224,7 @@ func decodeShardMap(raw []byte) []HostName {
 	shardMap := make([]HostName, NSHARD)
 	d := marshal.NewDec(raw)
 	for i := uint64(0); i < NSHARD; i++ {
-		shardMap[i] = string(d.GetBytes(d.GetInt()))
+		shardMap[i] = d.GetInt()
 	}
 	return shardMap
 }

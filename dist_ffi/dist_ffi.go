@@ -4,7 +4,43 @@ import (
 	"github.com/tchajed/marshal"
 	"io"
 	"net"
+	"fmt"
+	"strings"
+	"strconv"
 )
+
+type Address uint64
+
+func MakeAddress(ipStr string, port uint16) uint64 {
+	// XXX: manually parsing is pretty silly; couldn't figure out how to make
+	// this work cleanly net.IP
+	ss := strings.Split(ipStr, ".")
+	if len(ss) != 4 {
+		panic(fmt.Sprintf("Not ipv4 %s", ipStr))
+	}
+	ip := make([]byte, 4)
+	for i, s := range ss {
+		a, err := strconv.ParseInt(s, 10, 8)
+		if err != nil {
+			panic(err)
+		}
+		ip[i] = byte(a)
+	}
+	return (uint64(ip[0]) | uint64(ip[1]) << 8 | uint64(ip[2]) << 16 | uint64(ip[3]) << 24 | uint64(port) << 32)
+}
+
+func AddressToStr(e Address) string {
+	a0 := byte(e & 0xff)
+	e = e >> 8
+	a1 := byte(e & 0xff)
+	e = e >> 8
+	a2 := byte(e & 0xff)
+	e = e >> 8
+	a3 := byte(e & 0xff)
+	e = e >> 8
+	port := e & 0xffff
+	return fmt.Sprintf("%s:%d", net.IPv4(a0,a1,a2,a3).String(), port)
+}
 
 type MsgAndSender struct {
 	m []byte
@@ -21,8 +57,8 @@ type SenderReceiver struct {
 	R *Receiver
 }
 
-func Connect(host string) SenderReceiver {
-	conn, err := net.Dial("tcp", host)
+func Connect(host Address) SenderReceiver {
+	conn, err := net.Dial("tcp", AddressToStr(host))
 	// We ignore errors (all packets are just silently dropped)
 	if err != nil { // keeping this around so it's easier to debug code
 		panic(err)
@@ -77,9 +113,9 @@ func listenOnSocket(l net.Listener, c chan MsgAndSender) {
 	}
 }
 
-func Listen(host string) *Receiver {
+func Listen(host Address) *Receiver {
 	c := make(chan MsgAndSender)
-	l, err := net.Listen("tcp", host)
+	l, err := net.Listen("tcp", AddressToStr(host))
 	if err != nil {
 		return &Receiver { c }
 	}

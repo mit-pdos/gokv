@@ -2,8 +2,8 @@ package memkv
 
 import (
 	"github.com/mit-pdos/gokv/urpc/rpc"
-	"sync"
 	"log"
+	"sync"
 )
 
 type KvMap = map[uint64][]byte
@@ -152,11 +152,11 @@ func (s *MemKVShardServer) GetCIDRPC() uint64 {
 	return r
 }
 
-func (mkv *MemKVShardServer) Start(host string) {
+func (mkv *MemKVShardServer) Start(host HostName) {
 	handlers := make(map[uint64]func([]byte, *[]byte))
 
 	handlers[KV_FRESHCID] = func(rawReq []byte, rawReply *[]byte) {
-		*rawReply = encodeCID(mkv.GetCIDRPC())
+		*rawReply = encodeUint64(mkv.GetCIDRPC())
 	}
 
 	handlers[KV_PUT] = func(rawReq []byte, rawReply *[]byte) {

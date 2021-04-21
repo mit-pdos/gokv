@@ -2,25 +2,26 @@ package main
 
 import (
 	"github.com/mit-pdos/gokv/memkv"
-	// "fmt"
+	"github.com/mit-pdos/gokv/dist_ffi"
 	"flag"
-	// "log"
-	// "os"
 )
 
 func main() {
-	var coord string
-	flag.StringVar(&coord, "coord", "", "address of coordinator")
+	var coordStr string
+	flag.StringVar(&coordStr, "coord", "", "address of coordinator")
 	flag.Parse()
 
-	if coord == "" {
+	if coordStr == "" {
 		// flag.PrintDefaults()
 		// os.Exit(1)
 	}
+	coordAddr := "127.0.0.1"
+	coordPort := uint16(37000)
 
-	coord = "localhost:37000"
+	coord := dist_ffi.MakeAddress(coordAddr, coordPort)
+	h := dist_ffi.MakeAddress("127.0.0.1", 37001)
 	ck := memkv.MakeMemKVClerk(coord)
-	ck.Add("localhost:37004")
+	ck.Add(h)
 	// ck.Put(15, []byte("This is a test"))
 	// fmt.Printf("Got: %s", string(ck.Get(15)))
 }
