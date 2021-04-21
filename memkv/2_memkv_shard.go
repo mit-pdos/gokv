@@ -3,6 +3,7 @@ package memkv
 import (
 	"github.com/mit-pdos/gokv/urpc/rpc"
 	"sync"
+	"log"
 )
 
 type KvMap = map[uint64][]byte
@@ -133,6 +134,7 @@ func MakeMemKVShardServer() *MemKVShardServer {
 	srv.lastSeq = make(map[uint64]uint64)
 	srv.shardMap = make([]bool, NSHARD)
 	srv.kvss = make([]KvMap, NSHARD)
+	srv.peers = make(map[HostName]*MemKVShardClerk)
 	for i := uint64(0); i < NSHARD; i++ {
 		srv.shardMap[i] = true
 		srv.kvss[i] = make(map[uint64][]byte)
@@ -141,10 +143,12 @@ func MakeMemKVShardServer() *MemKVShardServer {
 }
 
 func (s *MemKVShardServer) GetCIDRPC() uint64 {
+	log.Println("GetCIDRPC() starting")
 	s.mu.Lock()
 	r := s.nextCID
 	s.nextCID = s.nextCID + 1
 	s.mu.Unlock()
+	log.Println("GetCIDRPC() done")
 	return r
 }
 

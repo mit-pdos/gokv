@@ -19,7 +19,7 @@ func main() {
 	}
 
 	log.Printf("Started coordinator server on port %d", port)
-	s := memkv.MakeMemKVCoordServer("localhost:37001")
+	s := memkv.MakeMemKVCoordServer("localhost:37002")
 	s.Start(fmt.Sprintf("localhost:%d", port))
 	select{}
 }

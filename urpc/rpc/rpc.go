@@ -46,7 +46,7 @@ func (srv *RPCServer) readThread(recv *Receiver) {
 		seqno := d.GetInt()
 		reqLen := d.GetInt()
 		req := d.GetBytes(reqLen)
-		go srv.rpcHandle(sender, rpcid, seqno, req)
+		srv.rpcHandle(sender, rpcid, seqno, req)
 	}
 }
 

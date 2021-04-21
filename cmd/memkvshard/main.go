@@ -9,13 +9,13 @@ import (
 )
 
 func main() {
-	var coord string
+	// var coord string
 	var port uint64
 	flag.Uint64Var(&port, "port", 0, "port number to user for server")
-	flag.StringVar(&coord, "coord", "", "address of coordinator")
+	// flag.StringVar(&coord, "coord", "", "address of coordinator")
 	flag.Parse()
 
-	if coord == "" || port == 0 {
+	if port == 0 {
 		flag.PrintDefaults()
 		os.Exit(1)
 	}

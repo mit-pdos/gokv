@@ -8,7 +8,11 @@ type MemKVCoordClerk struct {
 	cl *rpc.RPCClient
 }
 
-func (ck *MemKVCoordClerk) MoveShard(sid uint64, dst uint64) {
+func (ck *MemKVCoordClerk) AddShardServer(dst string) {
+	rawRep := new([]byte)
+	for ck.cl.Call(COORD_ADD, []byte(dst), rawRep) == true {
+	}
+	return
 }
 
 func (ck *MemKVCoordClerk) GetShardMap() []HostName {
@@ -59,6 +63,10 @@ func (ck *MemKVClerk) Put(key uint64, value []byte) {
 		continue
 	}
 	return
+}
+
+func (ck *MemKVClerk) Add(host string) {
+	ck.coordCk.AddShardServer(host)
 }
 
 func MakeMemKVClerk(coord HostName) *MemKVClerk {

@@ -186,9 +186,9 @@ type MoveShardRequest struct {
 }
 
 func encodeMoveShardRequest(req *MoveShardRequest) []byte {
-	e := marshal.NewEnc(8*2)
-	e.PutInt(req.Sid)
 	v := []byte(req.Dst)
+	e := marshal.NewEnc(8 + 8 + uint64(len(v)))
+	e.PutInt(req.Sid)
 	e.PutInt(uint64(len(v)))
 	e.PutBytes(v)
 	return e.Finish()

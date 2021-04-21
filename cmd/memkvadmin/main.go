@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/mit-pdos/gokv/memkv"
-	"fmt"
+	// "fmt"
 	"flag"
 	// "log"
 	// "os"
@@ -20,6 +20,7 @@ func main() {
 
 	coord = "localhost:37000"
 	ck := memkv.MakeMemKVClerk(coord)
-	ck.Put(15, []byte("This is a test"))
-	fmt.Printf("Got: %s", string(ck.Get(15)))
+	ck.Add("localhost:37004")
+	// ck.Put(15, []byte("This is a test"))
+	// fmt.Printf("Got: %s", string(ck.Get(15)))
 }

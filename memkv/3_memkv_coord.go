@@ -2,10 +2,11 @@ package memkv
 
 import (
 	"github.com/mit-pdos/gokv/urpc/rpc"
+	"log"
 	"sync"
 )
 
-const COORD_MOVE = uint64(1)
+const COORD_ADD = uint64(1)
 const COORD_GET = uint64(2)
 
 type ShardClerkSet struct {
@@ -32,7 +33,7 @@ type MemKVCoord struct {
 	config      map[HostName]string
 	shardMap    []HostName          // maps from sid -> host that currently owns it
 	hostShards  map[HostName]uint64 // maps from host -> num shard that it currently has
-	shardClerks ShardClerkSet
+	shardClerks *ShardClerkSet
 }
 
 func (c *MemKVCoord) AddServerRPC(newhost HostName) {
@@ -45,7 +46,9 @@ func (c *MemKVCoord) AddServerRPC(newhost HostName) {
 	// each shard server. Then, we iterate over shardMap[], and move a shard if the current holder does.
 	//
 	// (NSHARD - numHosts * floor(NSHARD/numHosts)) will have size (floor(NSHARD/numHosts) + 1)
-	numHosts := uint64(10)
+	log.Printf("Rebalancing\n")
+	c.hostShards[newhost] = 0
+	numHosts := uint64(len(c.hostShards))
 	numShardFloor := NSHARD / numHosts
 	numShardCeil := NSHARD/numHosts + 1
 	nf_left := numHosts - (NSHARD - numHosts*NSHARD/numHosts) // number of servers that will have one fewer shard than other servers
@@ -55,16 +58,24 @@ func (c *MemKVCoord) AddServerRPC(newhost HostName) {
 			if n == numShardCeil {
 				if nf_left > 0 {
 					nf_left = nf_left - 1
-					c.hostShards[host] = n - 1
+					log.Printf("Moving %d from %s -> %s", sid, host, newhost)
 					c.shardClerks.GetClerk(host).MoveShard(uint64(sid), newhost)
+					c.hostShards[host] = n - 1
+					c.hostShards[newhost] += 1
+					c.shardMap[sid] = newhost
 				}
 				// else, we have already made enough hosts have the minimum number of shard servers
 			} else {
-				c.hostShards[host] = n - 1
+				log.Printf("Moving %d from %s -> %s", sid, host, newhost)
 				c.shardClerks.GetClerk(host).MoveShard(uint64(sid), newhost)
+				c.hostShards[host] = n - 1
+				c.hostShards[newhost] += 1
+				c.shardMap[sid] = newhost
 			}
 		}
 	}
+	log.Println("Done rebalancing")
+	log.Printf("%+v", c.hostShards)
 	c.mu.Unlock()
 }
 
@@ -82,11 +93,17 @@ func MakeMemKVCoordServer(initserver string) *MemKVCoord {
 	for i := uint64(0); i < NSHARD; i++ {
 		s.shardMap[i] = initserver
 	}
+	s.hostShards = make(map[HostName]uint64)
+	s.hostShards[initserver] = NSHARD
+	s.shardClerks = MakeShardClerkSet()
 	return s
 }
 
 func (c *MemKVCoord) Start(host string) {
 	handlers := make(map[uint64]func([]byte, *[]byte))
+	handlers[COORD_ADD] = func(rawReq []byte, rawRep *[]byte) {
+		c.AddServerRPC(string(rawReq))
+	}
 	handlers[COORD_GET] = c.GetShardMapRPC
 	s := rpc.MakeRPCServer(handlers)
 	s.Serve(host, 1)
