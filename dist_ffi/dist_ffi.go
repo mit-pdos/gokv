@@ -11,12 +11,25 @@ import (
 
 type Address uint64
 
-func MakeAddress(ipStr string, port uint16) uint64 {
+func (a Address) String() string {
+	return AddressToStr(a)
+}
+
+func MakeAddress(ipStr string) uint64 {
 	// XXX: manually parsing is pretty silly; couldn't figure out how to make
 	// this work cleanly net.IP
-	ss := strings.Split(ipStr, ".")
+	ipPort := strings.Split(ipStr, ":")
+	if len(ipPort) != 2 {
+		panic(fmt.Sprintf("Not ipv4:port %s", ipStr))
+	}
+	port, err := strconv.ParseUint(ipPort[1], 10, 16)
+	if err != nil {
+		panic(err)
+	}
+
+	ss := strings.Split(ipPort[0], ".")
 	if len(ss) != 4 {
-		panic(fmt.Sprintf("Not ipv4 %s", ipStr))
+		panic(fmt.Sprintf("Not ipv4:port %s", ipStr))
 	}
 	ip := make([]byte, 4)
 	for i, s := range ss {

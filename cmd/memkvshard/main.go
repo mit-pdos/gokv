@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/mit-pdos/gokv/memkv"
 	"github.com/mit-pdos/gokv/dist_ffi"
+	"fmt"
 	"flag"
 	"log"
 	"os"
@@ -20,8 +21,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	log.Printf("Started shard server on port %d", port)
 	s := memkv.MakeMemKVShardServer()
-	s.Start(dist_ffi.MakeAddress("127.0.0.1", uint16(port)))
+	me := dist_ffi.MakeAddress(fmt.Sprintf("127.0.0.1:%d", port))
+	log.Printf("Started shard server on port %d; id %d", port, me)
+	s.Start(me)
 	select{}
 }

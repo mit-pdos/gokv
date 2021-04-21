@@ -15,11 +15,10 @@ func main() {
 		// flag.PrintDefaults()
 		// os.Exit(1)
 	}
-	coordAddr := "127.0.0.1"
-	coordPort := uint16(37000)
 
-	coord := dist_ffi.MakeAddress(coordAddr, coordPort)
-	h := dist_ffi.MakeAddress("127.0.0.1", 37001)
+	coordStr = "127.0.0.1:37000"
+	coord := dist_ffi.MakeAddress(coordStr)
+	h := dist_ffi.MakeAddress("127.0.0.1:37001")
 	ck := memkv.MakeMemKVClerk(coord)
 	ck.Add(h)
 	// ck.Put(15, []byte("This is a test"))
