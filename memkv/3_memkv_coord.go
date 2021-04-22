@@ -2,7 +2,6 @@ package memkv
 
 import (
 	"github.com/mit-pdos/gokv/urpc/rpc"
-	"github.com/tchajed/marshal"
 	"log"
 	"sync"
 )
@@ -104,7 +103,7 @@ func MakeMemKVCoordServer(initserver HostName) *MemKVCoord {
 func (c *MemKVCoord) Start(host HostName) {
 	handlers := make(map[uint64]func([]byte, *[]byte))
 	handlers[COORD_ADD] = func(rawReq []byte, rawRep *[]byte) {
-		s := marshal.NewDec(rawReq).GetInt()
+		s := decodeUint64(rawReq)
 		c.AddServerRPC(s)
 	}
 	handlers[COORD_GET] = c.GetShardMapRPC

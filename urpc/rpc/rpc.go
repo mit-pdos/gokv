@@ -8,17 +8,13 @@ import (
 
 type HostName = uint64
 
+type Sender = dist_ffi.Sender
+
 type RPCServer struct {
 	handlers map[uint64]func([]byte, *[]byte)
 }
 
 func (srv *RPCServer) rpcHandle(sender *dist_ffi.Sender, rpcid uint64, seqno uint64, data []byte) {
-	/*
-	start := time.Now()
-	defer func() {
-		fmt.Printf("%+v\n", time.Since(start))
-	}()
-	*/
 	replyData := make([]byte, 0)
 
 	f := srv.handlers[rpcid] // for Goose
@@ -33,15 +29,6 @@ func (srv *RPCServer) rpcHandle(sender *dist_ffi.Sender, rpcid uint64, seqno uin
 
 func MakeRPCServer(handlers map[uint64]func([]byte, *[]byte)) *RPCServer {
 	return &RPCServer{handlers: handlers}
-}
-
-func (srv *RPCServer) Serve(host HostName, numWorkers uint64) {
-	recv := dist_ffi.Listen(dist_ffi.Address(host))
-	for i := uint64(0); i < numWorkers; i++ {
-		go func () {
-			srv.readThread(recv)
-		}()
-	}
 }
 
 func (srv *RPCServer) readThread(recv *dist_ffi.Receiver) {
@@ -61,6 +48,15 @@ func (srv *RPCServer) readThread(recv *dist_ffi.Receiver) {
 	}
 }
 
+func (srv *RPCServer) Serve(host HostName, numWorkers uint64) {
+	recv := dist_ffi.Listen(dist_ffi.Address(host))
+	for i := uint64(0); i < numWorkers; i++ {
+		go func () {
+			srv.readThread(recv)
+		}()
+	}
+}
+
 type callback struct {
 	reply *[]byte
 	done  *bool
@@ -69,7 +65,7 @@ type callback struct {
 
 type RPCClient struct {
 	mu   *sync.Mutex
-	send *dist_ffi.Sender // for requests
+	send *Sender // for requests
 	seq  uint64 // next fresh sequence number
 
 	pending map[uint64]*callback
