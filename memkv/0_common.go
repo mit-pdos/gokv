@@ -1,7 +1,7 @@
 package memkv
 
 import (
-	"github.com/upamanyus/marshal"
+	"github.com/tchajed/marshal"
 )
 
 type HostName = uint64
