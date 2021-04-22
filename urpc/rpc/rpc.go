@@ -8,13 +8,11 @@ import (
 
 type HostName = uint64
 
-type Sender = dist_ffi.Sender
-
 type RPCServer struct {
 	handlers map[uint64]func([]byte, *[]byte)
 }
 
-func (srv *RPCServer) rpcHandle(sender *dist_ffi.Sender, rpcid uint64, seqno uint64, data []byte) {
+func (srv *RPCServer) rpcHandle(sender dist_ffi.Sender, rpcid uint64, seqno uint64, data []byte) {
 	replyData := make([]byte, 0)
 
 	f := srv.handlers[rpcid] // for Goose
@@ -31,7 +29,7 @@ func MakeRPCServer(handlers map[uint64]func([]byte, *[]byte)) *RPCServer {
 	return &RPCServer{handlers: handlers}
 }
 
-func (srv *RPCServer) readThread(recv *dist_ffi.Receiver) {
+func (srv *RPCServer) readThread(recv dist_ffi.Receiver) {
 	for {
 		r := dist_ffi.Receive(recv)
 		if r.E {
@@ -65,13 +63,13 @@ type callback struct {
 
 type RPCClient struct {
 	mu   *sync.Mutex
-	send *Sender // for requests
+	send dist_ffi.Sender // for requests
 	seq  uint64 // next fresh sequence number
 
 	pending map[uint64]*callback
 }
 
-func (cl *RPCClient) replyThread(recv *dist_ffi.Receiver) {
+func (cl *RPCClient) replyThread(recv dist_ffi.Receiver) {
 	for {
 		r := dist_ffi.Receive(recv)
 		if r.E {
@@ -99,7 +97,7 @@ func (cl *RPCClient) replyThread(recv *dist_ffi.Receiver) {
 
 func MakeRPCClient(host HostName) *RPCClient {
 	cl := new(RPCClient)
-	var recv *dist_ffi.Receiver
+	var recv dist_ffi.Receiver
 	a := dist_ffi.Connect(dist_ffi.Address(host))
 	cl.send = a.S
 	recv = a.R

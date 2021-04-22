@@ -57,17 +57,19 @@ func AddressToStr(e Address) string {
 
 type MsgAndSender struct {
 	m []byte
-	s *Sender
+	s Sender
 }
 
 /// Sender
-type Sender struct {
+type sender struct {
     conn net.Conn
 }
 
+type Sender *sender
+
 type SenderReceiver struct {
-	S *Sender
-	R *Receiver
+	S Sender
+	R Receiver
 }
 
 func Connect(host Address) SenderReceiver {
@@ -78,10 +80,10 @@ func Connect(host Address) SenderReceiver {
 	}
 	c := make(chan MsgAndSender)
 	go receiveOnSocket(conn, c)
-	return SenderReceiver { S:&Sender { conn }, R:&Receiver { c } }
+	return SenderReceiver { S:&sender { conn }, R:&receiver { c } }
 }
 
-func Send(send *Sender, data []byte) {
+func Send(send Sender, data []byte) {
 	// message format: [dataLen] ++ data
 	e := marshal.NewEnc(8 + uint64(len(data)))
 	e.PutInt(uint64(len(data)))
@@ -106,14 +108,16 @@ func receiveOnSocket(conn net.Conn, c chan MsgAndSender) {
 		if err2 != nil {
 			panic(err2)
 		}
-		c <- MsgAndSender{data, &Sender{conn}}
+		c <- MsgAndSender{data, &sender{conn}}
 	}
 }
 
 /// Receiver
-type Receiver struct {
+type receiver struct {
     c chan MsgAndSender
 }
+
+type Receiver *receiver
 
 func listenOnSocket(l net.Listener, c chan MsgAndSender) {
 	for {
@@ -126,25 +130,25 @@ func listenOnSocket(l net.Listener, c chan MsgAndSender) {
 	}
 }
 
-func Listen(host Address) *Receiver {
+func Listen(host Address) Receiver {
 	c := make(chan MsgAndSender)
 	l, err := net.Listen("tcp", AddressToStr(host))
 	if err != nil {
-		return &Receiver { c }
+		return &receiver { c }
 	}
 	// Keep accepting new connections in background thread
 	go listenOnSocket(l, c)
-	return &Receiver { c }
+	return &receiver { c }
 }
 
 type ErrMsgSender struct {
 	E bool
 	M []byte
-	S *Sender
+	S Sender
 }
 
 // This will never actually return NULL, but as long as clients and proofs do not rely on this that is okay.
-func Receive(recv *Receiver) ErrMsgSender {
+func Receive(recv Receiver) ErrMsgSender {
 	a := <-recv.c
 	return ErrMsgSender{E:false, M:a.m, S:a.s}
 }
