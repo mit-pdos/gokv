@@ -1,9 +1,9 @@
 package rpc
 
 import (
+	"github.com/mit-pdos/gokv/dist_ffi"
 	"github.com/tchajed/marshal"
 	"sync"
-	"github.com/mit-pdos/gokv/dist_ffi"
 )
 
 type HostName = uint64
@@ -16,7 +16,7 @@ func (srv *RPCServer) rpcHandle(sender dist_ffi.Sender, rpcid uint64, seqno uint
 	replyData := make([]byte, 0)
 
 	f := srv.handlers[rpcid] // for Goose
-	f(data, &replyData) // call the function
+	f(data, &replyData)      // call the function
 
 	e := marshal.NewEnc(8 + 8 + uint64(len(replyData)))
 	e.PutInt(seqno)
@@ -32,11 +32,11 @@ func MakeRPCServer(handlers map[uint64]func([]byte, *[]byte)) *RPCServer {
 func (srv *RPCServer) readThread(recv dist_ffi.Receiver) {
 	for {
 		r := dist_ffi.Receive(recv)
-		if r.E {
+		if r.Err {
 			continue
 		}
-		data := r.M
-		sender := r.S
+		data := r.Data
+		sender := r.Sender
 		d := marshal.NewDec(data)
 		rpcid := d.GetInt()
 		seqno := d.GetInt()
@@ -50,7 +50,7 @@ func (srv *RPCServer) readThread(recv dist_ffi.Receiver) {
 func (srv *RPCServer) Serve(host HostName, numWorkers uint64) {
 	recv := dist_ffi.Listen(dist_ffi.Address(host))
 	for i := uint64(0); i < numWorkers; i++ {
-		go func () {
+		go func() {
 			srv.readThread(recv)
 		}()
 	}
@@ -65,7 +65,7 @@ type callback struct {
 type RPCClient struct {
 	mu   *sync.Mutex
 	send dist_ffi.Sender // for requests
-	seq  uint64 // next fresh sequence number
+	seq  uint64          // next fresh sequence number
 
 	pending map[uint64]*callback
 }
@@ -73,10 +73,10 @@ type RPCClient struct {
 func (cl *RPCClient) replyThread(recv dist_ffi.Receiver) {
 	for {
 		r := dist_ffi.Receive(recv)
-		if r.E {
+		if r.Err {
 			continue
 		}
-		data := r.M
+		data := r.Data
 
 		d := marshal.NewDec(data)
 		seqno := d.GetInt()
@@ -98,18 +98,18 @@ func (cl *RPCClient) replyThread(recv dist_ffi.Receiver) {
 }
 
 func MakeRPCClient(host HostName) *RPCClient {
-	cl := new(RPCClient)
-	var recv dist_ffi.Receiver
 	a := dist_ffi.Connect(dist_ffi.Address(host))
-	cl.send = a.S
-	recv = a.R
-	cl.mu = new(sync.Mutex)
-	cl.seq = 1
-	cl.pending = make(map[uint64]*callback)
+	// FIXME: check error
 
-	go func () {
-		cl.replyThread(recv) // Goose doesn't support parameters in a go statement
-	} ()
+	cl := &RPCClient{
+		send:    a.Sender,
+		mu:      new(sync.Mutex),
+		seq:     1,
+		pending: make(map[uint64]*callback)}
+
+	go func() {
+		cl.replyThread(a.Receiver) // Goose doesn't support parameters in a go statement
+	}()
 	return cl
 }
 

@@ -67,12 +67,13 @@ type sender struct {
 
 type Sender *sender
 
-type SenderReceiver struct {
-	S Sender
-	R Receiver
+type ConnectRet struct {
+	Err bool
+	Sender Sender
+	Receiver Receiver
 }
 
-func Connect(host Address) SenderReceiver {
+func Connect(host Address) ConnectRet {
 	conn, err := net.Dial("tcp", AddressToStr(host))
 	// We ignore errors (all packets are just silently dropped)
 	if err != nil { // keeping this around so it's easier to debug code
@@ -80,7 +81,7 @@ func Connect(host Address) SenderReceiver {
 	}
 	c := make(chan MsgAndSender)
 	go receiveOnSocket(conn, c)
-	return SenderReceiver { S:&sender { conn }, R:&receiver { c } }
+	return ConnectRet { Err:false, Sender:&sender { conn }, Receiver:&receiver { c } }
 }
 
 func Send(send Sender, data []byte) {
@@ -141,14 +142,14 @@ func Listen(host Address) Receiver {
 	return &receiver { c }
 }
 
-type ErrMsgSender struct {
-	E bool
-	M []byte
-	S Sender
+type ReceiveRet struct {
+	Err bool
+	Sender Sender
+	Data []byte
 }
 
 // This will never actually return NULL, but as long as clients and proofs do not rely on this that is okay.
-func Receive(recv Receiver) ErrMsgSender {
+func Receive(recv Receiver) ReceiveRet {
 	a := <-recv.c
-	return ErrMsgSender{E:false, M:a.m, S:a.s}
+	return ReceiveRet{Err:false, Sender:a.s, Data:a.m}
 }
