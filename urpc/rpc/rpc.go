@@ -43,6 +43,7 @@ func (srv *RPCServer) readThread(recv dist_ffi.Receiver) {
 		reqLen := d.GetInt()
 		req := d.GetBytes(reqLen)
 		srv.rpcHandle(sender, rpcid, seqno, req) // XXX: this could (and probably should) be in a goroutine
+		continue;
 	}
 }
 
@@ -92,6 +93,7 @@ func (cl *RPCClient) replyThread(recv dist_ffi.Receiver) {
 			cb.cond.Signal()
 		}
 		cl.mu.Unlock()
+		continue;
 	}
 }
 
@@ -112,12 +114,12 @@ func MakeRPCClient(host HostName) *RPCClient {
 }
 
 func (cl *RPCClient) Call(rpcid uint64, args []byte, reply *[]byte) bool {
-	cb := callback{reply: reply, done: new(bool), cond: sync.NewCond(cl.mu)}
+	cb := &callback{reply: reply, done: new(bool), cond: sync.NewCond(cl.mu)}
 	*cb.done = false
 	cl.mu.Lock()
 	seqno := cl.seq
 	cl.seq = cl.seq + 1
-	cl.pending[seqno] = &cb
+	cl.pending[seqno] = cb
 	cl.mu.Unlock()
 
 	e := marshal.NewEnc(8 + 8 + (8 + uint64(len(args))))
