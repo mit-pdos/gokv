@@ -13,15 +13,15 @@ type RPCServer struct {
 }
 
 func (srv *RPCServer) rpcHandle(sender dist_ffi.Sender, rpcid uint64, seqno uint64, data []byte) {
-	replyData := make([]byte, 0)
+	replyData := new([]byte)
 
 	f := srv.handlers[rpcid] // for Goose
-	f(data, &replyData)      // call the function
+	f(data, replyData)      // call the function
 
-	e := marshal.NewEnc(8 + 8 + uint64(len(replyData)))
+	e := marshal.NewEnc(8 + 8 + uint64(len(*replyData)))
 	e.PutInt(seqno)
-	e.PutInt(uint64(len(replyData)))
-	e.PutBytes(replyData)
+	e.PutInt(uint64(len(*replyData)))
+	e.PutBytes(*replyData)
 	dist_ffi.Send(sender, e.Finish()) // TODO: contention? should we buffer these in userspace too?
 }
 
