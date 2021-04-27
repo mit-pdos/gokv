@@ -123,6 +123,54 @@ func decodeGetReply(rawRep []byte) *GetReply {
 	return rep
 }
 
+type ConditionalPutRequest struct {
+	CID uint64
+	Seq uint64
+	Key uint64
+	ExpectedValue []byte
+}
+
+type ConditionalPutReply struct {
+	Err   ErrorType
+	Success bool
+}
+
+func encodeConditionalPutRequest(req *ConditionalPutRequest) []byte {
+	num_bytes := uint64(8 + 8 + 8 + 8 + len(req.ExpectedValue)) // CID + Seq + key + exp-value-len + exp-value
+	e := marshal.NewEnc(num_bytes)
+	e.PutInt(req.CID)
+	e.PutInt(req.Seq)
+	e.PutInt(req.Key)
+	e.PutInt(uint64(len(req.ExpectedValue)))
+	e.PutBytes(req.ExpectedValue)
+	return e.Finish()
+}
+
+func decodeConditionalPutRequest(rawReq []byte) *ConditionalPutRequest {
+	req := new(ConditionalPutRequest)
+	d := marshal.NewDec(rawReq)
+	req.CID = d.GetInt()
+	req.Seq = d.GetInt()
+	req.Key = d.GetInt()
+	req.ExpectedValue = d.GetBytes(d.GetInt())
+	return req
+}
+
+func encodeConditionalPutReply(reply *ConditionalPutReply) []byte {
+	e := marshal.NewEnc(8 + 1)
+	e.PutInt(reply.Err)
+	e.PutBool(reply.Success)
+	return e.Finish()
+}
+
+func decodeConditionalPutReply(replyData []byte) *ConditionalPutReply {
+	reply := new(ConditionalPutReply)
+	d := marshal.NewDec(replyData)
+	reply.Err = d.GetInt()
+	reply.Success = d.GetBool()
+	return reply
+}
+
 type InstallShardRequest struct {
 	CID uint64
 	Seq uint64
