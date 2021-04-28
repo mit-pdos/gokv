@@ -65,6 +65,24 @@ func (ck *MemKVClerk) Put(key uint64, value []byte) {
 	return
 }
 
+func (ck *MemKVClerk) ConditionalPut(key uint64, expectedValue []byte, newValue []byte) bool {
+	success := new(bool)
+	for {
+		sid := shardOf(key)
+		shardServer := ck.shardMap[sid]
+
+		shardCk := ck.shardClerks.GetClerk(shardServer)
+		err := shardCk.ConditionalPut(key, expectedValue, newValue, success)
+
+		if err == ENone {
+			break
+		}
+		ck.shardMap = ck.coordCk.GetShardMap()
+		continue
+	}
+	return *success
+}
+
 func (ck *MemKVClerk) Add(host HostName) {
 	ck.coordCk.AddShardServer(host)
 }

@@ -21,11 +21,24 @@ const NSHARD = uint64(65536)
 const KV_FRESHCID = uint64(0)
 const KV_PUT = uint64(1)
 const KV_GET = uint64(2)
-const KV_INS_SHARD = uint64(3)
-const KV_MOV_SHARD = uint64(4)
+const KV_CONDITIONAL_PUT = uint64(3)
+const KV_INS_SHARD = uint64(4)
+const KV_MOV_SHARD = uint64(5)
 
 func shardOf(key uint64) uint64 {
 	return key % NSHARD
+}
+
+func bytesEqual(x []byte, y []byte) bool {
+	if len(x) != len(y) {
+		return false
+	}
+	for i := 0; i < len(x); i++ {
+		if x[i] != y[i] {
+			return false
+		}
+	}
+	return true
 }
 
 type PutRequest struct {
@@ -128,6 +141,7 @@ type ConditionalPutRequest struct {
 	Seq uint64
 	Key uint64
 	ExpectedValue []byte
+	NewValue      []byte
 }
 
 type ConditionalPutReply struct {
@@ -136,13 +150,15 @@ type ConditionalPutReply struct {
 }
 
 func encodeConditionalPutRequest(req *ConditionalPutRequest) []byte {
-	num_bytes := uint64(8 + 8 + 8 + 8 + len(req.ExpectedValue)) // CID + Seq + key + exp-value-len + exp-value
+	num_bytes := uint64(8 + 8 + 8 + 8 + len(req.ExpectedValue) + 8 + len(req.NewValue)) // CID + Seq + key + exp-value-len + exp-value + new-value-len + new-value
 	e := marshal.NewEnc(num_bytes)
 	e.PutInt(req.CID)
 	e.PutInt(req.Seq)
 	e.PutInt(req.Key)
 	e.PutInt(uint64(len(req.ExpectedValue)))
 	e.PutBytes(req.ExpectedValue)
+	e.PutInt(uint64(len(req.NewValue)))
+	e.PutBytes(req.NewValue)
 	return e.Finish()
 }
 
@@ -153,6 +169,7 @@ func decodeConditionalPutRequest(rawReq []byte) *ConditionalPutRequest {
 	req.Seq = d.GetInt()
 	req.Key = d.GetInt()
 	req.ExpectedValue = d.GetBytes(d.GetInt())
+	req.NewValue = d.GetBytes(d.GetInt())
 	return req
 }
 

@@ -81,6 +81,39 @@ func (s *MemKVShardServer) GetRPC(args *GetRequest, reply *GetReply) {
 	s.mu.Unlock()
 }
 
+func (s *MemKVShardServer) conditional_put_inner(args *ConditionalPutRequest, reply *ConditionalPutReply) {
+	last, ok := s.lastSeq[args.CID]
+	seq := args.Seq
+	if ok && seq <= last {
+		// XXX: this is a bit hacky
+		reply.Err = s.lastReply[args.CID].Err
+		return
+	}
+	s.lastSeq[args.CID] = args.Seq
+
+	sid := shardOf(args.Key)
+
+	if s.shardMap[sid] == true {
+		equal := bytesEqual(args.ExpectedValue, s.kvss[sid][args.Key])
+		if equal {
+			s.kvss[sid][args.Key] = args.NewValue // give ownership of the slice to the server
+		}
+		reply.Success = equal
+		reply.Err = ENone
+	} else {
+		reply.Err = EDontHaveShard
+	}
+
+	// XXX: this is a bit hacky (same as above)
+	s.lastReply[args.CID] = GetReply{Err: reply.Err}
+}
+
+func (s *MemKVShardServer) ConditionalPutRPC(args *ConditionalPutRequest, reply *ConditionalPutReply) {
+	s.mu.Lock()
+	s.conditional_put_inner(args, reply)
+	s.mu.Unlock()
+}
+
 // NOTE: easy to do a little optimization with shard migration:
 // add a "RemoveShard" rpc, which removes the shard on the target server, and
 // returns half of the ghost state for that shard. Meanwhile, InstallShard()
@@ -169,6 +202,12 @@ func (mkv *MemKVShardServer) Start(host HostName) {
 		rep := new(GetReply)
 		mkv.GetRPC(decodeGetRequest(rawReq), rep)
 		*rawReply = encodeGetReply(rep)
+	}
+
+	handlers[KV_CONDITIONAL_PUT] = func(rawReq []byte, rawReply *[]byte) {
+		rep := new(ConditionalPutReply)
+		mkv.ConditionalPutRPC(decodeConditionalPutRequest(rawReq), rep)
+		*rawReply = encodeConditionalPutReply(rep)
 	}
 
 	handlers[KV_INS_SHARD] = func(rawReq []byte, rawReply *[]byte) {

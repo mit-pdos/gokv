@@ -34,7 +34,8 @@ func (ck *MemKVShardClerk) Put(key uint64, value []byte) ErrorType {
 	// TODO: helper for looping RemoteProcedureCall()
 	for ck.cl.Call(KV_PUT, encodePutRequest(args), rawRep) == true {
 	}
-	return decodePutReply(*rawRep).Err
+	rep := decodePutReply(*rawRep)
+	return rep.Err
 }
 
 func (ck *MemKVShardClerk) Get(key uint64, value *[]byte) ErrorType {
@@ -45,10 +46,29 @@ func (ck *MemKVShardClerk) Get(key uint64, value *[]byte) ErrorType {
 	ck.seq = ck.seq + 1
 
 	rawRep := new([]byte)
+	// TODO: helper for looping RemoteProcedureCall()
 	for ck.cl.Call(KV_GET, encodeGetRequest(args), rawRep) == true {
 	}
 	rep := decodeGetReply(*rawRep)
 	*value = rep.Value
+	return rep.Err
+}
+
+func (ck *MemKVShardClerk) ConditionalPut(key uint64, expectedValue []byte, newValue []byte, success *bool) ErrorType {
+	args := new(ConditionalPutRequest)
+	args.CID = ck.cid
+	args.Seq = ck.seq
+	args.Key = key
+	args.ExpectedValue = expectedValue
+	args.NewValue = newValue
+	ck.seq = ck.seq + 1
+
+	rawRep := new([]byte)
+	// TODO: helper for looping RemoteProcedureCall()
+	for ck.cl.Call(KV_PUT, encodeConditionalPutRequest(args), rawRep) == true {
+	}
+	rep := decodeConditionalPutReply(*rawRep)
+	*success = rep.Success
 	return rep.Err
 }
 
