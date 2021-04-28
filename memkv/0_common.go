@@ -45,6 +45,13 @@ func bytesEqual(x []byte, y []byte) bool {
 	return retval
 }
 
+// "universal" reply type for the reply table
+type ShardReply struct {
+	Err ErrorType
+	Value []byte
+	Success bool
+}
+
 type PutRequest struct {
 	CID   uint64
 	Seq   uint64

@@ -11,7 +11,7 @@ type KvMap = map[uint64][]byte
 type MemKVShardServer struct {
 	me        string //
 	mu        *sync.Mutex
-	lastReply map[uint64]GetReply
+	lastReply map[uint64]ShardReply
 	lastSeq   map[uint64]uint64
 	nextCID   uint64 // next CID that can be granted to a client
 
@@ -30,7 +30,6 @@ func (s *MemKVShardServer) put_inner(args *PutRequest, reply *PutReply) {
 	last, ok := s.lastSeq[args.CID]
 	seq := args.Seq
 	if ok && seq <= last {
-		// XXX: this is a bit hacky
 		reply.Err = s.lastReply[args.CID].Err
 		return
 	}
@@ -45,8 +44,7 @@ func (s *MemKVShardServer) put_inner(args *PutRequest, reply *PutReply) {
 		reply.Err = EDontHaveShard
 	}
 
-	// XXX: this is a bit hacky (same as above)
-	s.lastReply[args.CID] = GetReply{Err: reply.Err}
+	s.lastReply[args.CID] = ShardReply{Err: reply.Err}
 }
 
 func (s *MemKVShardServer) PutRPC(args *PutRequest, reply *PutReply) {
@@ -59,7 +57,9 @@ func (s *MemKVShardServer) get_inner(args *GetRequest, reply *GetReply) {
 	last, ok := s.lastSeq[args.CID]
 	seq := args.Seq
 	if ok && seq <= last {
-		*reply = s.lastReply[args.CID]
+		lastReply := s.lastReply[args.CID]
+		reply.Err = lastReply.Err
+		reply.Value = lastReply.Value
 		return
 	}
 	s.lastSeq[args.CID] = args.Seq
@@ -72,7 +72,7 @@ func (s *MemKVShardServer) get_inner(args *GetRequest, reply *GetReply) {
 	} else {
 		reply.Err = EDontHaveShard
 	}
-	s.lastReply[args.CID] = *reply
+	s.lastReply[args.CID] = ShardReply{Err: reply.Err, Value: reply.Value}
 }
 
 func (s *MemKVShardServer) GetRPC(args *GetRequest, reply *GetReply) {
@@ -85,8 +85,9 @@ func (s *MemKVShardServer) conditional_put_inner(args *ConditionalPutRequest, re
 	last, ok := s.lastSeq[args.CID]
 	seq := args.Seq
 	if ok && seq <= last {
-		// XXX: this is a bit hacky
-		reply.Err = s.lastReply[args.CID].Err
+		lastReply := s.lastReply[args.CID]
+		reply.Err = lastReply.Err
+		reply.Success = lastReply.Success
 		return
 	}
 	s.lastSeq[args.CID] = args.Seq
@@ -104,8 +105,7 @@ func (s *MemKVShardServer) conditional_put_inner(args *ConditionalPutRequest, re
 		reply.Err = EDontHaveShard
 	}
 
-	// XXX: this is a bit hacky (same as above)
-	s.lastReply[args.CID] = GetReply{Err: reply.Err}
+	s.lastReply[args.CID] = ShardReply{Err: reply.Err, Success: reply.Success}
 }
 
 func (s *MemKVShardServer) ConditionalPutRPC(args *ConditionalPutRequest, reply *ConditionalPutReply) {
@@ -130,7 +130,7 @@ func (s *MemKVShardServer) install_shard_inner(args *InstallShardRequest) {
 
 	s.shardMap[args.Sid] = true
 	s.kvss[args.Sid] = args.Kvs
-	s.lastReply[args.CID] = GetReply{Err: 0, Value: nil}
+	s.lastReply[args.CID] = ShardReply{Err: 0, Value: nil}
 }
 
 func (s *MemKVShardServer) InstallShardRPC(args *InstallShardRequest) {
@@ -163,7 +163,7 @@ func (s *MemKVShardServer) MoveShardRPC(args *MoveShardRequest) {
 func MakeMemKVShardServer() *MemKVShardServer {
 	srv := new(MemKVShardServer)
 	srv.mu = new(sync.Mutex)
-	srv.lastReply = make(map[uint64]GetReply)
+	srv.lastReply = make(map[uint64]ShardReply)
 	srv.lastSeq = make(map[uint64]uint64)
 	srv.shardMap = make([]bool, NSHARD)
 	srv.kvss = make([]KvMap, NSHARD)
