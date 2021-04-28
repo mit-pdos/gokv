@@ -33,12 +33,16 @@ func bytesEqual(x []byte, y []byte) bool {
 	if len(x) != len(y) {
 		return false
 	}
-	for i := 0; i < len(x); i++ {
+	var i = uint64(0)
+	var retval = true
+	for i < uint64(len(x)) {
 		if x[i] != y[i] {
-			return false
+			retval = false
+			break
 		}
+		i += 1
 	}
-	return true
+	return retval
 }
 
 type PutRequest struct {
