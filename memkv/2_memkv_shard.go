@@ -161,7 +161,7 @@ func (s *MemKVShardServer) MoveShardRPC(args *MoveShardRequest) {
 	s.mu.Unlock()
 }
 
-func MakeMemKVShardServer() *MemKVShardServer {
+func MakeMemKVShardServer(is_init bool) *MemKVShardServer {
 	srv := new(MemKVShardServer)
 	srv.mu = new(sync.Mutex)
 	srv.lastReply = make(map[uint64]ShardReply)
@@ -170,8 +170,10 @@ func MakeMemKVShardServer() *MemKVShardServer {
 	srv.kvss = make([]KvMap, NSHARD)
 	srv.peers = make(map[HostName]*MemKVShardClerk)
 	for i := uint64(0); i < NSHARD; i++ {
-		srv.shardMap[i] = true
-		srv.kvss[i] = make(map[uint64][]byte)
+		srv.shardMap[i] = is_init
+		if is_init {
+			srv.kvss[i] = make(map[uint64][]byte)
+		}
 	}
 	return srv
 }
