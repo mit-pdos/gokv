@@ -65,7 +65,7 @@ func (ck *MemKVShardClerk) ConditionalPut(key uint64, expectedValue []byte, newV
 
 	rawRep := new([]byte)
 	// TODO: helper for looping RemoteProcedureCall()
-	for ck.cl.Call(KV_PUT, encodeConditionalPutRequest(args), rawRep) == true {
+	for ck.cl.Call(KV_CONDITIONAL_PUT, encodeConditionalPutRequest(args), rawRep) == true {
 	}
 	rep := decodeConditionalPutReply(*rawRep)
 	*success = rep.Success
