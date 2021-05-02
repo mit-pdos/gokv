@@ -41,6 +41,7 @@ func bytesEqual(x []byte, y []byte) bool {
 			break
 		}
 		i += 1
+		continue
 	}
 	return retval
 }
