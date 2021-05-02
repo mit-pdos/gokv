@@ -30,12 +30,13 @@ func shardOf(key uint64) uint64 {
 }
 
 func bytesEqual(x []byte, y []byte) bool {
-	if len(x) != len(y) {
+	xlen := len(x)
+	if xlen != len(y) {
 		return false
 	}
 	var i = uint64(0)
 	var retval = true
-	for i < uint64(len(x)) {
+	for i < uint64(xlen) {
 		if x[i] != y[i] {
 			retval = false
 			break
