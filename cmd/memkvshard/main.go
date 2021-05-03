@@ -24,7 +24,7 @@ func main() {
 	}
 
 	s := memkv.MakeMemKVShardServer(is_init)
-	me := dist_ffi.MakeAddress(fmt.Sprintf("127.0.0.1:%d", port))
+	me := dist_ffi.MakeAddress(fmt.Sprintf("0.0.0.0:%d", port))
 	log.Printf("Started shard server on port %d; id %d", port, me)
 	s.Start(me)
 	select{}
