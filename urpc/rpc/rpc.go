@@ -19,6 +19,7 @@ func (srv *RPCServer) rpcHandle(sender dist_ffi.Sender, rpcid uint64, seqno uint
 	f := srv.handlers[rpcid] // for Goose
 	f(data, replyData)      // call the function
 
+	machine.Assume(8 + 8 + uint64(len(*replyData)) > uint64(len(*replyData)))
 	e := marshal.NewEnc(8 + 8 + uint64(len(*replyData)))
 	e.PutInt(seqno)
 	e.PutInt(uint64(len(*replyData)))
