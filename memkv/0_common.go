@@ -2,6 +2,7 @@ package memkv
 
 import (
 	"github.com/tchajed/marshal"
+	"github.com/tchajed/goose/machine"
 )
 
 type HostName = uint64
@@ -64,7 +65,7 @@ type PutRequest struct {
 // doesn't include the operation type
 func encodePutRequest(args *PutRequest) []byte {
 	num_bytes := uint64(8 + 8 + 8 + 8 + len(args.Value)) // CID + Seq + key + value-len + value
-	// num_bytes = uint64(8 + len(args.Value))
+	machine.Assume(num_bytes > uint64(len(args.Value)))
 	e := marshal.NewEnc(num_bytes)
 	e.PutInt(args.CID)
 	e.PutInt(args.Seq)
@@ -133,6 +134,7 @@ func decodeGetRequest(rawReq []byte) *GetRequest {
 
 func encodeGetReply(rep *GetReply) []byte {
 	num_bytes := uint64(8 + 8 + len(rep.Value)) // CID + Seq + key + value-len + value
+	machine.Assume(num_bytes > uint64(len(rep.Value)))
 	e := marshal.NewEnc(num_bytes)
 	e.PutInt(rep.Err)
 	e.PutInt(uint64(len(rep.Value)))
