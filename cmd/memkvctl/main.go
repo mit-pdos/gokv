@@ -17,6 +17,10 @@ func main() {
 	usage_assert := func(b bool) {
 		if !b {
 			flag.PrintDefaults()
+			fmt.Println("Must provide command in form:")
+			fmt.Println(" get KEY")
+			fmt.Println(" put KEY VALUE")
+			fmt.Println(" add HOST")
 			os.Exit(1)
 		}
 	}
@@ -27,7 +31,7 @@ func main() {
 	ck := memkv.MakeMemKVClerk(coord)
 
 	a := flag.Args()
-	usage_assert(len(a) == 0)
+	usage_assert(len(a) > 0)
 	if a[0] == "get" {
 		usage_assert(len(a) == 2)
 		k, err := strconv.ParseUint(a[1], 10, 64)
