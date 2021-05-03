@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/upamanyus/urpc/rpc"
 	"fmt"
+	"github.com/upamanyus/urpc/rpc"
 	"runtime"
 )
 
@@ -20,5 +20,5 @@ func main() {
 	}
 	s := rpc.MakeRPCServer(handlers, 2)
 	s.Serve(":12345")
-	select{}
+	select {}
 }

@@ -86,7 +86,7 @@ type GetReply struct {
 }
 
 func encodeGetRequest(req *GetRequest) []byte {
-	e := marshal.NewEnc(3*8)
+	e := marshal.NewEnc(3 * 8)
 	e.PutInt(req.CID)
 	e.PutInt(req.Seq)
 	e.PutInt(req.Key)

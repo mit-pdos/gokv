@@ -17,9 +17,9 @@ func (srv *RPCServer) rpcHandle(sender dist_ffi.Sender, rpcid uint64, seqno uint
 	replyData := new([]byte)
 
 	f := srv.handlers[rpcid] // for Goose
-	f(data, replyData)      // call the function
+	f(data, replyData)       // call the function
 
-	machine.Assume(8 + 8 + uint64(len(*replyData)) > uint64(len(*replyData)))
+	machine.Assume(8+8+uint64(len(*replyData)) > uint64(len(*replyData)))
 	e := marshal.NewEnc(8 + 8 + uint64(len(*replyData)))
 	e.PutInt(seqno)
 	e.PutInt(uint64(len(*replyData)))
@@ -45,7 +45,7 @@ func (srv *RPCServer) readThread(recv dist_ffi.Receiver) {
 		reqLen := d.GetInt()
 		req := d.GetBytes(reqLen)
 		srv.rpcHandle(sender, rpcid, seqno, req) // XXX: this could (and probably should) be in a goroutine
-		continue;
+		continue
 	}
 }
 
@@ -95,7 +95,7 @@ func (cl *RPCClient) replyThread(recv dist_ffi.Receiver) {
 			cb.cond.Signal()
 		}
 		cl.mu.Unlock()
-		continue;
+		continue
 	}
 }
 
@@ -122,13 +122,13 @@ func (cl *RPCClient) Call(rpcid uint64, args []byte, reply *[]byte) bool {
 	cl.mu.Lock()
 	seqno := cl.seq
 	// Overflowing a 64bit counter will take a while, assume it does not happen
-	machine.Assume(cl.seq + 1 > cl.seq)
+	machine.Assume(cl.seq+1 > cl.seq)
 	cl.seq = cl.seq + 1
 	cl.pending[seqno] = cb
 	cl.mu.Unlock()
 
 	// Assume length of args + extra bytes for header does not overflow length
-	machine.Assume(8 + 8 + (8 + uint64(len(args))) > uint64(len(args)))
+	machine.Assume(8+8+(8+uint64(len(args))) > uint64(len(args)))
 	e := marshal.NewEnc(8 + 8 + (8 + uint64(len(args))))
 	e.PutInt(rpcid)
 	e.PutInt(seqno)

@@ -13,7 +13,7 @@ type KVClerkPool struct {
 	mu *sync.Mutex
 	// queue of free clerks
 	freeClerks []KVClerk
-	factory func()KVClerk
+	factory    func() KVClerk
 }
 
 // the hope is that after a while, the number of clerks needed to maintain a
@@ -62,7 +62,7 @@ func (p *KVClerkPool) Get(key uint64) []byte {
 	return value
 }
 
-func MakeKVClerkPool(numInit uint64, numClients uint64, factory func()KVClerk) *KVClerkPool {
+func MakeKVClerkPool(numInit uint64, numClients uint64, factory func() KVClerk) *KVClerkPool {
 	p := new(KVClerkPool)
 	p.mu = new(sync.Mutex)
 	p.factory = factory

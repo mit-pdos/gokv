@@ -1,12 +1,12 @@
 package dist_ffi
 
 import (
+	"fmt"
 	"github.com/tchajed/marshal"
 	"io"
 	"net"
-	"fmt"
-	"strings"
 	"strconv"
+	"strings"
 )
 
 type Address uint64
@@ -39,7 +39,7 @@ func MakeAddress(ipStr string) uint64 {
 		}
 		ip[i] = byte(a)
 	}
-	return (uint64(ip[0]) | uint64(ip[1]) << 8 | uint64(ip[2]) << 16 | uint64(ip[3]) << 24 | uint64(port) << 32)
+	return (uint64(ip[0]) | uint64(ip[1])<<8 | uint64(ip[2])<<16 | uint64(ip[3])<<24 | uint64(port)<<32)
 }
 
 func AddressToStr(e Address) string {
@@ -52,7 +52,7 @@ func AddressToStr(e Address) string {
 	a3 := byte(e & 0xff)
 	e = e >> 8
 	port := e & 0xffff
-	return fmt.Sprintf("%s:%d", net.IPv4(a0,a1,a2,a3).String(), port)
+	return fmt.Sprintf("%s:%d", net.IPv4(a0, a1, a2, a3).String(), port)
 }
 
 type MsgAndSender struct {
@@ -62,14 +62,14 @@ type MsgAndSender struct {
 
 /// Sender
 type sender struct {
-    conn net.Conn
+	conn net.Conn
 }
 
 type Sender *sender
 
 type ConnectRet struct {
-	Err bool
-	Sender Sender
+	Err      bool
+	Sender   Sender
 	Receiver Receiver
 }
 
@@ -81,7 +81,7 @@ func Connect(host Address) ConnectRet {
 	}
 	c := make(chan MsgAndSender)
 	go receiveOnSocket(conn, c)
-	return ConnectRet { Err:false, Sender:&sender { conn }, Receiver:&receiver { c } }
+	return ConnectRet{Err: false, Sender: &sender{conn}, Receiver: &receiver{c}}
 }
 
 func Send(send Sender, data []byte) {
@@ -115,7 +115,7 @@ func receiveOnSocket(conn net.Conn, c chan MsgAndSender) {
 
 /// Receiver
 type receiver struct {
-    c chan MsgAndSender
+	c chan MsgAndSender
 }
 
 type Receiver *receiver
@@ -135,21 +135,21 @@ func Listen(host Address) Receiver {
 	c := make(chan MsgAndSender)
 	l, err := net.Listen("tcp", AddressToStr(host))
 	if err != nil {
-		return &receiver { c }
+		return &receiver{c}
 	}
 	// Keep accepting new connections in background thread
 	go listenOnSocket(l, c)
-	return &receiver { c }
+	return &receiver{c}
 }
 
 type ReceiveRet struct {
-	Err bool
+	Err    bool
 	Sender Sender
-	Data []byte
+	Data   []byte
 }
 
 // This will never actually return NULL, but as long as clients and proofs do not rely on this that is okay.
 func Receive(recv Receiver) ReceiveRet {
 	a := <-recv.c
-	return ReceiveRet{Err:false, Sender:a.s, Data:a.m}
+	return ReceiveRet{Err: false, Sender: a.s, Data: a.m}
 }

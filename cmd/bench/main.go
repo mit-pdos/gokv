@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/go-redis/redis/v8"
+	. "github.com/mit-pdos/gokv/bench"
 	"io"
 	"log"
 	"math/rand"
@@ -14,7 +15,6 @@ import (
 	"strconv"
 	"sync/atomic"
 	"time"
-	. "github.com/mit-pdos/gokv/bench"
 )
 
 // XXX: this doesn't use monotonic time.

@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/mit-pdos/gokv/memkv"
-	"github.com/mit-pdos/gokv/dist_ffi"
 	"flag"
+	"github.com/mit-pdos/gokv/dist_ffi"
+	"github.com/mit-pdos/gokv/memkv"
 )
 
 func main() {

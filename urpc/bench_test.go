@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 	"github.com/upamanyus/urpc/rpc"
+	"sync"
 	"testing"
 	"time"
-	"sync"
 )
 
 func TestRPC(t *testing.T) {
@@ -33,7 +33,7 @@ func TestBenchRPC(t *testing.T) {
 	}
 	d := time.Since(start)
 	fmt.Printf("%v us/op\n", d.Microseconds()/int64(N))
-	fmt.Printf("%v ops/sec\n", float64(N) / d.Seconds())
+	fmt.Printf("%v ops/sec\n", float64(N)/d.Seconds())
 }
 
 func TestBenchConcurrentRPC(t *testing.T) {
@@ -62,5 +62,5 @@ func TestBenchConcurrentRPC(t *testing.T) {
 	wg.Wait()
 	d := time.Since(start)
 	fmt.Printf("%v us/op\n", d.Microseconds()/int64(N))
-	fmt.Printf("%v ops/sec\n", float64(N * numClients) / d.Seconds())
+	fmt.Printf("%v ops/sec\n", float64(N*numClients)/d.Seconds())
 }

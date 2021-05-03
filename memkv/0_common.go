@@ -1,8 +1,8 @@
 package memkv
 
 import (
-	"github.com/tchajed/marshal"
 	"github.com/tchajed/goose/machine"
+	"github.com/tchajed/marshal"
 )
 
 type HostName = uint64
@@ -12,7 +12,7 @@ type ValueType = uint64
 type ErrorType = uint64
 
 const (
-	ENone = uint64(0)
+	ENone          = uint64(0)
 	EDontHaveShard = uint64(1)
 )
 
@@ -50,8 +50,8 @@ func bytesEqual(x []byte, y []byte) bool {
 
 // "universal" reply type for the reply table
 type ShardReply struct {
-	Err ErrorType
-	Value []byte
+	Err     ErrorType
+	Value   []byte
 	Success bool
 }
 
@@ -65,7 +65,7 @@ type PutRequest struct {
 // doesn't include the operation type
 func encodePutRequest(args *PutRequest) []byte {
 	num_bytes := uint64(8 + 8 + 8 + 8 + len(args.Value)) // CID + Seq + key + value-len + value
-	machine.Assume(num_bytes > uint64(len(args.Value))) // assume no overflow (would allocate 2^64 bytes...)
+	machine.Assume(num_bytes > uint64(len(args.Value)))  // assume no overflow (would allocate 2^64 bytes...)
 	e := marshal.NewEnc(num_bytes)
 	e.PutInt(args.CID)
 	e.PutInt(args.Seq)
@@ -133,7 +133,7 @@ func decodeGetRequest(rawReq []byte) *GetRequest {
 }
 
 func encodeGetReply(rep *GetReply) []byte {
-	num_bytes := uint64(8 + 8 + len(rep.Value)) // CID + Seq + key + value-len + value
+	num_bytes := uint64(8 + 8 + len(rep.Value))        // CID + Seq + key + value-len + value
 	machine.Assume(num_bytes > uint64(len(rep.Value))) // assume no overflow (would allocate 2^64 bytes...)
 	e := marshal.NewEnc(num_bytes)
 	e.PutInt(rep.Err)
@@ -152,22 +152,22 @@ func decodeGetReply(rawRep []byte) *GetReply {
 }
 
 type ConditionalPutRequest struct {
-	CID uint64
-	Seq uint64
-	Key uint64
+	CID           uint64
+	Seq           uint64
+	Key           uint64
 	ExpectedValue []byte
 	NewValue      []byte
 }
 
 type ConditionalPutReply struct {
-	Err   ErrorType
+	Err     ErrorType
 	Success bool
 }
 
 func encodeConditionalPutRequest(req *ConditionalPutRequest) []byte {
-	machine.Assume(len(req.ExpectedValue) + len(req.NewValue) > len(req.ExpectedValue)) // assume no overflow (would allocate 2^64 bytes...)
+	machine.Assume(len(req.ExpectedValue)+len(req.NewValue) > len(req.ExpectedValue))   // assume no overflow (would allocate 2^64 bytes...)
 	num_bytes := uint64(8 + 8 + 8 + 8 + 8 + len(req.ExpectedValue) + len(req.NewValue)) // CID + Seq + key + exp-value-len + exp-value + new-value-len + new-value
-	machine.Assume(num_bytes > uint64(len(req.ExpectedValue) + len(req.NewValue))) // assume no overflow (would allocate 2^64 bytes...)
+	machine.Assume(num_bytes > uint64(len(req.ExpectedValue)+len(req.NewValue)))        // assume no overflow (would allocate 2^64 bytes...)
 	e := marshal.NewEnc(num_bytes)
 	e.PutInt(req.CID)
 	e.PutInt(req.Seq)
@@ -245,7 +245,7 @@ func DecSliceMap(d marshal.Dec) map[uint64][]byte {
 }
 
 func encodeInstallShardRequest(req *InstallShardRequest) []byte {
-	e := marshal.NewEnc(8 + 8 + 8 + SizeOfMarshalledMap(req.Kvs) )
+	e := marshal.NewEnc(8 + 8 + 8 + SizeOfMarshalledMap(req.Kvs))
 	e.PutInt(req.CID)
 	e.PutInt(req.Seq)
 	e.PutInt(req.Sid)

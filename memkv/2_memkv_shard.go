@@ -183,7 +183,7 @@ func (s *MemKVShardServer) GetCIDRPC() uint64 {
 	log.Println("GetCIDRPC() starting")
 	s.mu.Lock()
 	r := s.nextCID
-	machine.Assume(s.nextCID + 1 > s.nextCID) // no overflow of CIDs
+	machine.Assume(s.nextCID+1 > s.nextCID) // no overflow of CIDs
 	s.nextCID = s.nextCID + 1
 	s.mu.Unlock()
 	log.Println("GetCIDRPC() done")

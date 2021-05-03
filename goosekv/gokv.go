@@ -44,7 +44,7 @@ func (s *GoKVShardServer) put_inner(args *PutRequest, reply *PutReply) {
 	}
 
 	// XXX: this is a bit hacky (same as above)
-	s.lastReply[args.CID] = GetReply{Err:reply.Err}
+	s.lastReply[args.CID] = GetReply{Err: reply.Err}
 }
 
 func (s *GoKVShardServer) PutRPC(args *PutRequest, reply *PutReply) {

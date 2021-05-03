@@ -1,12 +1,12 @@
 package main
 
 import (
-	"github.com/mit-pdos/gokv/memkv"
-	"github.com/mit-pdos/gokv/dist_ffi"
 	"flag"
-	"strconv"
 	"fmt"
+	"github.com/mit-pdos/gokv/dist_ffi"
+	"github.com/mit-pdos/gokv/memkv"
 	"os"
+	"strconv"
 )
 
 func main() {

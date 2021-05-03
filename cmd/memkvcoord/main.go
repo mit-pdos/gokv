@@ -1,11 +1,11 @@
 package main
 
 import (
-	"github.com/mit-pdos/gokv/memkv"
-	"github.com/mit-pdos/gokv/dist_ffi"
 	"flag"
-	"log"
 	"fmt"
+	"github.com/mit-pdos/gokv/dist_ffi"
+	"github.com/mit-pdos/gokv/memkv"
+	"log"
 	"os"
 )
 
@@ -25,5 +25,5 @@ func main() {
 	me := dist_ffi.MakeAddress(fmt.Sprintf("0.0.0.0:%d", port))
 	log.Printf("Started coordinator server on port %d; id %d", port, me)
 	s.Start(me)
-	select{}
+	select {}
 }
