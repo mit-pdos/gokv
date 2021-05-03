@@ -65,7 +65,7 @@ type PutRequest struct {
 // doesn't include the operation type
 func encodePutRequest(args *PutRequest) []byte {
 	num_bytes := uint64(8 + 8 + 8 + 8 + len(args.Value)) // CID + Seq + key + value-len + value
-	machine.Assume(num_bytes > uint64(len(args.Value)))
+	machine.Assume(num_bytes > uint64(len(args.Value))) // assume no overflow (would allocate 2^64 bytes...)
 	e := marshal.NewEnc(num_bytes)
 	e.PutInt(args.CID)
 	e.PutInt(args.Seq)
@@ -134,7 +134,7 @@ func decodeGetRequest(rawReq []byte) *GetRequest {
 
 func encodeGetReply(rep *GetReply) []byte {
 	num_bytes := uint64(8 + 8 + len(rep.Value)) // CID + Seq + key + value-len + value
-	machine.Assume(num_bytes > uint64(len(rep.Value)))
+	machine.Assume(num_bytes > uint64(len(rep.Value))) // assume no overflow (would allocate 2^64 bytes...)
 	e := marshal.NewEnc(num_bytes)
 	e.PutInt(rep.Err)
 	e.PutInt(uint64(len(rep.Value)))
@@ -165,7 +165,9 @@ type ConditionalPutReply struct {
 }
 
 func encodeConditionalPutRequest(req *ConditionalPutRequest) []byte {
-	num_bytes := uint64(8 + 8 + 8 + 8 + len(req.ExpectedValue) + 8 + len(req.NewValue)) // CID + Seq + key + exp-value-len + exp-value + new-value-len + new-value
+	machine.Assume(len(req.ExpectedValue) + len(req.NewValue) > len(req.ExpectedValue)) // assume no overflow (would allocate 2^64 bytes...)
+	num_bytes := uint64(8 + 8 + 8 + 8 + 8 + len(req.ExpectedValue) + len(req.NewValue)) // CID + Seq + key + exp-value-len + exp-value + new-value-len + new-value
+	machine.Assume(num_bytes > uint64(len(req.ExpectedValue) + len(req.NewValue))) // assume no overflow (would allocate 2^64 bytes...)
 	e := marshal.NewEnc(num_bytes)
 	e.PutInt(req.CID)
 	e.PutInt(req.Seq)
