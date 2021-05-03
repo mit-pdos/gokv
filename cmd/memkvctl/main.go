@@ -37,18 +37,18 @@ func main() {
 		k, err := strconv.ParseUint(a[1], 10, 64)
 		usage_assert(err == nil)
 		v := ck.Get(k)
-		fmt.Println("GET %d |-> %v", k, v)
+		fmt.Printf("GET %d ↦ %v\n", k, v)
 	} else if a[0] == "put" {
 		usage_assert(len(a) == 3)
 		k, err := strconv.ParseUint(a[1], 10, 64)
 		usage_assert(err == nil)
 		v := []byte(a[2])
 		ck.Put(k, v)
-		fmt.Println("PUT %d |-> %v", k, v)
+		fmt.Printf("PUT %d ↦ %v\n", k, v)
 	} else if a[0] == "add" {
 		usage_assert(len(a) == 2)
 		h := dist_ffi.MakeAddress(a[1])
 		ck.Add(h)
-		fmt.Println("Added %s", a[1])
+		fmt.Printf("Added %s\n", a[1])
 	}
 }
