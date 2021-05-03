@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"github.com/mit-pdos/gokv/dist_ffi"
+	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/marshal"
 	"sync"
 )
@@ -99,7 +100,8 @@ func (cl *RPCClient) replyThread(recv dist_ffi.Receiver) {
 
 func MakeRPCClient(host HostName) *RPCClient {
 	a := dist_ffi.Connect(dist_ffi.Address(host))
-	// FIXME: check error
+	// Panic if error
+	machine.Assume(!a.Err)
 
 	cl := &RPCClient{
 		send:    a.Sender,
@@ -118,10 +120,14 @@ func (cl *RPCClient) Call(rpcid uint64, args []byte, reply *[]byte) bool {
 	*cb.done = false
 	cl.mu.Lock()
 	seqno := cl.seq
+	// Overflowing a 64bit counter will take a while, assume it does not happen
+	machine.Assume(cl.seq + 1 > cl.seq)
 	cl.seq = cl.seq + 1
 	cl.pending[seqno] = cb
 	cl.mu.Unlock()
 
+	// Assume length of args + extra bytes for header does not overflow length
+	machine.Assume(8 + 8 + (8 + uint64(len(args))) > uint64(len(args)))
 	e := marshal.NewEnc(8 + 8 + (8 + uint64(len(args))))
 	e.PutInt(rpcid)
 	e.PutInt(seqno)
