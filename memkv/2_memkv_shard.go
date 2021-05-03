@@ -67,7 +67,7 @@ func (s *MemKVShardServer) get_inner(args *GetRequest, reply *GetReply) {
 	sid := shardOf(args.Key)
 
 	if s.shardMap[sid] == true {
-		reply.Value = append(make([]byte, 0), s.kvss[sid][args.Key]...)
+		reply.Value = s.kvss[sid][args.Key]
 		reply.Err = ENone
 	} else {
 		reply.Err = EDontHaveShard
