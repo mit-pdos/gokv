@@ -63,6 +63,8 @@ type MsgAndSender struct {
 /// Sender
 type sender struct {
 	conn net.Conn
+	host Address // to reconnect to server when it fails (can be 0 to indicate this is not possible)
+	recv Receiver // the reply receiver for this channel
 }
 
 type Sender *sender
@@ -75,30 +77,52 @@ type ConnectRet struct {
 
 func Connect(host Address) ConnectRet {
 	conn, err := net.Dial("tcp", AddressToStr(host))
-	// We ignore errors (all packets are just silently dropped)
-	if err != nil { // keeping this around so it's easier to debug code
-		panic(err)
-	}
 	c := make(chan MsgAndSender)
-	go receiveOnSocket(conn, c)
-	return ConnectRet{Err: false, Sender: &sender{conn}, Receiver: &receiver{c}}
+	recv := &receiver{c}
+	send := &sender { conn, host, recv }
+
+	if err == nil {
+		go receiveOnSocket(conn, c)
+	}
+	return ConnectRet{Err: err != nil, Sender: send, Receiver: recv}
 }
 
-func Send(send Sender, data []byte) {
+func Send(send Sender, data []byte) bool {
 	// message format: [dataLen] ++ data
 	e := marshal.NewEnc(8 + uint64(len(data)))
 	e.PutInt(uint64(len(data)))
 	e.PutBytes(data) // FIXME: copying all the data...
 	reqData := e.Finish()
-	send.conn.Write(reqData) // one atomic write for the entire thing!
+	_, err := send.conn.Write(reqData) // one atomic write for the entire thing!
+	if err != nil && send.host != 0 {
+		// This did not work out. In an attempt to make this API as reliable as possible,
+		// let us try to reconnect so if the client tries again, maybe it works.
+		conn, err := net.Dial("tcp", AddressToStr(send.host))
+		if err == nil {
+			// Looking good, we got a new connection. Let's use this henceforth and
+			// wire it up to the existing receiver's channel.
+			send.conn = conn
+			go receiveOnSocket(conn, send.recv.c)
+		}
+	}
+	return err != nil
 }
 
+// conn will also be used as "reply socket" for all messages that arrive here.
 func receiveOnSocket(conn net.Conn, c chan MsgAndSender) {
+	// Messages received here will have their replies sent via this sender.
+	// "host" and "recv" remain zero; this sender does not support re-connecting.
+	var send sender
+	send.conn = conn
+
 	for {
 		// message format: [dataLen] ++ data
 		header := make([]byte, 8)
 		_, err := io.ReadFull(conn, header)
 		if err != nil {
+			// TODO: if this is a `Receiver`, propagate socket failures to `Receive` calls
+			// (Hiding errors is okay per our spec, but not great.)
+			// This can legitimately happen when the other side "hung up", so do not panic.
 			return
 		}
 		d := marshal.NewDec(header)
@@ -107,9 +131,10 @@ func receiveOnSocket(conn net.Conn, c chan MsgAndSender) {
 		data := make([]byte, dataLen)
 		_, err2 := io.ReadFull(conn, data)
 		if err2 != nil {
-			panic(err2)
+			// see comment above
+			return
 		}
-		c <- MsgAndSender{data, &sender{conn}}
+		c <- MsgAndSender{data, &send}
 	}
 }
 
@@ -124,7 +149,8 @@ func listenOnSocket(l net.Listener, c chan MsgAndSender) {
 	for {
 		conn, err := l.Accept()
 		if err != nil {
-			panic(err) // Here for easier debugging
+			// This should not usually happen... something seems wrong.
+			panic(err)
 		}
 		// Spawn new thread receiving data on this connection
 		go receiveOnSocket(conn, c)
@@ -135,7 +161,8 @@ func Listen(host Address) Receiver {
 	c := make(chan MsgAndSender)
 	l, err := net.Listen("tcp", AddressToStr(host))
 	if err != nil {
-		return &receiver{c}
+		// Assume() no error on Listen. This should fail loud and early, retrying makes little sense (likely the port is already used).
+		panic(err)
 	}
 	// Keep accepting new connections in background thread
 	go listenOnSocket(l, c)
@@ -148,7 +175,8 @@ type ReceiveRet struct {
 	Data   []byte
 }
 
-// This will never actually return NULL, but as long as clients and proofs do not rely on this that is okay.
+// This will never actually return Err==true, but as long as clients and proofs do not rely on this that is okay.
+// TODO: Distinguish "timeout (no message found)" from "error"
 func Receive(recv Receiver) ReceiveRet {
 	a := <-recv.c
 	return ReceiveRet{Err: false, Sender: a.s, Data: a.m}

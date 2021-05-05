@@ -24,6 +24,7 @@ func (srv *RPCServer) rpcHandle(sender dist_ffi.Sender, rpcid uint64, seqno uint
 	e.PutInt(seqno)
 	e.PutInt(uint64(len(*replyData)))
 	e.PutBytes(*replyData)
+	// Ignore errors (what would we do about them anyway -- client will inevitably time out, and then retry)
 	dist_ffi.Send(sender, e.Finish()) // TODO: contention? should we buffer these in userspace too?
 }
 
@@ -44,7 +45,7 @@ func (srv *RPCServer) readThread(recv dist_ffi.Receiver) {
 		seqno := d.GetInt()
 		reqLen := d.GetInt()
 		req := d.GetBytes(reqLen)
-		srv.rpcHandle(sender, rpcid, seqno, req) // XXX: this could (and probably should) be in a goroutine
+		srv.rpcHandle(sender, rpcid, seqno, req) // XXX: this could (and probably should) be in a goroutine YYY: but readThread is already its own goroutine, so that seems redundant?
 		continue
 	}
 }
@@ -99,9 +100,10 @@ func (cl *RPCClient) replyThread(recv dist_ffi.Receiver) {
 	}
 }
 
-func MakeRPCClient(host HostName) *RPCClient {
-	a := dist_ffi.Connect(dist_ffi.Address(host))
-	// Panic if error
+func MakeRPCClient(host_name HostName) *RPCClient {
+	host := dist_ffi.Address(host_name)
+	a := dist_ffi.Connect(host)
+	// Assume no error
 	machine.Assume(!a.Err)
 
 	cl := &RPCClient{
@@ -117,7 +119,8 @@ func MakeRPCClient(host HostName) *RPCClient {
 }
 
 func (cl *RPCClient) Call(rpcid uint64, args []byte, reply *[]byte) bool {
-	cb := &callback{reply: reply, done: new(bool), cond: sync.NewCond(cl.mu)}
+	reply_buf := new([]byte)
+	cb := &callback{reply: reply_buf, done: new(bool), cond: sync.NewCond(cl.mu)}
 	*cb.done = false
 	cl.mu.Lock()
 	seqno := cl.seq
@@ -137,13 +140,21 @@ func (cl *RPCClient) Call(rpcid uint64, args []byte, reply *[]byte) bool {
 	reqData := e.Finish()
 	// fmt.Fprintf(os.Stderr, "%+v\n", reqData)
 
-	dist_ffi.Send(cl.send, reqData)
+	if dist_ffi.Send(cl.send, reqData) {
+		// An error occured. "dist_ffi" will try to reconnect the socket;
+		// make the caller try again with that new socket.
+		return true
+	}
 
 	// wait for reply
 	cl.mu.Lock()
-	for !*cb.done {
-		cb.cond.Wait()
-	}
+	machine.WaitTimeout(cb.cond, 100 /*ms*/) // make sure we don't get stuck waiting forever
+	done := *cb.done
 	cl.mu.Unlock()
-	return false
+	if done {
+		*reply = *reply_buf
+		return false // no error
+	} else {
+		return true // error
+	}
 }
