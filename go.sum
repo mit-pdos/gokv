@@ -69,11 +69,17 @@ github.com/tchajed/goose v0.0.0-20210203230521-a009c939646f/go.mod h1:Y2zBxxd3wa
 github.com/tchajed/goose v0.0.0-20210314174948-7ed2cc9a81ce/go.mod h1:Y2zBxxd3wa0lrYRDyebxZgbgV4LLsPUtsBiLe1wnS9c=
 github.com/tchajed/goose v0.0.0-20210427140518-083f8aea1359 h1:fbjtYXjim/1tb1Pq9ERDctszx8kJEGhDd6rkWm08/Bk=
 github.com/tchajed/goose v0.0.0-20210427140518-083f8aea1359/go.mod h1:Y2zBxxd3wa0lrYRDyebxZgbgV4LLsPUtsBiLe1wnS9c=
+github.com/tchajed/goose v0.0.0-20210503165921-c7f1984238e6 h1:CL702yb5mOaoUhg8qD4OGp4yiafg8+tj9eMH4QTn7kI=
+github.com/tchajed/goose v0.0.0-20210503165921-c7f1984238e6/go.mod h1:Y2zBxxd3wa0lrYRDyebxZgbgV4LLsPUtsBiLe1wnS9c=
+github.com/tchajed/goose v0.0.0-20210505192559-a1276ba8c2b8 h1:SYYOV7EO0KSJSEgocvOPIJPAHLCKrwpYPPNxT1arupM=
+github.com/tchajed/goose v0.0.0-20210505192559-a1276ba8c2b8/go.mod h1:Y2zBxxd3wa0lrYRDyebxZgbgV4LLsPUtsBiLe1wnS9c=
 github.com/tchajed/mailboat v0.0.0-20191026015926-338a5b81ac1d/go.mod h1:dmgNTEH0kreeKMWd+ntzsrp7ie2LWHGMe7VxP6d1Aew=
 github.com/tchajed/mailboat v0.2.0/go.mod h1:aKa/T1YCMVZFM2xbXnMNyp9r4k0pPni4+sJ8GoY51Hw=
 github.com/tchajed/marshal v0.0.0-20200707011626-0d2aa09818a9/go.mod h1:TPo3bTYJkH87/4rXlxe0bpVWLnN+b5kjJnoXHLBfdaA=
 github.com/tchajed/marshal v0.0.0-20210312145633-4d998c90d194 h1:ClGVtLtcuQWIr9uSUJh7xMAlUuA+dvseqI8y9C/DSzY=
 github.com/tchajed/marshal v0.0.0-20210312145633-4d998c90d194/go.mod h1:TPo3bTYJkH87/4rXlxe0bpVWLnN+b5kjJnoXHLBfdaA=
+github.com/tchajed/marshal v0.0.0-20210503163839-8f64c1688e77 h1:mmtUQ+jbYdsrp79JIEz0n44TbqnRACGaVbE+u0JOufk=
+github.com/tchajed/marshal v0.0.0-20210503163839-8f64c1688e77/go.mod h1:TPo3bTYJkH87/4rXlxe0bpVWLnN+b5kjJnoXHLBfdaA=
 github.com/upamanyus/urpc v0.0.0-20210412143254-587eba24740c h1:0D+7HtAuOBL/oxaTJa5R5VfBTItoYcCdTJs1zNpng7k=
 github.com/upamanyus/urpc v0.0.0-20210412143254-587eba24740c/go.mod h1:bzfuXLBnQZiX+8U/vGNFH+suv3RQE0r9Ty0CWAmbHZM=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
