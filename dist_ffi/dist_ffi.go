@@ -149,7 +149,7 @@ func listenOnSocket(l net.Listener, c chan MsgAndSender) {
 	for {
 		conn, err := l.Accept()
 		if err != nil {
-			// Assume() no error on Listen
+			// This should not usually happen... something seems wrong.
 			panic(err)
 		}
 		// Spawn new thread receiving data on this connection
@@ -161,7 +161,7 @@ func Listen(host Address) Receiver {
 	c := make(chan MsgAndSender)
 	l, err := net.Listen("tcp", AddressToStr(host))
 	if err != nil {
-		// Assume() no error on Listen
+		// Assume() no error on Listen. This should fail loud and early, retrying makes little sense (likely the port is already used).
 		panic(err)
 	}
 	// Keep accepting new connections in background thread

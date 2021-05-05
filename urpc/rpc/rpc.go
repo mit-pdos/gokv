@@ -24,7 +24,7 @@ func (srv *RPCServer) rpcHandle(sender dist_ffi.Sender, rpcid uint64, seqno uint
 	e.PutInt(seqno)
 	e.PutInt(uint64(len(*replyData)))
 	e.PutBytes(*replyData)
-	// Ignore errors (what would we do about them anyway -- client needs to retry)
+	// Ignore errors (what would we do about them anyway -- client will inevitably time out, and then retry)
 	dist_ffi.Send(sender, e.Finish()) // TODO: contention? should we buffer these in userspace too?
 }
 
@@ -45,7 +45,7 @@ func (srv *RPCServer) readThread(recv dist_ffi.Receiver) {
 		seqno := d.GetInt()
 		reqLen := d.GetInt()
 		req := d.GetBytes(reqLen)
-		srv.rpcHandle(sender, rpcid, seqno, req) // XXX: this could (and probably should) be in a goroutine
+		srv.rpcHandle(sender, rpcid, seqno, req) // XXX: this could (and probably should) be in a goroutine YYY: but readThread is already its own goroutine, so that seems redundant?
 		continue
 	}
 }
