@@ -142,7 +142,7 @@ func (cl *RPCClient) Call(rpcid uint64, args []byte, reply *[]byte) bool {
 	reqData := e.Finish()
 	// fmt.Fprintf(os.Stderr, "%+v\n", reqData)
 
-	if !dist_ffi.Send(cl.send, reqData) {
+	if dist_ffi.Send(cl.send, reqData) {
 		// An error occured
 		// FIXME: We should probably reconnect the TCP socket...
 		return true
