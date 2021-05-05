@@ -24,6 +24,7 @@ func (srv *RPCServer) rpcHandle(sender dist_ffi.Sender, rpcid uint64, seqno uint
 	e.PutInt(seqno)
 	e.PutInt(uint64(len(*replyData)))
 	e.PutBytes(*replyData)
+	// Ignore errors (what would we do about them anyway -- client needs to retry)
 	dist_ffi.Send(sender, e.Finish()) // TODO: contention? should we buffer these in userspace too?
 }
 
@@ -67,6 +68,7 @@ type callback struct {
 type RPCClient struct {
 	mu   *sync.Mutex
 	send dist_ffi.Sender // for requests
+	host dist_ffi.Address // to re-open "send" when it fails
 	seq  uint64          // next fresh sequence number
 
 	pending map[uint64]*callback
@@ -99,13 +101,15 @@ func (cl *RPCClient) replyThread(recv dist_ffi.Receiver) {
 	}
 }
 
-func MakeRPCClient(host HostName) *RPCClient {
-	a := dist_ffi.Connect(dist_ffi.Address(host))
+func MakeRPCClient(host_name HostName) *RPCClient {
+	host := dist_ffi.Address(host_name)
+	a := dist_ffi.Connect(host)
 	// Assume no error
 	machine.Assume(!a.Err)
 
 	cl := &RPCClient{
 		send:    a.Sender,
+		host:    host,
 		mu:      new(sync.Mutex),
 		seq:     1,
 		pending: make(map[uint64]*callback)}
@@ -117,7 +121,8 @@ func MakeRPCClient(host HostName) *RPCClient {
 }
 
 func (cl *RPCClient) Call(rpcid uint64, args []byte, reply *[]byte) bool {
-	cb := &callback{reply: reply, done: new(bool), cond: sync.NewCond(cl.mu)}
+	reply_buf := new([]byte)
+	cb := &callback{reply: reply_buf, done: new(bool), cond: sync.NewCond(cl.mu)}
 	*cb.done = false
 	cl.mu.Lock()
 	seqno := cl.seq
@@ -137,12 +142,21 @@ func (cl *RPCClient) Call(rpcid uint64, args []byte, reply *[]byte) bool {
 	reqData := e.Finish()
 	// fmt.Fprintf(os.Stderr, "%+v\n", reqData)
 
-	dist_ffi.Send(cl.send, reqData)
+	if !dist_ffi.Send(cl.send, reqData) {
+		// An error occured
+		// FIXME: We should probably reconnect the TCP socket...
+		return true
+	}
 
 	// wait for reply
 	cl.mu.Lock()
 	machine.WaitTimeout(cb.cond, 100 /*ms*/) // make sure we don't get stuck waiting forever
 	done := *cb.done
 	cl.mu.Unlock()
-	return !done // error if we are not done
+	if done {
+		*reply = *reply_buf
+		return false // no error
+	} else {
+		return true // error
+	}
 }

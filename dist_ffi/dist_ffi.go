@@ -83,13 +83,14 @@ func Connect(host Address) ConnectRet {
 	return ConnectRet{Err: false, Sender: &sender{conn}, Receiver: &receiver{c}}
 }
 
-func Send(send Sender, data []byte) {
+func Send(send Sender, data []byte) bool {
 	// message format: [dataLen] ++ data
 	e := marshal.NewEnc(8 + uint64(len(data)))
 	e.PutInt(uint64(len(data)))
 	e.PutBytes(data) // FIXME: copying all the data...
 	reqData := e.Finish()
-	send.conn.Write(reqData) // one atomic write for the entire thing!
+	_, err := send.conn.Write(reqData) // one atomic write for the entire thing!
+	return err != nil
 }
 
 func receiveOnSocket(conn net.Conn, c chan MsgAndSender) {
@@ -153,7 +154,8 @@ type ReceiveRet struct {
 	Data   []byte
 }
 
-// This will never actually return NULL, but as long as clients and proofs do not rely on this that is okay.
+// This will never actually return Err==true, but as long as clients and proofs do not rely on this that is okay.
+// TODO: Distinguish "timeout (no message found)" from "error"
 func Receive(recv Receiver) ReceiveRet {
 	a := <-recv.c
 	return ReceiveRet{Err: false, Sender: a.s, Data: a.m}
