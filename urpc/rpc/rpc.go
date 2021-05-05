@@ -143,8 +143,18 @@ func (cl *RPCClient) Call(rpcid uint64, args []byte, reply *[]byte) bool {
 	// fmt.Fprintf(os.Stderr, "%+v\n", reqData)
 
 	if !dist_ffi.Send(cl.send, reqData) {
-		// An error occured
-		// FIXME: We should probably reconnect the TCP socket...
+		// Looks like our old connection is dead. Try getting a new one.
+		a := dist_ffi.Connect(cl.host)
+		// Assume no error
+		machine.Assume(!a.Err)
+
+		cl.mu.Lock() // not sure if this is needed
+		cl.send = a.Sender
+		cl.mu.Unlock()
+		go func() {
+			cl.replyThread(a.Receiver) // Goose doesn't support parameters in a go statement
+		}()
+		// Make client try again with new connection.
 		return true
 	}
 
