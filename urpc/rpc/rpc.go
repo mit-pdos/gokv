@@ -5,6 +5,7 @@ import (
 	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/marshal"
 	"sync"
+	"time"
 )
 
 type HostName = uint64
@@ -116,6 +117,23 @@ func MakeRPCClient(host HostName) *RPCClient {
 	return cl
 }
 
+// Go's "sync" is very limited, so we have to (inefficiently) implement this ourselves.
+func waitTimeout(cond *sync.Cond) {
+	done := make(chan struct{})
+	go func() {
+		cond.Wait()
+		close(done)
+	}()
+	select {
+	case <-time.After(100*1000*1000): // nanoseconds, = 100ms
+		// timed out
+		return
+	case <-done:
+		// Wait returned
+		return
+	}
+}
+
 func (cl *RPCClient) Call(rpcid uint64, args []byte, reply *[]byte) bool {
 	cb := &callback{reply: reply, done: new(bool), cond: sync.NewCond(cl.mu)}
 	*cb.done = false
@@ -141,9 +159,8 @@ func (cl *RPCClient) Call(rpcid uint64, args []byte, reply *[]byte) bool {
 
 	// wait for reply
 	cl.mu.Lock()
-	for !*cb.done {
-		cb.cond.Wait()
-	}
+	waitTimeout(cb.cond)
+	done := *cb.done
 	cl.mu.Unlock()
-	return false
+	return !done
 }
