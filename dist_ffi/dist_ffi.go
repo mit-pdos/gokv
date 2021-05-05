@@ -75,11 +75,10 @@ type ConnectRet struct {
 
 func Connect(host Address) ConnectRet {
 	conn, err := net.Dial("tcp", AddressToStr(host))
-	// We ignore errors (all packets are just silently dropped)
-	if err != nil { // keeping this around so it's easier to debug code
-		panic(err)
-	}
 	c := make(chan MsgAndSender)
+	if err != nil {
+		return ConnectRet{Err: true, Sender: &sender{conn}, Receiver: &receiver{c}}
+	}
 	go receiveOnSocket(conn, c)
 	return ConnectRet{Err: false, Sender: &sender{conn}, Receiver: &receiver{c}}
 }
@@ -99,7 +98,9 @@ func receiveOnSocket(conn net.Conn, c chan MsgAndSender) {
 		header := make([]byte, 8)
 		_, err := io.ReadFull(conn, header)
 		if err != nil {
-			return
+			// TODO: if this is a `Receiver`, propagate socket failures to `Receive` calls
+			// (Hiding errors is okay per our spec, but not great.)
+			panic(err)
 		}
 		d := marshal.NewDec(header)
 		dataLen := d.GetInt()
@@ -107,6 +108,8 @@ func receiveOnSocket(conn net.Conn, c chan MsgAndSender) {
 		data := make([]byte, dataLen)
 		_, err2 := io.ReadFull(conn, data)
 		if err2 != nil {
+			// TODO: if this is a `Receiver`, propagate socket failures to `Receive` calls
+			// (Hiding errors is okay per our spec, but not great.)
 			panic(err2)
 		}
 		c <- MsgAndSender{data, &sender{conn}}
@@ -124,7 +127,8 @@ func listenOnSocket(l net.Listener, c chan MsgAndSender) {
 	for {
 		conn, err := l.Accept()
 		if err != nil {
-			panic(err) // Here for easier debugging
+			// Assume() no error on Listen
+			panic(err)
 		}
 		// Spawn new thread receiving data on this connection
 		go receiveOnSocket(conn, c)
@@ -135,7 +139,8 @@ func Listen(host Address) Receiver {
 	c := make(chan MsgAndSender)
 	l, err := net.Listen("tcp", AddressToStr(host))
 	if err != nil {
-		return &receiver{c}
+		// Assume() no error on Listen
+		panic(err)
 	}
 	// Keep accepting new connections in background thread
 	go listenOnSocket(l, c)

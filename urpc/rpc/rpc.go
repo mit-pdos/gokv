@@ -101,7 +101,7 @@ func (cl *RPCClient) replyThread(recv dist_ffi.Receiver) {
 
 func MakeRPCClient(host HostName) *RPCClient {
 	a := dist_ffi.Connect(dist_ffi.Address(host))
-	// Panic if error
+	// Assume no error
 	machine.Assume(!a.Err)
 
 	cl := &RPCClient{
