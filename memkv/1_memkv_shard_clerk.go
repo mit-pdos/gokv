@@ -95,7 +95,7 @@ func (ck *MemKVShardClerk) MoveShard(sid uint64, dst HostName) {
 	args.Sid = sid
 	args.Dst = dst
 
-	rawRep := make([]byte, 0)
-	for ck.cl.Call(KV_MOV_SHARD, encodeMoveShardRequest(args), &rawRep) == true {
+	rawRep := new([]byte)
+	for ck.cl.Call(KV_MOV_SHARD, encodeMoveShardRequest(args), rawRep) == true {
 	}
 }
