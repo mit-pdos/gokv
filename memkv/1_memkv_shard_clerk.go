@@ -91,9 +91,11 @@ func (ck *MemKVShardClerk) InstallShard(sid uint64, kvs map[uint64][]byte) {
 }
 
 func (ck *MemKVShardClerk) MoveShard(sid uint64, dst HostName) {
-	args := MoveShardRequest{Sid: sid, Dst: dst}
+	args := new(MoveShardRequest)
+	args.Sid = sid
+	args.Dst = dst
 
 	rawRep := make([]byte, 0)
-	for ck.cl.Call(KV_MOV_SHARD, encodeMoveShardRequest(&args), &rawRep) == true {
+	for ck.cl.Call(KV_MOV_SHARD, encodeMoveShardRequest(args), &rawRep) == true {
 	}
 }
