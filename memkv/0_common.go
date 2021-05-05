@@ -296,17 +296,11 @@ func decodeUint64(raw []byte) uint64 {
 func encodeShardMap(shardMap *[]HostName) []byte {
 	// requires that shardMap is a list
 	e := marshal.NewEnc(8 * NSHARD)
-	for i := uint64(0); i < NSHARD; i++ {
-		e.PutInt((*shardMap)[i])
-	}
+	e.PutInts(*shardMap)
 	return e.Finish()
 }
 
 func decodeShardMap(raw []byte) []HostName {
-	shardMap := make([]HostName, NSHARD)
 	d := marshal.NewDec(raw)
-	for i := uint64(0); i < NSHARD; i++ {
-		shardMap[i] = d.GetInt()
-	}
-	return shardMap
+	return d.GetInts(NSHARD)
 }
