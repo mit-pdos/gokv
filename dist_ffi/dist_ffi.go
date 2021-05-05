@@ -100,7 +100,8 @@ func receiveOnSocket(conn net.Conn, c chan MsgAndSender) {
 		if err != nil {
 			// TODO: if this is a `Receiver`, propagate socket failures to `Receive` calls
 			// (Hiding errors is okay per our spec, but not great.)
-			panic(err)
+			// This can legitimately happen when the other side "hung up", so do not panic.
+			return
 		}
 		d := marshal.NewDec(header)
 		dataLen := d.GetInt()
@@ -108,9 +109,8 @@ func receiveOnSocket(conn net.Conn, c chan MsgAndSender) {
 		data := make([]byte, dataLen)
 		_, err2 := io.ReadFull(conn, data)
 		if err2 != nil {
-			// TODO: if this is a `Receiver`, propagate socket failures to `Receive` calls
-			// (Hiding errors is okay per our spec, but not great.)
-			panic(err2)
+			// see comment above
+			return
 		}
 		c <- MsgAndSender{data, &sender{conn}}
 	}
