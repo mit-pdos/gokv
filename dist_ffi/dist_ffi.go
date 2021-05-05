@@ -63,6 +63,8 @@ type MsgAndSender struct {
 /// Sender
 type sender struct {
 	conn net.Conn
+	host Address // to reconnect to server when it fails (can be 0 to indicate this is not possible)
+	recv Receiver // the reply receiver for this channel
 }
 
 type Sender *sender
@@ -76,11 +78,13 @@ type ConnectRet struct {
 func Connect(host Address) ConnectRet {
 	conn, err := net.Dial("tcp", AddressToStr(host))
 	c := make(chan MsgAndSender)
-	if err != nil {
-		return ConnectRet{Err: true, Sender: &sender{conn}, Receiver: &receiver{c}}
+	recv := &receiver{c}
+	send := &sender { conn, host, recv }
+
+	if err == nil {
+		go receiveOnSocket(conn, c)
 	}
-	go receiveOnSocket(conn, c)
-	return ConnectRet{Err: false, Sender: &sender{conn}, Receiver: &receiver{c}}
+	return ConnectRet{Err: err != nil, Sender: send, Receiver: recv}
 }
 
 func Send(send Sender, data []byte) bool {
@@ -90,10 +94,27 @@ func Send(send Sender, data []byte) bool {
 	e.PutBytes(data) // FIXME: copying all the data...
 	reqData := e.Finish()
 	_, err := send.conn.Write(reqData) // one atomic write for the entire thing!
+	if err != nil && send.host != 0 {
+		// This did not work out. In an attempt to make this API as reliable as possible,
+		// let us try to reconnect so if the client tries again, maybe it works.
+		conn, err := net.Dial("tcp", AddressToStr(send.host))
+		if err == nil {
+			// Looking good, we got a new connection. Let's use this henceforth and
+			// wire it up to the existing receiver's channel.
+			send.conn = conn
+			go receiveOnSocket(conn, send.recv.c)
+		}
+	}
 	return err != nil
 }
 
+// conn will also be used as "reply socket" for all messages that arrive here.
 func receiveOnSocket(conn net.Conn, c chan MsgAndSender) {
+	// Messages received here will have their replies sent via this sender.
+	// "host" and "recv" remain zero; this sender does not support re-connecting.
+	var send sender
+	send.conn = conn
+
 	for {
 		// message format: [dataLen] ++ data
 		header := make([]byte, 8)
@@ -113,7 +134,7 @@ func receiveOnSocket(conn net.Conn, c chan MsgAndSender) {
 			// see comment above
 			return
 		}
-		c <- MsgAndSender{data, &sender{conn}}
+		c <- MsgAndSender{data, &send}
 	}
 }
 

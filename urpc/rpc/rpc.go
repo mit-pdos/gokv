@@ -68,7 +68,6 @@ type callback struct {
 type RPCClient struct {
 	mu   *sync.Mutex
 	send dist_ffi.Sender // for requests
-	host dist_ffi.Address // to re-open "send" when it fails
 	seq  uint64          // next fresh sequence number
 
 	pending map[uint64]*callback
@@ -109,7 +108,6 @@ func MakeRPCClient(host_name HostName) *RPCClient {
 
 	cl := &RPCClient{
 		send:    a.Sender,
-		host:    host,
 		mu:      new(sync.Mutex),
 		seq:     1,
 		pending: make(map[uint64]*callback)}
@@ -143,8 +141,8 @@ func (cl *RPCClient) Call(rpcid uint64, args []byte, reply *[]byte) bool {
 	// fmt.Fprintf(os.Stderr, "%+v\n", reqData)
 
 	if dist_ffi.Send(cl.send, reqData) {
-		// An error occured
-		// FIXME: We should probably reconnect the TCP socket...
+		// An error occured. "dist_ffi" will try to reconnect the socket;
+		// make the caller try again with that new socket.
 		return true
 	}
 
