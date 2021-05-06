@@ -86,6 +86,7 @@ func (cl *RPCClient) replyThread(recv dist_ffi.Receiver) {
 		// TODO: Can we just "read the rest of the bytes"?
 		replyLen := d.GetInt()
 		reply := d.GetBytes(replyLen)
+		// log.Printf("Got reply for call %d\n", seqno)
 
 		cl.mu.Lock()
 		cb, ok := cl.pending[seqno]
@@ -119,6 +120,7 @@ func MakeRPCClient(host_name HostName) *RPCClient {
 }
 
 func (cl *RPCClient) Call(rpcid uint64, args []byte, reply *[]byte) bool {
+	// log.Printf("Started call %d\n", rpcid)
 	reply_buf := new([]byte)
 	cb := &callback{reply: reply_buf, done: new(bool), cond: sync.NewCond(cl.mu)}
 	*cb.done = false
@@ -148,13 +150,16 @@ func (cl *RPCClient) Call(rpcid uint64, args []byte, reply *[]byte) bool {
 
 	// wait for reply
 	cl.mu.Lock()
-	machine.WaitTimeout(cb.cond, 100 /*ms*/) // make sure we don't get stuck waiting forever
-	done := *cb.done
-	cl.mu.Unlock()
-	if done {
+	if !*cb.done {
+		// log.Printf("Waiting for reply for call %d(%d)\n", seqno, rpcid)
+		machine.WaitTimeout(cb.cond, 100000 /*ms*/) // make sure we don't get stuck waiting forever
+	}
+	if *cb.done {
 		*reply = *reply_buf
+		cl.mu.Unlock()
 		return false // no error
 	} else {
+		cl.mu.Unlock()
 		return true // error
 	}
 }

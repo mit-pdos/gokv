@@ -3,7 +3,6 @@ package memkv
 import (
 	"github.com/mit-pdos/gokv/urpc/rpc"
 	"github.com/tchajed/goose/machine"
-	"log"
 	"sync"
 )
 
@@ -123,6 +122,7 @@ func (s *MemKVShardServer) ConditionalPutRPC(args *ConditionalPutRequest, reply 
 // the fact that the shard is only good for read-only operations up until that
 // flag is updated (i.e. until RemoveShard() is run).
 func (s *MemKVShardServer) install_shard_inner(args *InstallShardRequest) {
+	// log.Printf("SHARD INSTALLING %d", args.Sid)
 	last, ok := s.lastSeq[args.CID]
 	seq := args.Seq
 	if ok && seq <= last {
@@ -133,6 +133,7 @@ func (s *MemKVShardServer) install_shard_inner(args *InstallShardRequest) {
 	s.shardMap[args.Sid] = true
 	s.kvss[args.Sid] = args.Kvs
 	s.lastReply[args.CID] = ShardReply{Err: 0, Value: nil}
+	// log.Printf("SHARD FINISHED INSTALLING %d", args.Sid)
 }
 
 func (s *MemKVShardServer) InstallShardRPC(args *InstallShardRequest) {
@@ -158,7 +159,9 @@ func (s *MemKVShardServer) MoveShardRPC(args *MoveShardRequest) {
 	kvs := s.kvss[args.Sid]
 	s.kvss[args.Sid] = make(KvMap)
 	s.shardMap[args.Sid] = false
+	// log.Printf("SHARD Moving %d to %d", args.Sid, args.Dst)
 	s.peers[args.Dst].InstallShard(args.Sid, kvs) // XXX: if we want to do this without the lock, need a lock in the clerk itself
+	// log.Printf("SHARD Moved %d to %d", args.Sid, args.Dst)
 	s.mu.Unlock()
 }
 
@@ -180,13 +183,11 @@ func MakeMemKVShardServer(is_init bool) *MemKVShardServer {
 }
 
 func (s *MemKVShardServer) GetCIDRPC() uint64 {
-	log.Println("GetCIDRPC() starting")
 	s.mu.Lock()
 	r := s.nextCID
 	machine.Assume(s.nextCID+1 > s.nextCID) // no overflow of CIDs
 	s.nextCID = s.nextCID + 1
 	s.mu.Unlock()
-	log.Println("GetCIDRPC() done")
 	return r
 }
 
