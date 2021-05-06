@@ -99,17 +99,20 @@ func Send(send Sender, data []byte) bool {
 	if err == nil {
 		_, err = send.conn.Write(data)
 	}
-	if err != nil && send.host != 0 {
-		// This did not work out. In an attempt to make this API as reliable as possible,
-		// let us try to reconnect so if the client tries again, maybe it works.
-		conn, err := net.Dial("tcp", AddressToStr(send.host))
-		if err == nil {
-			// Looking good, we got a new connection. Let's use this henceforth and
-			// wire it up to the existing receiver's channel.
-			send.conn = conn
-			// On an error we lost the connection -- so close the channel to tell the Receiver.
-			// FIXME: this is wrong and can lead to panics, we reconnect and there might be other `receiveOnSocket`!
-			go receiveOnSocket(send, /*close_on_err*/true)
+	if err != nil {
+		// This socket is broken, make sure we do not send anything on it ever again.
+		send.conn.Close()
+		if send.host != 0 {
+			// In an attempt to make this API as reliable as possible,
+			// let us try to reconnect so when the client tries again, maybe it works.
+			conn, err := net.Dial("tcp", AddressToStr(send.host))
+			if err == nil {
+				// Looking good, we got a new connection. Let's use this henceforth.
+				send.conn = conn
+				// On an error we lost the connection -- so close the channel to tell the Receiver.
+				// FIXME: this is wrong and can lead to panics, we reconnect and there might be other `receiveOnSocket`!
+				go receiveOnSocket(send, /*close_on_err*/true)
+			}
 		}
 	}
 	send.mu.Unlock()
