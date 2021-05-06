@@ -7,6 +7,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 type Address uint64
@@ -63,8 +64,9 @@ type MsgAndSender struct {
 /// Sender
 type sender struct {
 	conn net.Conn
-	host Address // to reconnect to server when it fails (can be 0 to indicate this is not possible)
-	recv Receiver // the reply receiver for this channel
+	mu *sync.Mutex
+	host Address //[read-only] to reconnect to server when it fails (can be 0 to indicate this is not possible)
+	replies chan MsgAndSender //[read-only] the channel on which replies arrive
 }
 
 type Sender *sender
@@ -78,22 +80,25 @@ type ConnectRet struct {
 func Connect(host Address) ConnectRet {
 	conn, err := net.Dial("tcp", AddressToStr(host))
 	c := make(chan MsgAndSender)
-	recv := &receiver{c}
-	send := &sender { conn, host, recv }
+	send := &sender { conn: conn, host: host, replies: c, mu: new(sync.Mutex) }
 
-	if err == nil {
-		go receiveOnSocket(conn, c)
-	}
-	return ConnectRet{Err: err != nil, Sender: send, Receiver: recv}
+	// On an error we lost the connection -- so close the channel to tell the Receiver.
+	// FIXME: this is wrong and can lead to panics, we reconnect and there might be other `receiveOnSocket`!
+	go receiveOnSocket(send, /*close_on_err*/true)
+	return ConnectRet{Err: err != nil, Sender: send, Receiver: &receiver{c}}
 }
 
 func Send(send Sender, data []byte) bool {
 	// message format: [dataLen] ++ data
-	e := marshal.NewEnc(8 + uint64(len(data)))
+	e := marshal.NewEnc(8)
 	e.PutInt(uint64(len(data)))
-	e.PutBytes(data) // FIXME: copying all the data...
-	reqData := e.Finish()
-	_, err := send.conn.Write(reqData) // one atomic write for the entire thing!
+	reqLen := e.Finish()
+
+	send.mu.Lock() // ensure the two writes and the potential reconnect are "atomic"
+	_, err := send.conn.Write(reqLen)
+	if err == nil {
+		_, err = send.conn.Write(data)
+	}
 	if err != nil && send.host != 0 {
 		// This did not work out. In an attempt to make this API as reliable as possible,
 		// let us try to reconnect so if the client tries again, maybe it works.
@@ -102,39 +107,43 @@ func Send(send Sender, data []byte) bool {
 			// Looking good, we got a new connection. Let's use this henceforth and
 			// wire it up to the existing receiver's channel.
 			send.conn = conn
-			go receiveOnSocket(conn, send.recv.c)
+			// On an error we lost the connection -- so close the channel to tell the Receiver.
+			// FIXME: this is wrong and can lead to panics, we reconnect and there might be other `receiveOnSocket`!
+			go receiveOnSocket(send, /*close_on_err*/true)
 		}
 	}
+	send.mu.Unlock()
 	return err != nil
 }
 
-// conn will also be used as "reply socket" for all messages that arrive here.
-func receiveOnSocket(conn net.Conn, c chan MsgAndSender) {
-	// Messages received here will have their replies sent via this sender.
-	// "host" and "recv" remain zero; this sender does not support re-connecting.
-	var send sender
-	send.conn = conn
-
+// Handle the receive direction of the given sender.
+// `close_on_err` indicates if on an error, the channel should be closed.
+func receiveOnSocket(send Sender, close_on_err bool) {
 	for {
 		// message format: [dataLen] ++ data
 		header := make([]byte, 8)
-		_, err := io.ReadFull(conn, header)
+		_, err := io.ReadFull(send.conn, header)
 		if err != nil {
-			// TODO: if this is a `Receiver`, propagate socket failures to `Receive` calls
-			// (Hiding errors is okay per our spec, but not great.)
+			// Looks like this connection is dead.
 			// This can legitimately happen when the other side "hung up", so do not panic.
+			if close_on_err {
+				close(send.replies)
+			}
 			return
 		}
 		d := marshal.NewDec(header)
 		dataLen := d.GetInt()
 
 		data := make([]byte, dataLen)
-		_, err2 := io.ReadFull(conn, data)
-		if err2 != nil {
-			// see comment above
+		_, err = io.ReadFull(send.conn, data)
+		if err != nil {
+			// Connection interrupted after some of the data was sent, or so...
+			if close_on_err {
+				close(send.replies)
+			}
 			return
 		}
-		c <- MsgAndSender{data, &send}
+		send.replies <- MsgAndSender{data, send}
 	}
 }
 
@@ -152,8 +161,15 @@ func listenOnSocket(l net.Listener, c chan MsgAndSender) {
 			// This should not usually happen... something seems wrong.
 			panic(err)
 		}
-		// Spawn new thread receiving data on this connection
-		go receiveOnSocket(conn, c)
+		// Spawn new thread receiving data on this connection.
+		send := &sender {
+			conn: conn,
+			mu: new(sync.Mutex),
+			replies: c,
+			host: 0, // do support for reconnecting
+		}
+		// Errors just mean one client disappeared, do not close the channel.
+		go receiveOnSocket(send, /*close_on_err*/false)
 	}
 }
 
@@ -175,9 +191,7 @@ type ReceiveRet struct {
 	Data   []byte
 }
 
-// This will never actually return Err==true, but as long as clients and proofs do not rely on this that is okay.
-// TODO: Distinguish "timeout (no message found)" from "error"
 func Receive(recv Receiver) ReceiveRet {
-	a := <-recv.c
-	return ReceiveRet{Err: false, Sender: a.s, Data: a.m}
+	a, more := <-recv.c
+	return ReceiveRet{Err: !more, Sender: a.s, Data: a.m}
 }
