@@ -59,7 +59,7 @@ func (c *MemKVCoord) AddServerRPC(newhost HostName) {
 			if n == numShardCeil {
 				if nf_left > 0 {
 					nf_left = nf_left - 1
-					log.Printf("Moving %d from %s -> %s", sid, host, newhost)
+					// log.Printf("Moving %d from %s -> %s", sid, host, newhost)
 					c.shardClerks.GetClerk(host).MoveShard(uint64(sid), newhost)
 					c.hostShards[host] = n - 1
 					c.hostShards[newhost] += 1
@@ -67,7 +67,7 @@ func (c *MemKVCoord) AddServerRPC(newhost HostName) {
 				}
 				// else, we have already made enough hosts have the minimum number of shard servers
 			} else {
-				log.Printf("Moving %d from %s -> %s", sid, host, newhost)
+				// log.Printf("Moving %d from %s -> %s", sid, host, newhost)
 				c.shardClerks.GetClerk(host).MoveShard(uint64(sid), newhost)
 				c.hostShards[host] = n - 1
 				c.hostShards[newhost] += 1

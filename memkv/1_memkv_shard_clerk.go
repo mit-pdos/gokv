@@ -77,6 +77,7 @@ func (ck *MemKVShardClerk) ConditionalPut(key uint64, expectedValue []byte, newV
 }
 
 func (ck *MemKVShardClerk) InstallShard(sid uint64, kvs map[uint64][]byte) {
+	// log.Printf("InstallShard %d starting", sid)
 	args := new(InstallShardRequest)
 	args.CID = ck.cid
 	args.Seq = ck.seq
@@ -88,6 +89,7 @@ func (ck *MemKVShardClerk) InstallShard(sid uint64, kvs map[uint64][]byte) {
 	rawRep := new([]byte)
 	for ck.cl.Call(KV_INS_SHARD, encodeInstallShardRequest(args), rawRep) == true {
 	}
+	// log.Printf("InstallShard %d finished", sid)
 }
 
 func (ck *MemKVShardClerk) MoveShard(sid uint64, dst HostName) {
