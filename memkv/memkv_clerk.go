@@ -27,7 +27,7 @@ func (ck *MemKVCoordClerk) GetShardMap() []HostName {
 // safe for concurrent use
 type MemKVClerk struct {
 	shardClerks *ShardClerkSet
-	coordCk     MemKVCoordClerk
+	coordCk     *MemKVCoordClerk
 	shardMap    []HostName // size == NSHARD; maps from sid -> host that currently owns it
 }
 
@@ -88,7 +88,9 @@ func (ck *MemKVClerk) Add(host HostName) {
 }
 
 func MakeMemKVClerk(coord HostName) *MemKVClerk {
+	cck := new(MemKVCoordClerk)
 	ck := new(MemKVClerk)
+	ck.coordCk = cck
 	ck.coordCk.cl = rpc.MakeRPCClient(coord)
 	ck.shardClerks = MakeShardClerkSet()
 	ck.shardMap = ck.coordCk.GetShardMap()
