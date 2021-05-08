@@ -28,9 +28,10 @@ func (r *Replica) PrepareRPC(pn uint64, reply *PrepareReply) {
 		reply.Pn = r.valPN
 		reply.Val = r.acceptedVal
 		reply.Success = true
+	} else {
+		reply.Success = false
+		reply.Pn = r.promisedPN
 	}
-	reply.Success = false
-	reply.Pn = r.promisedPN
 }
 
 type ProposeArgs struct {
@@ -38,13 +39,13 @@ type ProposeArgs struct {
 	Val ValType
 }
 
-func (r *Replica) ProposeRPC(args *ProposeArgs, reply *bool) {
-	if args.Pn >= r.promisedPN {
-		r.acceptedVal = args.Val
-		r.valPN = args.Pn
-		*reply = true
+func (r *Replica) ProposeRPC(pn uint64, val ValType) bool {
+	if pn >= r.promisedPN {
+		r.acceptedVal = val
+		r.valPN = pn
+		return true
 	} else {
-		*reply = false
+		return false
 	}
 }
 
