@@ -1,0 +1,22 @@
+# Single-slot paxos
+
+## Why unique proposal numbers?
+As described in Paxos Made Simple [1], the mention of needing "unique proposal
+numbers" seems to imply that replicas _start_ with ownership of various proposal
+numbers, and they can freely select the command to propose with that proposal
+number (subject to some invariants, of course).
+
+Another way to do this is for Phase1 to act more like leader election, and make
+it so that each successful Phase1() results in the leader-to-be ending up with
+resources representing the fact that the replica voted for it for that proposal
+number. With a majority of these witnesses, the leader could get ownership of
+the proposal number of ouf some invariant.
+
+Concretely, this is the difference this makes in code:
+if you assume that replicas can pick unique proposal numbers, then other
+replicas can respond "yes" to multiple Phase1() RPCs.
+Without knowing that replicas pick unique proposal numbers, the replica has to
+rememebr who it voted for in this proposal number and only repeat "yes" replies
+back to that replica (basically Raft leader election).
+
+1: https://lamport.azurewebsites.net/pubs/paxos-simple.pdf
