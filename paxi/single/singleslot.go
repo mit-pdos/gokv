@@ -48,20 +48,24 @@ func (r *Replica) ProposeRPC(args *ProposeArgs, reply *bool) {
 	}
 }
 
-func (r *Replica) TryDecide(v ValType) {
+// returns true iff there was an error
+func (r *Replica) TryDecide(v ValType, outv *ValType) bool {
 	pn := r.promisedPN + 1
 	r.promisedPN = r.promisedPN + 1
 
-	numPrepared := 0
-	highestPn := uint64(0)
+	var numPrepared uint64
+	numPrepared = 0
+	var highestPn uint64
+	highestPn = 0
 	var highestVal ValType
 	highestVal = v // if no one in our majority has accepted a value, we'll propose this one
 	mu := new(sync.Mutex)
 
 	for _, peer := range r.peers {
-		go func(peer *Clerk) {
+		local_peer := peer
+		go func() {
 			reply_ptr := new(PrepareReply)
-			peer.Prepare(pn, reply_ptr) // TODO: replace with real RPC
+			local_peer.Prepare(pn, reply_ptr) // TODO: replace with real RPC
 
 			mu.Lock()
 			if reply_ptr.Success {
@@ -72,19 +76,43 @@ func (r *Replica) TryDecide(v ValType) {
 				}
 			}
 			mu.Unlock()
-		}(peer)
+		}()
 	}
 
+	// FIXME: put this in a condvar loop with timeout
 	mu.Lock()
-	if numPrepared > len(r.peers)/2 {
-		args := &ProposeArgs{Pn:pn, Val:highestVal}
+	n := numPrepared
+	mu.Unlock()
+
+	if 2*n > uint64(len(r.peers)) {
+		mu2 := new(sync.Mutex)
+		var numAccepted uint64
+		numAccepted = 0
+
 		for _, peer := range r.peers {
 			local_peer := peer // XXX: for Goose, I think
+			// each thread talks to a unique peer
 			go func() {
 				r := local_peer.Propose(pn, highestVal) // TODO: replace with real RPC
+				if r {
+					mu2.Lock()
+					numAccepted = numAccepted + 1
+					mu2.Unlock()
+				}
 			}()
 		}
+
+		mu2.Lock()
+		n := numAccepted
+		mu2.Unlock()
+
+		if 2*n > uint64(len(r.peers)) {
+			*outv = v
+			return false
+		} else {
+			return true
+		}
 	} else {
-		return
+		return true
 	}
 }
