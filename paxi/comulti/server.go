@@ -1,4 +1,19 @@
-package single
+package multi
+
+// Fault tolerant shared log library.
+//
+// This generalizes single-slot paxos by making the value be the full log.
+// Instead of getting knowledge on what value the single-slot paxos protocol has
+// selected, you only get knowledge that the value agreed upon by paxos _at
+// least_ contains some prefix of a log.
+//
+// If you stare at this for long enough, you'll see that it's similar to Raft.
+// In fact, if you start optimizing this some more (so e.g. you don't need to
+// send the *whole* log on every request), you'll end up converging to something
+// much closer to Raft.
+//
+// One could also use this idea to implement a fault-tolerant monotonic counter
+// without worrying about any sort of log.
 
 import (
 	"sync"
@@ -60,6 +75,10 @@ func (r *Replica) ProposeRPC(pn uint64, commitIndex uint64, val []Entry) bool {
 		if commitIndex > r.commitIndex {
 			r.commitIndex = commitIndex
 		}
+		// What if r.commitIndex > commitIndex?  pn |-> val means that val
+		// contains anything that might have been committed before. That means
+		// that commitIndex >= r.commitIndex must always be true since pn >=
+		// r.logPN.
 		r.mu.Unlock()
 		return true
 	} else {
