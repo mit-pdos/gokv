@@ -1,6 +1,4 @@
-package multi
-
-type ValType = []byte
+package comulti
 
 const PREPARE = uint64(1)
 const PROPOSE = uint64(2)

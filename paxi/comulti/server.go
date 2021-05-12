@@ -1,4 +1,4 @@
-package multi
+package comulti
 
 // Fault tolerant shared log library.
 //
@@ -16,6 +16,7 @@ package multi
 // without worrying about any sort of log.
 
 import (
+	"time"
 	"sync"
 )
 
@@ -28,12 +29,14 @@ type Replica struct {
 	logPN uint64  // proposal number of accepted val
 	log   []Entry // the value itself
 
-	isLeader bool // this means that we own the proposal with number logPN
-
 	commitIndex   uint64
-	acceptedIndex uint64
 
 	peers []*Clerk
+
+	isLeader bool // this means that we own the proposal with number logPN
+	leaderCond *sync.Cond
+	commitCond *sync.Cond
+	acceptedIndex []uint64 // how much of the log has each peer accepted?
 }
 
 type PrepareReply struct {
@@ -87,15 +90,64 @@ func (r *Replica) ProposeRPC(pn uint64, commitIndex uint64, val []Entry) bool {
 	}
 }
 
-func (r *Replica) Start(cmd Entry) {
+func (r *Replica) Start(cmd Entry) bool {
+	r.mu.Lock()
+	if r.isLeader {
+		r.log = append(r.log, cmd)
+	}
+	r.mu.Unlock()
+	return true
 }
 
 func (r *Replica) GetLog() []Entry {
 	return nil
 }
 
+// proposes whatever is in our log
+// requires that the lock is held and that we are the leader
+func (r *Replica) doPropose(peerIdx uint64) {
+	pn := r.logPN
+	log := r.log
+	r.mu.Unlock()
+	a := r.peers[peerIdx].Propose(pn, log)
+	if a {
+		r.mu.Lock()
+		if r.logPN == pn && uint64(len(log)) > r.acceptedIndex[peerIdx] {
+			r.acceptedIndex[peerIdx] = uint64(len(log))
+		}
+		r.mu.Unlock()
+	}
+}
+
+func (r *Replica) commitThread() {
+	for {
+		for !r.isLeader {
+			r.leaderCond.Wait()
+		}
+
+		// update commitIndex
+		for r.isLeader {
+			// FIXME: increase commitIndex if possible
+			r.commitCond.Wait()
+		}
+
+	}
+}
+
+func (r *Replica) replicaThread(i uint64) {
+	r.mu.Lock()
+	for {
+		for !r.isLeader {
+			r.leaderCond.Wait()
+		}
+
+		r.doPropose(i)
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
 // returns true iff there was an error
-func (r *Replica) TryDecide(v ValType, outv *ValType) bool {
+func (r *Replica) TryDecide() bool {
 	r.mu.Lock()
 	pn := r.promisedPN + 1 // don't need to bother incrementing; will invoke RPC on ourselves
 	r.mu.Unlock()

@@ -1,4 +1,4 @@
-package multi
+package comulti
 
 import (
 	"github.com/mit-pdos/gokv/urpc/rpc"
@@ -16,7 +16,7 @@ func (ck *Clerk) Prepare(pn uint64, reply *PrepareReply) {
 	// pass
 }
 
-func (ck *Clerk) Propose(Pn uint64, Val ValType) bool {
+func (ck *Clerk) Propose(Pn uint64, Val []Entry) bool {
 	// pass
 	return false
 }
