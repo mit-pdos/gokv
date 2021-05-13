@@ -19,6 +19,7 @@ import (
 	"github.com/mit-pdos/gokv/urpc/rpc"
 	"sync"
 	"time"
+	"fmt"
 )
 
 type Entry = uint64
@@ -68,6 +69,7 @@ func (r *Replica) ProposeRPC(pn uint64, commitIndex uint64, val []Entry) bool {
 		}
 		if commitIndex > r.commitIndex {
 			r.commitIndex = commitIndex
+			r.applyCond.Signal()
 		}
 		// What if r.commitIndex > commitIndex?  pn |-> val means that val
 		// contains anything that might have been committed before. That means
@@ -110,6 +112,7 @@ func (r *Replica) doPropose(peerIdx uint64) {
 		}
 		r.mu.Unlock()
 	}
+	r.mu.Lock()
 }
 
 func (r *Replica) applyThread() {
@@ -117,17 +120,19 @@ func (r *Replica) applyThread() {
 
 	r.mu.Lock()
 	for {
+		fmt.Printf("lastApplied %+v\n", lastApplied)
 		for r.commitIndex <= lastApplied {
 			r.applyCond.Wait()
 		}
 		for lastApplied < r.commitIndex {
-			lastApplied++
 			r.commitf(r.log[lastApplied])
+			lastApplied++
 		}
 	}
 }
 
 func (r *Replica) commitThread() {
+	r.mu.Lock()
 	for {
 		for !r.isLeader {
 			r.leaderCond.Wait()
@@ -151,8 +156,7 @@ func (r *Replica) commitThread() {
 			}
 			// apply everything in the range [oldCommitIndex + 1, commitIndex]
 			if r.commitIndex > oldCommitIndex {
-				r.mu.Unlock()
-				r.mu.Lock()
+				r.applyCond.Signal()
 			} else {
 				r.commitCond.Wait()
 			}
@@ -169,6 +173,7 @@ func (r *Replica) replicaThread(i uint64) {
 		}
 
 		r.doPropose(i)
+		// fmt.Printf("%+v\n", r)
 		time.Sleep(10 * time.Millisecond)
 	}
 }
@@ -215,15 +220,28 @@ func (r *Replica) TryBecomeLeader() {
 	mu.Unlock()
 }
 
-func MakeReplica(commitf func(Entry), peerHosts []uint64, isLeader bool) *Replica {
+func MakeReplica(me uint64, commitf func(Entry), peerHosts []uint64, isLeader bool) *Replica {
 	r := new(Replica)
 	r.mu = new(sync.Mutex)
 	r.log = make([]Entry, 0)
 	r.peers = make([]*Clerk, len(peerHosts))
+	r.leaderCond = sync.NewCond(r.mu)
+	r.commitCond = sync.NewCond(r.mu)
+	r.applyCond = sync.NewCond(r.mu)
+	r.commitf = commitf
+
+	r.mu.Lock()
+	r.StartServer(me)
+
 	for i, peerHost := range peerHosts {
 		r.peers[i] = MakeClerk(peerHost)
 	}
+
+	// FIXME: this is temporary
 	r.isLeader = isLeader
+	if r.isLeader {
+		r.acceptedIndex = make([]uint64, len(peerHosts))
+	}
 
 	go r.applyThread()
 	go r.commitThread()
@@ -234,6 +252,7 @@ func MakeReplica(commitf func(Entry), peerHosts []uint64, isLeader bool) *Replic
 			r.replicaThread(local_i)
 		}()
 	}
+	r.mu.Unlock()
 	return r
 }
 

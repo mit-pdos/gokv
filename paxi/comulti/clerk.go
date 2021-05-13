@@ -22,5 +22,5 @@ func (ck *Clerk) Propose(Pn uint64, CommitIndex uint64, Log []Entry) bool {
 	rawRep := new([]byte)
 	args := &ProposeArgs{Pn:Pn, CommitIndex:CommitIndex, Log:Log}
 	ck.cl.Call(PROPOSE, encodeProposeArgs(args), rawRep)
-	return false
+	return decodeBool(*rawRep)
 }
