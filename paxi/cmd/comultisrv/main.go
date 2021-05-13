@@ -5,6 +5,7 @@ import (
 	"github.com/mit-pdos/gokv/paxi/comulti"
 	"log"
 	"flag"
+	"time"
 )
 
 func main() {
@@ -23,15 +24,17 @@ func main() {
 
 	peerHosts := []uint64{
 		dist_ffi.MakeAddress("127.0.0.1:37001"),
-		// dist_ffi.MakeAddress("127.0.0.1:37002"),
-		// dist_ffi.MakeAddress("127.0.0.1:37003"),
+		dist_ffi.MakeAddress("127.0.0.1:37002"),
+		dist_ffi.MakeAddress("127.0.0.1:37003"),
 	}
 
 	r := comulti.MakeReplica(peerHosts[i], commitf, peerHosts, isLeader)
 	log.Printf("Started replica")
-	for i := uint64(13); i < 20; i++ {
+	log.Printf("Started to try appending commands")
+	for i := uint64(13); i < 60; i++ {
 		go r.TryAppendRPC(i)
+		go r.TryAppendRPC(i * 10)
+		time.Sleep(time.Millisecond * 500)
 	}
-	log.Printf("Started trying to appending command")
 	select {}
 }

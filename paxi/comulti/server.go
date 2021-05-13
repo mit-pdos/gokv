@@ -19,7 +19,6 @@ import (
 	"github.com/mit-pdos/gokv/urpc/rpc"
 	"sync"
 	"time"
-	"fmt"
 )
 
 type Entry = uint64
@@ -120,7 +119,7 @@ func (r *Replica) applyThread() {
 
 	r.mu.Lock()
 	for {
-		fmt.Printf("lastApplied %+v\n", lastApplied)
+		// fmt.Printf("lastApplied %+v\n", lastApplied)
 		for r.commitIndex <= lastApplied {
 			r.applyCond.Wait()
 		}
@@ -157,9 +156,8 @@ func (r *Replica) commitThread() {
 			// apply everything in the range [oldCommitIndex + 1, commitIndex]
 			if r.commitIndex > oldCommitIndex {
 				r.applyCond.Signal()
-			} else {
-				r.commitCond.Wait()
 			}
+			r.commitCond.Wait() // going to have to wait in any case, since we already committed as much as possible
 		}
 
 	}
@@ -230,8 +228,9 @@ func MakeReplica(me uint64, commitf func(Entry), peerHosts []uint64, isLeader bo
 	r.applyCond = sync.NewCond(r.mu)
 	r.commitf = commitf
 
-	r.mu.Lock()
+	r.mu.Lock() // XXX: this is here to make sure that we don't start processing any RPCs until after peers has been initialized
 	r.StartServer(me)
+	time.Sleep(time.Second * 3) // XXX: this is here just to give time for everything to start up before connecting to peers
 
 	for i, peerHost := range peerHosts {
 		r.peers[i] = MakeClerk(peerHost)
