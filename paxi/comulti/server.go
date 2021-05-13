@@ -16,8 +16,9 @@ package comulti
 // without worrying about any sort of log.
 
 import (
-	"time"
+	"github.com/mit-pdos/gokv/urpc/rpc"
 	"sync"
+	"time"
 )
 
 type Entry = uint64
@@ -29,20 +30,16 @@ type Replica struct {
 	logPN uint64  // proposal number of accepted val
 	log   []Entry // the value itself
 
-	commitIndex   uint64
+	commitIndex uint64
 
 	peers []*Clerk
 
-	isLeader bool // this means that we own the proposal with number logPN
-	leaderCond *sync.Cond
-	commitCond *sync.Cond
+	isLeader      bool // this means that we own the proposal with number logPN
+	leaderCond    *sync.Cond
+	commitCond    *sync.Cond
+	applyCond     *sync.Cond
 	acceptedIndex []uint64 // how much of the log has each peer accepted?
-}
-
-type PrepareReply struct {
-	Success bool
-	Log     []Entry // full log;
-	Pn      uint64
+	commitf       func(Entry)
 }
 
 func (r *Replica) PrepareRPC(pn uint64, reply *PrepareReply) {
@@ -58,12 +55,6 @@ func (r *Replica) PrepareRPC(pn uint64, reply *PrepareReply) {
 		reply.Pn = r.promisedPN
 	}
 	r.mu.Unlock()
-}
-
-type ProposeArgs struct {
-	Pn          uint64
-	CommitIndex uint64
-	Log         []Entry
 }
 
 func (r *Replica) ProposeRPC(pn uint64, commitIndex uint64, val []Entry) bool {
@@ -90,7 +81,7 @@ func (r *Replica) ProposeRPC(pn uint64, commitIndex uint64, val []Entry) bool {
 	}
 }
 
-func (r *Replica) Start(cmd Entry) bool {
+func (r *Replica) TryAppendRPC(cmd Entry) bool {
 	r.mu.Lock()
 	if r.isLeader {
 		r.log = append(r.log, cmd)
@@ -108,14 +99,31 @@ func (r *Replica) GetLog() []Entry {
 func (r *Replica) doPropose(peerIdx uint64) {
 	pn := r.logPN
 	log := r.log
+	commitIndex := r.commitIndex
 	r.mu.Unlock()
-	a := r.peers[peerIdx].Propose(pn, log)
+	a := r.peers[peerIdx].Propose(pn, commitIndex, log)
 	if a {
 		r.mu.Lock()
 		if r.logPN == pn && uint64(len(log)) > r.acceptedIndex[peerIdx] {
 			r.acceptedIndex[peerIdx] = uint64(len(log))
+			r.commitCond.Signal()
 		}
 		r.mu.Unlock()
+	}
+}
+
+func (r *Replica) applyThread() {
+	var lastApplied uint64 // := 0
+
+	r.mu.Lock()
+	for {
+		for r.commitIndex <= lastApplied {
+			r.applyCond.Wait()
+		}
+		for lastApplied < r.commitIndex {
+			lastApplied++
+			r.commitf(r.log[lastApplied])
+		}
 	}
 }
 
@@ -127,8 +135,27 @@ func (r *Replica) commitThread() {
 
 		// update commitIndex
 		for r.isLeader {
-			// FIXME: increase commitIndex if possible
-			r.commitCond.Wait()
+			oldCommitIndex := r.commitIndex
+			for { // increase commitIndex as much as possible
+				tally := 0
+				for _, a := range r.acceptedIndex {
+					if a > r.commitIndex {
+						tally++
+					}
+				}
+				if 2*tally > len(r.peers) {
+					r.commitIndex++
+				} else {
+					break
+				}
+			}
+			// apply everything in the range [oldCommitIndex + 1, commitIndex]
+			if r.commitIndex > oldCommitIndex {
+				r.mu.Unlock()
+				r.mu.Lock()
+			} else {
+				r.commitCond.Wait()
+			}
 		}
 
 	}
@@ -147,7 +174,7 @@ func (r *Replica) replicaThread(i uint64) {
 }
 
 // returns true iff there was an error
-func (r *Replica) TryDecide() bool {
+func (r *Replica) TryBecomeLeader() {
 	r.mu.Lock()
 	pn := r.promisedPN + 1 // don't need to bother incrementing; will invoke RPC on ourselves
 	r.mu.Unlock()
@@ -156,21 +183,21 @@ func (r *Replica) TryDecide() bool {
 	numPrepared = 0
 	var highestPn uint64
 	highestPn = 0
-	var highestVal ValType
-	highestVal = v // if no one in our majority has accepted a value, we'll propose this one
+	var highestLog []Entry
+	highestLog = r.log // if no one in our majority has accepted a value, we'll propose this one
 	mu := new(sync.Mutex)
 
 	for _, peer := range r.peers { // XXX: peers is readonly
 		local_peer := peer
 		go func() {
 			reply_ptr := new(PrepareReply)
-			local_peer.Prepare(pn, reply_ptr) // TODO: replace with real RPC
+			local_peer.Prepare(pn, reply_ptr)
 
 			if reply_ptr.Success {
 				mu.Lock()
 				numPrepared = numPrepared + 1
 				if reply_ptr.Pn > highestPn {
-					highestVal = reply_ptr.Val
+					highestLog = reply_ptr.Log
 					highestPn = reply_ptr.Pn
 				}
 				mu.Unlock()
@@ -180,39 +207,55 @@ func (r *Replica) TryDecide() bool {
 
 	// FIXME: put this in a condvar loop with timeout
 	mu.Lock()
-	n := numPrepared
-	proposeVal := highestVal
-	mu.Unlock()
-
-	if 2*n > uint64(len(r.peers)) {
-		mu2 := new(sync.Mutex)
-		var numAccepted uint64
-		numAccepted = 0
-
-		for _, peer := range r.peers {
-			local_peer := peer
-			// each thread talks to a unique peer
-			go func() {
-				r := local_peer.Propose(pn, proposeVal) // TODO: replace with real RPC
-				if r {
-					mu2.Lock()
-					numAccepted = numAccepted + 1
-					mu2.Unlock()
-				}
-			}()
-		}
-
-		mu2.Lock()
-		n := numAccepted
-		mu2.Unlock()
-
-		if 2*n > uint64(len(r.peers)) {
-			*outv = proposeVal
-			return false
-		} else {
-			return true
-		}
-	} else {
-		return true
+	if 2*numPrepared > uint64(len(r.peers)) && r.promisedPN <= pn && r.logPN <= pn {
+		r.log = highestLog
+		r.logPN = pn
+		r.isLeader = true
 	}
+	mu.Unlock()
+}
+
+func MakeReplica(commitf func(Entry), peerHosts []uint64, isLeader bool) *Replica {
+	r := new(Replica)
+	r.mu = new(sync.Mutex)
+	r.log = make([]Entry, 0)
+	r.peers = make([]*Clerk, len(peerHosts))
+	for i, peerHost := range peerHosts {
+		r.peers[i] = MakeClerk(peerHost)
+	}
+	r.isLeader = isLeader
+
+	go r.applyThread()
+	go r.commitThread()
+	n := uint64(len(r.peers))
+	for i := uint64(0); i < n; i++ {
+		local_i := i
+		go func() {
+			r.replicaThread(local_i)
+		}()
+	}
+	return r
+}
+
+func (r *Replica) StartServer(host uint64) {
+	handlers := make(map[uint64]func([]byte, *[]byte))
+	handlers[TRY_APPEND] = func(rawReq []byte, rawRep *[]byte) {
+		e := decodeUint64(rawReq)
+		r.TryAppendRPC(e)
+	}
+
+	handlers[PREPARE] = func(rawReq []byte, rawRep *[]byte) {
+		pn := decodeUint64(rawReq)
+		rep := new(PrepareReply)
+		r.PrepareRPC(pn, rep)
+		*rawRep = encodePrepareReply(rep)
+	}
+
+	handlers[PROPOSE] = func(rawReq []byte, rawRep *[]byte) {
+		args := decodeProposeArgs(rawReq)
+		b := r.ProposeRPC(args.Pn, args.CommitIndex, args.Log)
+		*rawRep = encodeBool(b)
+	}
+	s := rpc.MakeRPCServer(handlers)
+	s.Serve(host, 1) // 1 == num workers
 }

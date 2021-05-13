@@ -1,0 +1,9 @@
+## valPN vs promisedPN
+
+Right now, when we accept a new proposal, we can increase logPN without
+increasing promisedPN. This is safe (and matches most closely with Paxos Made
+Simple).
+
+To be closer to raft, we could maintain in our mu invariant that logPN <=
+promisedPN, which would allow us to get rid of some checks against valPN in the
+code. That would match more closely with how Raft is described.
