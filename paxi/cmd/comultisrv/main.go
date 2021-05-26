@@ -5,7 +5,7 @@ import (
 	"github.com/mit-pdos/gokv/paxi/comulti"
 	"log"
 	"flag"
-	"time"
+	// "time"
 )
 
 func main() {
@@ -13,6 +13,9 @@ func main() {
 	commitf := func(e comulti.Entry) {
 		l = append(l, e)
 		log.Printf("Log is %+v\n", l)
+		if (len(l) % 100 == 0) {
+			log.Println("Another 100")
+		}
 	}
 
 	var i uint64
@@ -31,10 +34,10 @@ func main() {
 	r := comulti.MakeReplica(peerHosts[i], commitf, peerHosts, isLeader)
 	log.Printf("Started replica")
 	log.Printf("Started to try appending commands")
-	for i := uint64(13); i < 60; i++ {
+	for i := uint64(13); i < 1000000; i++ {
 		go r.TryAppendRPC(i)
 		go r.TryAppendRPC(i * 10)
-		time.Sleep(time.Millisecond * 500)
+		// time.Sleep(time.Millisecond * 500)
 	}
 	select {}
 }

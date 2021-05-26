@@ -141,14 +141,14 @@ func (r *Replica) commitThread() {
 		for r.isLeader {
 			oldCommitIndex := r.commitIndex
 			for { // increase commitIndex as much as possible
-				tally := 0
+				var tally uint64
 				for _, a := range r.acceptedIndex {
 					if a > r.commitIndex {
 						tally++
 					}
 				}
-				if 2*tally > len(r.peers) {
-					r.commitIndex++
+				if 2*tally > uint64(len(r.peers)) {
+					r.commitIndex = r.commitIndex + 1
 				} else {
 					break
 				}
@@ -159,7 +159,6 @@ func (r *Replica) commitThread() {
 			}
 			r.commitCond.Wait() // going to have to wait in any case, since we already committed as much as possible
 		}
-
 	}
 }
 
@@ -242,8 +241,8 @@ func MakeReplica(me uint64, commitf func(Entry), peerHosts []uint64, isLeader bo
 		r.acceptedIndex = make([]uint64, len(peerHosts))
 	}
 
-	go r.applyThread()
-	go r.commitThread()
+	go func() { r.applyThread() }() // FIXME: this is for Goose; really, should add support for [[go foo.bar()]] to Goose.
+	go func() { r.commitThread() }()
 	n := uint64(len(r.peers))
 	for i := uint64(0); i < n; i++ {
 		local_i := i
