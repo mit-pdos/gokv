@@ -83,7 +83,9 @@ func Connect(host Address) ConnectRet {
 	send := &sender { conn: conn, mu: new(sync.Mutex) }
 
 	if err == nil {
-		go receiveOnSocket(send, c)
+		// close_on_err=true: Make sure the receiver will notice when the connection
+		// goes down.
+		go receiveOnSocket(send, c, /*close_on_err*/true)
 	}
 	return ConnectRet{Err: err != nil, Sender: send, Receiver: recv}
 }
@@ -109,15 +111,18 @@ func Send(send Sender, data []byte) bool {
 }
 
 // Handle the receiving side of the given sender, and put the messages onto channel `c`.
-func receiveOnSocket(send Sender, c chan MsgAndSender) {
+// `close_on_err` indicates if on an error, the channel should be closed.
+func receiveOnSocket(send Sender, c chan MsgAndSender, close_on_err bool) {
 	for {
 		// message format: [dataLen] ++ data
 		header := make([]byte, 8)
 		_, err := io.ReadFull(send.conn, header)
 		if err != nil {
-			// TODO: if this is a `Receiver`, propagate socket failures to `Receive` calls
-			// (Hiding errors is okay per our spec, but not great.)
+			// Looks like this connection is dead.
 			// This can legitimately happen when the other side "hung up", so do not panic.
+			if close_on_err {
+				close(c)
+			}
 			return
 		}
 		d := marshal.NewDec(header)
@@ -127,6 +132,9 @@ func receiveOnSocket(send Sender, c chan MsgAndSender) {
 		_, err2 := io.ReadFull(send.conn, data)
 		if err2 != nil {
 			// see comment above
+			if close_on_err {
+				close(c)
+			}
 			return
 		}
 		c <- MsgAndSender{data, send}
@@ -147,9 +155,11 @@ func listenOnSocket(l net.Listener, c chan MsgAndSender) {
 			// This should not usually happen... something seems wrong.
 			panic(err)
 		}
-		// Spawn new thread receiving data on this connection
+		// Spawn new thread receiving data on this connection.
+		// If there is an error, do *not* close the channel: the same channel is used
+		// for all connections we accepted here!
 		send := &sender { conn: conn, mu: new(sync.Mutex) }
-		go receiveOnSocket(send, c)
+		go receiveOnSocket(send, c, /*close_on_err*/false)
 	}
 }
 
@@ -174,8 +184,12 @@ type ReceiveRet struct {
 func Receive(recv Receiver, timeout_ms uint64) ReceiveRet {
 	select {
 	case <-time.After(time.Duration(timeout_ms * 1000 * 1000)): // convert to nanoseconds
-		return ReceiveRet{Err: 1, Sender: nil, Data: nil}
-	case a := <-recv.c:
-		return ReceiveRet{Err: 0, Sender: a.s, Data: a.m}
+		return ReceiveRet{Err: 1, Sender: nil, Data: nil} // timeout
+	case a, more := <-recv.c:
+		if more {
+			return ReceiveRet{Err: 0, Sender: a.s, Data: a.m}
+		} else {
+			return ReceiveRet{Err: 2, Sender: nil, Data: nil} // other error
+		}
 	}
 }
