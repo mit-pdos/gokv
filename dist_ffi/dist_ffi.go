@@ -170,14 +170,13 @@ func Listen(host Address) Receiver {
 }
 
 type ReceiveRet struct {
-	Err    bool
+	Err    uint64 // 0 = success, 1 = timeout, 2 = other error
 	Sender Sender
 	Data   []byte
 }
 
-// This will never actually return Err==true, but as long as clients and proofs do not rely on this that is okay.
-// TODO: Distinguish "timeout (no message found)" from "error"
-func Receive(recv Receiver) ReceiveRet {
+// This will never actually return Err!=0, but as long as clients and proofs do not rely on this that is okay.
+func Receive(recv Receiver, timeout_ms uint64) ReceiveRet {
 	a := <-recv.c
-	return ReceiveRet{Err: false, Sender: a.s, Data: a.m}
+	return ReceiveRet{Err: 0, Sender: a.s, Data: a.m}
 }

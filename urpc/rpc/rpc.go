@@ -34,8 +34,8 @@ func MakeRPCServer(handlers map[uint64]func([]byte, *[]byte)) *RPCServer {
 
 func (srv *RPCServer) readThread(recv dist_ffi.Receiver) {
 	for {
-		r := dist_ffi.Receive(recv)
-		if r.Err {
+		r := dist_ffi.Receive(recv, /*timeout_ms*/ 1000)
+		if r.Err != 0 {
 			continue
 		}
 		data := r.Data
@@ -75,8 +75,8 @@ type RPCClient struct {
 
 func (cl *RPCClient) replyThread(recv dist_ffi.Receiver) {
 	for {
-		r := dist_ffi.Receive(recv)
-		if r.Err {
+		r := dist_ffi.Receive(recv, /*timeout_ms*/ 1000)
+		if r.Err != 0 {
 			continue
 		}
 		data := r.Data
