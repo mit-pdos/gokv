@@ -1,6 +1,7 @@
 package dist_ffi
 
 import (
+	"time"
 	"fmt"
 	"github.com/tchajed/marshal"
 	"io"
@@ -162,8 +163,11 @@ type ReceiveRet struct {
 	Data   []byte
 }
 
-// This will never actually return Err!=0, but as long as clients and proofs do not rely on this that is okay.
 func Receive(recv Receiver, timeout_ms uint64) ReceiveRet {
-	a := <-recv.c
-	return ReceiveRet{Err: 0, Sender: a.s, Data: a.m}
+	select {
+	case <-time.After(time.Duration(timeout_ms * 1000 * 1000)): // convert to nanoseconds
+		return ReceiveRet{Err: 1, Sender: nil, Data: nil}
+	case a := <-recv.c:
+		return ReceiveRet{Err: 0, Sender: a.s, Data: a.m}
+	}
 }
