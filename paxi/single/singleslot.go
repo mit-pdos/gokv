@@ -4,26 +4,22 @@ import (
 	"sync"
 )
 
-type Entry = uint64
-
+// This isn't quite paxos
 type Replica struct {
 	mu         *sync.Mutex
 	promisedPN uint64 // server has promised not to accept proposals below this
 
-	logPN uint64  // proposal number of accepted val
-	log   []Entry // the value itself
+	acceptedPN       uint64  // proposal number of accepted val
+	acceptedVal ValType // the value itself
 
-	isLeader bool // this means that we own the proposal with number logPN
-
-	commitIndex   uint64
-	acceptedIndex uint64
+	committedVal ValType
 
 	peers []*Clerk
 }
 
 type PrepareReply struct {
 	Success bool
-	Log     []Entry // full log;
+	Val     uint64
 	Pn      uint64
 }
 
@@ -31,9 +27,8 @@ func (r *Replica) PrepareRPC(pn uint64, reply *PrepareReply) {
 	r.mu.Lock()
 	if pn > r.promisedPN {
 		r.promisedPN = pn
-
-		reply.Pn = r.logPN
-		reply.Log = r.log
+		reply.Pn = r.acceptedPN
+		reply.Val = r.acceptedVal
 		reply.Success = true
 	} else {
 		reply.Success = false
@@ -43,36 +38,21 @@ func (r *Replica) PrepareRPC(pn uint64, reply *PrepareReply) {
 }
 
 type ProposeArgs struct {
-	Pn          uint64
-	CommitIndex uint64
-	Log         []Entry
+	Pn  uint64
+	Val ValType
 }
 
-func (r *Replica) ProposeRPC(pn uint64, commitIndex uint64, val []Entry) bool {
+func (r *Replica) ProposeRPC(pn uint64, val ValType) bool {
 	r.mu.Lock()
-	if pn >= r.promisedPN && pn >= r.logPN {
-		if pn > r.logPN {
-			r.log = val
-			r.logPN = pn
-		} else if len(val) > len(r.log) {
-			r.log = val
-		}
-		if commitIndex > r.commitIndex {
-			r.commitIndex = commitIndex
-		}
+	if pn >= r.promisedPN && pn >= r.acceptedPN {
+		r.acceptedVal = val
+		r.acceptedPN = pn
 		r.mu.Unlock()
 		return true
 	} else {
 		r.mu.Unlock()
 		return false
 	}
-}
-
-func (r *Replica) Start(cmd Entry) {
-}
-
-func (r *Replica) GetLog() []Entry {
-	return nil
 }
 
 // returns true iff there was an error
