@@ -8,6 +8,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 type Address uint64
@@ -64,6 +65,7 @@ type MsgAndSender struct {
 /// Sender
 type sender struct {
 	conn net.Conn
+	mu *sync.Mutex // to serialize writing to `conn`
 }
 
 type Sender *sender
@@ -78,35 +80,40 @@ func Connect(host Address) ConnectRet {
 	conn, err := net.Dial("tcp", AddressToStr(host))
 	c := make(chan MsgAndSender)
 	recv := &receiver{c}
-	send := &sender { conn }
+	send := &sender { conn: conn, mu: new(sync.Mutex) }
 
 	if err == nil {
-		go receiveOnSocket(conn, c)
+		go receiveOnSocket(send, c)
 	}
 	return ConnectRet{Err: err != nil, Sender: send, Receiver: recv}
 }
 
 func Send(send Sender, data []byte) bool {
-	// message format: [dataLen] ++ data
-	e := marshal.NewEnc(8 + uint64(len(data)))
+	// Encode length
+	e := marshal.NewEnc(8)
 	e.PutInt(uint64(len(data)))
-	e.PutBytes(data) // FIXME: copying all the data...
-	reqData := e.Finish()
-	_, err := send.conn.Write(reqData) // one atomic write for the entire thing!
+	reqLen := e.Finish()
+	// message format: [dataLen] ++ data
+	send.mu.Lock()
+	_, err := send.conn.Write(reqLen)
+	if err == nil {
+		_, err = send.conn.Write(data)
+	}
+	// If there was an error, make sure we never send anything on this channel again...
+	// there might have been a partial write!
+	if err != nil {
+		send.conn.Close()
+	}
+	send.mu.Unlock()
 	return err != nil
 }
 
-// conn will also be used as "reply socket" for all messages that arrive here.
-func receiveOnSocket(conn net.Conn, c chan MsgAndSender) {
-	// Messages received here will have their replies sent via this sender.
-	// "host" and "recv" remain zero; this sender does not support re-connecting.
-	var send sender
-	send.conn = conn
-
+// Handle the receiving side of the given sender, and put the messages onto channel `c`.
+func receiveOnSocket(send Sender, c chan MsgAndSender) {
 	for {
 		// message format: [dataLen] ++ data
 		header := make([]byte, 8)
-		_, err := io.ReadFull(conn, header)
+		_, err := io.ReadFull(send.conn, header)
 		if err != nil {
 			// TODO: if this is a `Receiver`, propagate socket failures to `Receive` calls
 			// (Hiding errors is okay per our spec, but not great.)
@@ -117,12 +124,12 @@ func receiveOnSocket(conn net.Conn, c chan MsgAndSender) {
 		dataLen := d.GetInt()
 
 		data := make([]byte, dataLen)
-		_, err2 := io.ReadFull(conn, data)
+		_, err2 := io.ReadFull(send.conn, data)
 		if err2 != nil {
 			// see comment above
 			return
 		}
-		c <- MsgAndSender{data, &send}
+		c <- MsgAndSender{data, send}
 	}
 }
 
@@ -141,7 +148,8 @@ func listenOnSocket(l net.Listener, c chan MsgAndSender) {
 			panic(err)
 		}
 		// Spawn new thread receiving data on this connection
-		go receiveOnSocket(conn, c)
+		send := &sender { conn: conn, mu: new(sync.Mutex) }
+		go receiveOnSocket(send, c)
 	}
 }
 
