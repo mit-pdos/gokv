@@ -65,7 +65,8 @@ type MsgAndSender struct {
 /// Sender
 type sender struct {
 	conn net.Conn
-	mu *sync.Mutex // to serialize writing to `conn`
+	valid bool // whether `conn` is still a valid connection
+	mu *sync.Mutex // guarding *sending* on `conn`, and `valid`
 }
 
 type Sender *sender
@@ -80,7 +81,7 @@ func Connect(host Address) ConnectRet {
 	conn, err := net.Dial("tcp", AddressToStr(host))
 	c := make(chan MsgAndSender)
 	recv := &receiver{c}
-	send := &sender { conn: conn, mu: new(sync.Mutex) }
+	send := &sender { conn: conn, mu: new(sync.Mutex), valid: true }
 
 	if err == nil {
 		// close_on_err=true: Make sure the receiver will notice when the connection
@@ -97,6 +98,10 @@ func Send(send Sender, data []byte) bool {
 	reqLen := e.Finish()
 	// message format: [dataLen] ++ data
 	send.mu.Lock()
+	defer send.mu.Unlock()
+	if !send.valid {
+		return true // err
+	}
 	_, err := send.conn.Write(reqLen)
 	if err == nil {
 		_, err = send.conn.Write(data)
@@ -104,9 +109,10 @@ func Send(send Sender, data []byte) bool {
 	// If there was an error, make sure we never send anything on this channel again...
 	// there might have been a partial write!
 	if err != nil {
-		send.conn.Close()
+		// FIXME: Can we `Close` the socket here? I think there might be a `receiveOnSocket`
+		// still working on the same socket.
+		send.valid = false
 	}
-	send.mu.Unlock()
 	return err != nil
 }
 
@@ -158,7 +164,7 @@ func listenOnSocket(l net.Listener, c chan MsgAndSender) {
 		// Spawn new thread receiving data on this connection.
 		// If there is an error, do *not* close the channel: the same channel is used
 		// for all connections we accepted here!
-		send := &sender { conn: conn, mu: new(sync.Mutex) }
+		send := &sender { conn: conn, mu: new(sync.Mutex), valid: true }
 		go receiveOnSocket(send, c, /*close_on_err*/false)
 	}
 }
