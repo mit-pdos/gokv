@@ -13,7 +13,7 @@ type RPCServer struct {
 	handlers map[uint64]func([]byte, *[]byte)
 }
 
-func (srv *RPCServer) rpcHandle(sender dist_ffi.Sender, rpcid uint64, seqno uint64, data []byte) {
+func (srv *RPCServer) rpcHandle(conn dist_ffi.Connection, rpcid uint64, seqno uint64, data []byte) {
 	replyData := new([]byte)
 
 	f := srv.handlers[rpcid] // for Goose
@@ -25,38 +25,45 @@ func (srv *RPCServer) rpcHandle(sender dist_ffi.Sender, rpcid uint64, seqno uint
 	e.PutInt(uint64(len(*replyData)))
 	e.PutBytes(*replyData)
 	// Ignore errors (what would we do about them anyway -- client will inevitably time out, and then retry)
-	dist_ffi.Send(sender, e.Finish()) // TODO: contention? should we buffer these in userspace too?
+	dist_ffi.Send(conn, e.Finish()) // TODO: contention? should we buffer these in userspace too?
 }
 
 func MakeRPCServer(handlers map[uint64]func([]byte, *[]byte)) *RPCServer {
 	return &RPCServer{handlers: handlers}
 }
 
-func (srv *RPCServer) readThread(recv dist_ffi.Receiver) {
+func (srv *RPCServer) readThread(conn dist_ffi.Connection) {
 	for {
-		r := dist_ffi.Receive(recv, /*timeout_ms*/ 1000)
+		r := dist_ffi.Receive(conn, /*timeout_ms*/ 1000)
 		if r.Err != 0 {
-			continue
+			if r.Err == 1 {
+				// Timeout
+				continue
+			}
+			// Other error
+			break
 		}
 		data := r.Data
-		sender := r.Sender
 		d := marshal.NewDec(data)
 		rpcid := d.GetInt()
 		seqno := d.GetInt()
 		reqLen := d.GetInt()
 		req := d.GetBytes(reqLen)
-		srv.rpcHandle(sender, rpcid, seqno, req) // XXX: this could (and probably should) be in a goroutine YYY: but readThread is already its own goroutine, so that seems redundant?
+		srv.rpcHandle(conn, rpcid, seqno, req) // XXX: this could (and probably should) be in a goroutine YYY: but readThread is already its own goroutine, so that seems redundant?
 		continue
 	}
 }
 
 func (srv *RPCServer) Serve(host HostName, numWorkers uint64) {
-	recv := dist_ffi.Listen(dist_ffi.Address(host))
-	for i := uint64(0); i < numWorkers; i++ {
-		go func() {
-			srv.readThread(recv)
-		}()
-	}
+	listener := dist_ffi.Listen(dist_ffi.Address(host))
+	go func() {
+		for {
+			conn := dist_ffi.Accept(listener);
+			go func() {
+				srv.readThread(conn)
+			}()
+		}
+	}()
 }
 
 type callback struct {
@@ -67,16 +74,17 @@ type callback struct {
 
 type RPCClient struct {
 	mu   *sync.Mutex
-	send dist_ffi.Sender // for requests
+	conn dist_ffi.Connection // for requests
 	seq  uint64          // next fresh sequence number
 
 	pending map[uint64]*callback
 }
 
-func (cl *RPCClient) replyThread(recv dist_ffi.Receiver) {
+func (cl *RPCClient) replyThread() {
 	for {
-		r := dist_ffi.Receive(recv, /*timeout_ms*/ 1000)
+		r := dist_ffi.Receive(cl.conn, /*timeout_ms*/ 1000)
 		if r.Err != 0 {
+			// TODO: do something else for timeouts? Reconnect?
 			continue
 		}
 		data := r.Data
@@ -108,13 +116,13 @@ func MakeRPCClient(host_name HostName) *RPCClient {
 	machine.Assume(!a.Err)
 
 	cl := &RPCClient{
-		send:    a.Sender,
+		conn:    a.Connection,
 		mu:      new(sync.Mutex),
 		seq:     1,
 		pending: make(map[uint64]*callback)}
 
 	go func() {
-		cl.replyThread(a.Receiver) // Goose doesn't support parameters in a go statement
+		cl.replyThread() // Goose doesn't support parameters in a go statement
 	}()
 	return cl
 }
@@ -142,7 +150,7 @@ func (cl *RPCClient) Call(rpcid uint64, args []byte, reply *[]byte) bool {
 	reqData := e.Finish()
 	// fmt.Fprintf(os.Stderr, "%+v\n", reqData)
 
-	if dist_ffi.Send(cl.send, reqData) {
+	if dist_ffi.Send(cl.conn, reqData) {
 		// An error occured. "dist_ffi" will try to reconnect the socket;
 		// make the caller try again with that new socket.
 		return true
