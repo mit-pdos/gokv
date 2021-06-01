@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"errors"
+	"os"
 )
 
 type Address uint64
@@ -137,15 +139,27 @@ type ReceiveRet struct {
 }
 
 func Receive(c Connection, timeout_ms uint64) ReceiveRet {
-	// FIXME: honor the timeout
+	timeout := time.Duration(timeout_ms * 1000 * 1000) // convert to nanoseconds (Go's time unit)
+	deadline := time.Now().Add(timeout)
+
+	// Go's native locks don't support deadlines. So if there are concurrent calls
+	// we might miss the above deadline. We'll still match the formal model, though,
+	// and since everyone has a deadline we should get the lock *eventually*, and then
+	// the pre-computed deadline above will be properly honored.
 	c.recv_mu.Lock()
 	defer c.recv_mu.Unlock()
 
 	// message format: [dataLen] ++ data
 
+	c.conn.SetReadDeadline(deadline)
 	header := make([]byte, 8)
-	_, err := io.ReadFull(c.conn, header)
+	n, err := io.ReadFull(c.conn, header)
 	if err != nil {
+		if n == 0 && errors.Is(err, os.ErrDeadlineExceeded) {
+			// A timeout and we didn't yet read anything. So everything is in a good
+			// state and we can retry later.
+			return ReceiveRet { Err: 1 }
+		}
 		// Looks like this connection is dead.
 		// This can legitimately happen when the other side "hung up", so do not panic.
 		// But als, we clearly lost track here of where in the protocol we are,
@@ -159,7 +173,8 @@ func Receive(c Connection, timeout_ms uint64) ReceiveRet {
 	data := make([]byte, dataLen)
 	_, err2 := io.ReadFull(c.conn, data)
 	if err2 != nil {
-		// see comment above
+		// See comment above. No special handling for timeouts, as we are in the middle
+		// of receiving a message so this connection is not in a good state.
 		c.conn.Close()
 		return ReceiveRet { Err: 2 }
 	}
