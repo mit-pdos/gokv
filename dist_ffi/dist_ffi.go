@@ -1,12 +1,14 @@
 package dist_ffi
 
 import (
+	"time"
 	"fmt"
 	"github.com/tchajed/marshal"
 	"io"
 	"net"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 type Address uint64
@@ -55,115 +57,112 @@ func AddressToStr(e Address) string {
 	return fmt.Sprintf("%s:%d", net.IPv4(a0, a1, a2, a3).String(), port)
 }
 
-type MsgAndSender struct {
-	m []byte
-	s Sender
+/// Listener
+type listener struct {
+	l net.Listener
 }
 
-/// Sender
-type sender struct {
-	conn net.Conn
-}
+type Listener *listener
 
-type Sender *sender
-
-type ConnectRet struct {
-	Err      bool
-	Sender   Sender
-	Receiver Receiver
-}
-
-func Connect(host Address) ConnectRet {
-	conn, err := net.Dial("tcp", AddressToStr(host))
-	c := make(chan MsgAndSender)
-	recv := &receiver{c}
-	send := &sender { conn }
-
-	if err == nil {
-		go receiveOnSocket(conn, c)
-	}
-	return ConnectRet{Err: err != nil, Sender: send, Receiver: recv}
-}
-
-func Send(send Sender, data []byte) bool {
-	// message format: [dataLen] ++ data
-	e := marshal.NewEnc(8 + uint64(len(data)))
-	e.PutInt(uint64(len(data)))
-	e.PutBytes(data) // FIXME: copying all the data...
-	reqData := e.Finish()
-	_, err := send.conn.Write(reqData) // one atomic write for the entire thing!
-	return err != nil
-}
-
-// conn will also be used as "reply socket" for all messages that arrive here.
-func receiveOnSocket(conn net.Conn, c chan MsgAndSender) {
-	// Messages received here will have their replies sent via this sender.
-	// "host" and "recv" remain zero; this sender does not support re-connecting.
-	var send sender
-	send.conn = conn
-
-	for {
-		// message format: [dataLen] ++ data
-		header := make([]byte, 8)
-		_, err := io.ReadFull(conn, header)
-		if err != nil {
-			// TODO: if this is a `Receiver`, propagate socket failures to `Receive` calls
-			// (Hiding errors is okay per our spec, but not great.)
-			// This can legitimately happen when the other side "hung up", so do not panic.
-			return
-		}
-		d := marshal.NewDec(header)
-		dataLen := d.GetInt()
-
-		data := make([]byte, dataLen)
-		_, err2 := io.ReadFull(conn, data)
-		if err2 != nil {
-			// see comment above
-			return
-		}
-		c <- MsgAndSender{data, &send}
-	}
-}
-
-/// Receiver
-type receiver struct {
-	c chan MsgAndSender
-}
-
-type Receiver *receiver
-
-func listenOnSocket(l net.Listener, c chan MsgAndSender) {
-	for {
-		conn, err := l.Accept()
-		if err != nil {
-			// This should not usually happen... something seems wrong.
-			panic(err)
-		}
-		// Spawn new thread receiving data on this connection
-		go receiveOnSocket(conn, c)
-	}
-}
-
-func Listen(host Address) Receiver {
-	c := make(chan MsgAndSender)
+func Listen(host Address) Listener {
 	l, err := net.Listen("tcp", AddressToStr(host))
 	if err != nil {
 		// Assume() no error on Listen. This should fail loud and early, retrying makes little sense (likely the port is already used).
 		panic(err)
 	}
-	// Keep accepting new connections in background thread
-	go listenOnSocket(l, c)
-	return &receiver{c}
+	return &listener{l}
+}
+
+func Accept(l Listener) Connection {
+	conn, err := l.l.Accept()
+	if err != nil {
+		// This should not usually happen... something seems wrong.
+		panic(err)
+	}
+
+	return makeConnection(conn)
+}
+
+/// Connection
+type connection struct {
+	conn net.Conn
+	send_mu *sync.Mutex // guarding *sending* on `conn`
+	recv_mu *sync.Mutex // guarding *receiving* on `conn`
+}
+
+func makeConnection(conn net.Conn) Connection {
+	return &connection { conn: conn, send_mu: new(sync.Mutex), recv_mu: new(sync.Mutex) }
+}
+
+type Connection *connection
+
+type ConnectRet struct {
+	Err      bool
+	Connection   Connection
+}
+
+func Connect(host Address) ConnectRet {
+	conn, err := net.Dial("tcp", AddressToStr(host))
+	if err != nil {
+		return ConnectRet { Err: true }
+	}
+	return ConnectRet { Err: false, Connection: makeConnection(conn) }
+}
+
+func Send(c Connection, data []byte) bool {
+	// Encode length
+	e := marshal.NewEnc(8)
+	e.PutInt(uint64(len(data)))
+	reqLen := e.Finish()
+
+	c.send_mu.Lock()
+	defer c.send_mu.Unlock()
+
+	// message format: [dataLen] ++ data
+	_, err := c.conn.Write(reqLen)
+	if err == nil {
+		_, err = c.conn.Write(data)
+	}
+	// If there was an error, make sure we never send anything on this channel again...
+	// there might have been a partial write!
+	if err != nil {
+		c.conn.Close() // Go promises this makes this connection object "dead"
+	}
+	return err != nil
 }
 
 type ReceiveRet struct {
 	Err    uint64 // 0 = success, 1 = timeout, 2 = other error
-	Sender Sender
 	Data   []byte
 }
 
-// This will never actually return Err!=0, but as long as clients and proofs do not rely on this that is okay.
-func Receive(recv Receiver, timeout_ms uint64) ReceiveRet {
-	a := <-recv.c
-	return ReceiveRet{Err: 0, Sender: a.s, Data: a.m}
+func Receive(c Connection, timeout_ms uint64) ReceiveRet {
+	// FIXME: honor the timeout
+	c.recv_mu.Lock()
+	defer c.recv_mu.Unlock()
+
+	// message format: [dataLen] ++ data
+
+	header := make([]byte, 8)
+	_, err := io.ReadFull(c.conn, header)
+	if err != nil {
+		// Looks like this connection is dead.
+		// This can legitimately happen when the other side "hung up", so do not panic.
+		// But als, we clearly lost track here of where in the protocol we are,
+		// so close it.
+		c.conn.Close()
+		return ReceiveRet { Err: 2 }
+	}
+	d := marshal.NewDec(header)
+	dataLen := d.GetInt()
+
+	data := make([]byte, dataLen)
+	_, err2 := io.ReadFull(c.conn, data)
+	if err2 != nil {
+		// see comment above
+		c.conn.Close()
+		return ReceiveRet { Err: 2 }
+	}
+
+	return ReceiveRet { Err: 0, Data: data }
 }
