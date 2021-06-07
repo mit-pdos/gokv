@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/mit-pdos/gokv/dist_ffi"
+	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/paxi/comulti"
 	"log"
 	"flag"
@@ -26,9 +26,9 @@ func main() {
 	flag.Parse()
 
 	peerHosts := []uint64{
-		dist_ffi.MakeAddress("127.0.0.1:37001"),
-		dist_ffi.MakeAddress("127.0.0.1:37002"),
-		dist_ffi.MakeAddress("127.0.0.1:37003"),
+		grove_ffi.MakeAddress("127.0.0.1:37001"),
+		grove_ffi.MakeAddress("127.0.0.1:37002"),
+		grove_ffi.MakeAddress("127.0.0.1:37003"),
 	}
 
 	r := comulti.MakeReplica(peerHosts[i], commitf, peerHosts, isLeader)

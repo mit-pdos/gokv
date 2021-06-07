@@ -1,7 +1,7 @@
 package rpc
 
 import (
-	"github.com/mit-pdos/gokv/dist_ffi"
+	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/marshal"
 	"sync"
@@ -13,7 +13,7 @@ type RPCServer struct {
 	handlers map[uint64]func([]byte, *[]byte)
 }
 
-func (srv *RPCServer) rpcHandle(conn dist_ffi.Connection, rpcid uint64, seqno uint64, data []byte) {
+func (srv *RPCServer) rpcHandle(conn grove_ffi.Connection, rpcid uint64, seqno uint64, data []byte) {
 	replyData := new([]byte)
 
 	f := srv.handlers[rpcid] // for Goose
@@ -25,16 +25,16 @@ func (srv *RPCServer) rpcHandle(conn dist_ffi.Connection, rpcid uint64, seqno ui
 	e.PutInt(uint64(len(*replyData)))
 	e.PutBytes(*replyData)
 	// Ignore errors (what would we do about them anyway -- client will inevitably time out, and then retry)
-	dist_ffi.Send(conn, e.Finish()) // TODO: contention? should we buffer these in userspace too?
+	grove_ffi.Send(conn, e.Finish()) // TODO: contention? should we buffer these in userspace too?
 }
 
 func MakeRPCServer(handlers map[uint64]func([]byte, *[]byte)) *RPCServer {
 	return &RPCServer{handlers: handlers}
 }
 
-func (srv *RPCServer) readThread(conn dist_ffi.Connection) {
+func (srv *RPCServer) readThread(conn grove_ffi.Connection) {
 	for {
-		r := dist_ffi.Receive(conn, /*timeout_ms*/ 1000)
+		r := grove_ffi.Receive(conn, /*timeout_ms*/ 1000)
 		if r.Err != 0 {
 			if r.Err == 1 {
 				// Timeout
@@ -55,10 +55,10 @@ func (srv *RPCServer) readThread(conn dist_ffi.Connection) {
 }
 
 func (srv *RPCServer) Serve(host HostName, numWorkers uint64) {
-	listener := dist_ffi.Listen(dist_ffi.Address(host))
+	listener := grove_ffi.Listen(grove_ffi.Address(host))
 	go func() {
 		for {
-			conn := dist_ffi.Accept(listener);
+			conn := grove_ffi.Accept(listener);
 			go func() {
 				srv.readThread(conn)
 			}()
@@ -74,7 +74,7 @@ type callback struct {
 
 type RPCClient struct {
 	mu   *sync.Mutex
-	conn dist_ffi.Connection // for requests
+	conn grove_ffi.Connection // for requests
 	seq  uint64          // next fresh sequence number
 
 	pending map[uint64]*callback
@@ -82,7 +82,7 @@ type RPCClient struct {
 
 func (cl *RPCClient) replyThread() {
 	for {
-		r := dist_ffi.Receive(cl.conn, /*timeout_ms*/ 1000)
+		r := grove_ffi.Receive(cl.conn, /*timeout_ms*/ 1000)
 		if r.Err != 0 {
 			// TODO: do something else for timeouts? Reconnect?
 			continue
@@ -110,8 +110,8 @@ func (cl *RPCClient) replyThread() {
 }
 
 func MakeRPCClient(host_name HostName) *RPCClient {
-	host := dist_ffi.Address(host_name)
-	a := dist_ffi.Connect(host)
+	host := grove_ffi.Address(host_name)
+	a := grove_ffi.Connect(host)
 	// Assume no error
 	machine.Assume(!a.Err)
 
@@ -150,8 +150,8 @@ func (cl *RPCClient) Call(rpcid uint64, args []byte, reply *[]byte) bool {
 	reqData := e.Finish()
 	// fmt.Fprintf(os.Stderr, "%+v\n", reqData)
 
-	if dist_ffi.Send(cl.conn, reqData) {
-		// An error occured. "dist_ffi" will try to reconnect the socket;
+	if grove_ffi.Send(cl.conn, reqData) {
+		// An error occured. "grove_ffi" will try to reconnect the socket;
 		// make the caller try again with that new socket.
 		return true
 	}

@@ -1,4 +1,4 @@
-package dist_ffi
+package grove_ffi
 
 import (
 	"time"

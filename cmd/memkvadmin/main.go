@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	"github.com/mit-pdos/gokv/dist_ffi"
+	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/memkv"
 )
 
@@ -17,8 +17,8 @@ func main() {
 	}
 
 	coordStr = "127.0.0.1:37000"
-	coord := dist_ffi.MakeAddress(coordStr)
-	h := dist_ffi.MakeAddress("127.0.0.1:37001")
+	coord := grove_ffi.MakeAddress(coordStr)
+	h := grove_ffi.MakeAddress("127.0.0.1:37001")
 	ck := memkv.MakeMemKVClerk(coord)
 	ck.Add(h)
 	// ck.Put(15, []byte("This is a test"))

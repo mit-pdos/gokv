@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/mit-pdos/gokv/dist_ffi"
+	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/memkv"
 	"log"
 	"os"
@@ -24,7 +24,7 @@ func main() {
 	}
 
 	s := memkv.MakeMemKVShardServer(is_init)
-	me := dist_ffi.MakeAddress(fmt.Sprintf("0.0.0.0:%d", port))
+	me := grove_ffi.MakeAddress(fmt.Sprintf("0.0.0.0:%d", port))
 	log.Printf("Started shard server on port %d; id %d", port, me)
 	s.Start(me)
 	select {}

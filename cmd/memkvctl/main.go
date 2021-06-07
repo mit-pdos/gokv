@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/mit-pdos/gokv/dist_ffi"
+	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/memkv"
 	"os"
 	"strconv"
@@ -27,7 +27,7 @@ func main() {
 
 	usage_assert(coordStr != "")
 
-	coord := dist_ffi.MakeAddress(coordStr)
+	coord := grove_ffi.MakeAddress(coordStr)
 	ck := memkv.MakeMemKVClerk(coord)
 
 	a := flag.Args()
@@ -47,7 +47,7 @@ func main() {
 		fmt.Printf("PUT %d ↦ %v\n", k, v)
 	} else if a[0] == "add" {
 		usage_assert(len(a) == 2)
-		h := dist_ffi.MakeAddress(a[1])
+		h := grove_ffi.MakeAddress(a[1])
 		ck.Add(h)
 		fmt.Printf("Added %s\n", a[1])
 	}
