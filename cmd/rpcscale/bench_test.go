@@ -32,10 +32,3 @@ func BenchmarkConcurrentNullRPC(b *testing.B) {
 			}
 		})
 }
-
-func benchConcurrentNullRPC(numClients int) {
-	for i := 0; i < numClients; i++ {
-		// cl := rpc.MakeRPCClient(grove_ffi.MakeAddress("0.0.0.0:12345"))
-		// cl.Call(RPC_NULL, nil, reply)
-	}
-}
