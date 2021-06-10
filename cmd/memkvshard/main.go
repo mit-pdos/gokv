@@ -7,9 +7,16 @@ import (
 	"github.com/mit-pdos/gokv/memkv"
 	"log"
 	"os"
+	"net/http"
+	_ "net/http/pprof"
 )
 
 func main() {
+
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
+
 	// var coord string
 	var is_init bool
 	var port uint64
