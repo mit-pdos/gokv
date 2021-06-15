@@ -15,7 +15,8 @@ func MakeFreshKVClerk(host HostName) *MemKVShardClerk {
 	ck := new(MemKVShardClerk)
 	ck.cl = rpc.MakeRPCClient(host)
 	rawRep := new([]byte)
-	for ck.cl.Call(KV_FRESHCID, make([]byte, 0), rawRep) == true {
+	// TODO: on ErrDisconnect, re-create RPCClient
+	for ck.cl.Call(KV_FRESHCID, make([]byte, 0), rawRep, 100/*ms*/) != 0 {
 	}
 	ck.cid = decodeUint64(*rawRep)
 	ck.seq = 1
@@ -33,8 +34,8 @@ func (ck *MemKVShardClerk) Put(key uint64, value []byte) ErrorType {
 	ck.seq = ck.seq + 1
 
 	rawRep := new([]byte)
-	// TODO: helper for looping RemoteProcedureCall()
-	for ck.cl.Call(KV_PUT, encodePutRequest(args), rawRep) == true {
+	// TODO: on ErrDisconnect, re-create RPCClient
+	for ck.cl.Call(KV_PUT, encodePutRequest(args), rawRep, 100/*ms*/) != 0 {
 	}
 	rep := decodePutReply(*rawRep)
 	return rep.Err
@@ -49,8 +50,8 @@ func (ck *MemKVShardClerk) Get(key uint64, value *[]byte) ErrorType {
 	ck.seq = ck.seq + 1
 
 	rawRep := new([]byte)
-	// TODO: helper for looping RemoteProcedureCall()
-	for ck.cl.Call(KV_GET, encodeGetRequest(args), rawRep) == true {
+	// TODO: on ErrDisconnect, re-create RPCClient
+	for ck.cl.Call(KV_GET, encodeGetRequest(args), rawRep, 100/*ms*/) != 0 {
 	}
 	rep := decodeGetReply(*rawRep)
 	*value = rep.Value
@@ -68,8 +69,8 @@ func (ck *MemKVShardClerk) ConditionalPut(key uint64, expectedValue []byte, newV
 	ck.seq = ck.seq + 1
 
 	rawRep := new([]byte)
-	// TODO: helper for looping RemoteProcedureCall()
-	for ck.cl.Call(KV_CONDITIONAL_PUT, encodeConditionalPutRequest(args), rawRep) == true {
+	// TODO: on ErrDisconnect, re-create RPCClient
+	for ck.cl.Call(KV_CONDITIONAL_PUT, encodeConditionalPutRequest(args), rawRep, 100/*ms*/) != 0 {
 	}
 	rep := decodeConditionalPutReply(*rawRep)
 	*success = rep.Success
@@ -87,7 +88,8 @@ func (ck *MemKVShardClerk) InstallShard(sid uint64, kvs map[uint64][]byte) {
 	ck.seq = ck.seq + 1
 
 	rawRep := new([]byte)
-	for ck.cl.Call(KV_INS_SHARD, encodeInstallShardRequest(args), rawRep) == true {
+	// TODO: on ErrDisconnect, re-create RPCClient
+	for ck.cl.Call(KV_INS_SHARD, encodeInstallShardRequest(args), rawRep, 100/*ms*/) != 0 {
 	}
 	// log.Printf("InstallShard %d finished", sid)
 }
@@ -98,6 +100,7 @@ func (ck *MemKVShardClerk) MoveShard(sid uint64, dst HostName) {
 	args.Dst = dst
 
 	rawRep := new([]byte)
-	for ck.cl.Call(KV_MOV_SHARD, encodeMoveShardRequest(args), rawRep) == true {
+	// TODO: on ErrDisconnect, re-create RPCClient
+	for ck.cl.Call(KV_MOV_SHARD, encodeMoveShardRequest(args), rawRep, 100/*ms*/) != 0 {
 	}
 }

@@ -81,6 +81,7 @@ func (cl *RPCClient) replyThread() {
 		r := grove_ffi.Receive(cl.conn)
 		if r.Err {
 			// This connection is *done* -- quit the thread.
+			// The client will hear about this when they do their next `Call`.
 			break
 		}
 		data := r.Data
@@ -123,7 +124,10 @@ func MakeRPCClient(host_name HostName) *RPCClient {
 	return cl
 }
 
-func (cl *RPCClient) Call(rpcid uint64, args []byte, reply *[]byte) bool {
+const ErrTimeout uint64 = 1
+const ErrDisconnect uint64 = 2
+
+func (cl *RPCClient) Call(rpcid uint64, args []byte, reply *[]byte, timeout_ms uint64) uint64 {
 	// log.Printf("Started call %d\n", rpcid)
 	reply_buf := new([]byte)
 	cb := &callback{reply: reply_buf, done: new(bool), cond: sync.NewCond(cl.mu)}
@@ -147,23 +151,22 @@ func (cl *RPCClient) Call(rpcid uint64, args []byte, reply *[]byte) bool {
 	// fmt.Fprintf(os.Stderr, "%+v\n", reqData)
 
 	if grove_ffi.Send(cl.conn, reqData) {
-		// An error occured. "grove_ffi" will try to reconnect the socket;
-		// make the caller try again with that new socket.
-		return true
+		// An error occured; this client is dead.
+		return ErrDisconnect
 	}
 
 	// wait for reply
 	cl.mu.Lock()
 	if !*cb.done {
 		// log.Printf("Waiting for reply for call %d(%d)\n", seqno, rpcid)
-		machine.WaitTimeout(cb.cond, 100000 /*ms*/) // make sure we don't get stuck waiting forever
+		machine.WaitTimeout(cb.cond, timeout_ms) // make sure we don't get stuck waiting forever
 	}
 	if *cb.done {
 		*reply = *reply_buf
 		cl.mu.Unlock()
-		return false // no error
+		return 0 // no error
 	} else {
 		cl.mu.Unlock()
-		return true // error
+		return ErrTimeout
 	}
 }

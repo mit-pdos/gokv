@@ -10,14 +10,16 @@ type MemKVCoordClerk struct {
 
 func (ck *MemKVCoordClerk) AddShardServer(dst HostName) {
 	rawRep := new([]byte)
-	for ck.cl.Call(COORD_ADD, encodeUint64(dst), rawRep) == true {
+	// TODO: on ErrDisconnect, re-create RPCClient
+	for ck.cl.Call(COORD_ADD, encodeUint64(dst), rawRep, 10000/*ms*/) != 0 {
 	}
 	return
 }
 
 func (ck *MemKVCoordClerk) GetShardMap() []HostName {
 	rawRep := new([]byte)
-	for ck.cl.Call(COORD_GET, make([]byte, 0), rawRep) == true {
+	// TODO: on ErrDisconnect, re-create RPCClient
+	for ck.cl.Call(COORD_GET, make([]byte, 0), rawRep, 100/*ms*/) != 0 {
 	}
 	return decodeShardMap(*rawRep)
 }
