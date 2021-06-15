@@ -34,13 +34,9 @@ func MakeRPCServer(handlers map[uint64]func([]byte, *[]byte)) *RPCServer {
 
 func (srv *RPCServer) readThread(conn grove_ffi.Connection) {
 	for {
-		r := grove_ffi.Receive(conn, /*timeout_ms*/ 1000)
-		if r.Err != 0 {
-			if r.Err == 1 {
-				// Timeout
-				continue
-			}
-			// Other error
+		r := grove_ffi.Receive(conn)
+		if r.Err {
+			// This connection is *done* -- quit the thread.
 			break
 		}
 		data := r.Data
@@ -82,10 +78,10 @@ type RPCClient struct {
 
 func (cl *RPCClient) replyThread() {
 	for {
-		r := grove_ffi.Receive(cl.conn, /*timeout_ms*/ 1000)
-		if r.Err != 0 {
-			// TODO: do something else for timeouts? Reconnect?
-			continue
+		r := grove_ffi.Receive(cl.conn)
+		if r.Err {
+			// This connection is *done* -- quit the thread.
+			break
 		}
 		data := r.Data
 
