@@ -30,24 +30,6 @@ func shardOf(key uint64) uint64 {
 	return key % NSHARD
 }
 
-func bytesEqual(x []byte, y []byte) bool {
-	xlen := len(x)
-	if xlen != len(y) {
-		return false
-	}
-	var i = uint64(0)
-	var retval = true
-	for i < uint64(xlen) {
-		if x[i] != y[i] {
-			retval = false
-			break
-		}
-		i += 1
-		continue
-	}
-	return retval
-}
-
 // "universal" reply type for the reply table
 type ShardReply struct {
 	Err     ErrorType

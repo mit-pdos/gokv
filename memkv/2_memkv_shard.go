@@ -3,6 +3,7 @@ package memkv
 import (
 	"github.com/mit-pdos/gokv/urpc/rpc"
 	"github.com/tchajed/goose/machine"
+	"github.com/goose-lang/std"
 	"sync"
 )
 
@@ -96,7 +97,7 @@ func (s *MemKVShardServer) conditional_put_inner(args *ConditionalPutRequest, re
 
 	if s.shardMap[sid] == true {
 		m := s.kvss[sid]
-		equal := bytesEqual(args.ExpectedValue, m[args.Key])
+		equal := goose_std.BytesEqual(args.ExpectedValue, m[args.Key])
 		if equal {
 			m[args.Key] = args.NewValue // give ownership of the slice to the server
 		}
