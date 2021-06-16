@@ -4,6 +4,7 @@ import (
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/marshal"
+	"github.com/goose-lang/std"
 	"sync"
 )
 
@@ -19,8 +20,9 @@ func (srv *RPCServer) rpcHandle(conn grove_ffi.Connection, rpcid uint64, seqno u
 	f := srv.handlers[rpcid] // for Goose
 	f(data, replyData)       // call the function
 
-	machine.Assume(8+8+uint64(len(*replyData)) > uint64(len(*replyData)))
-	e := marshal.NewEnc(8 + 8 + uint64(len(*replyData)))
+	// assume no overflow (*replyData would have to be almost 2^64 bytes large...)
+	num_bytes := std.SumAssumeNoOverflow(8 + 8, uint64(len(*replyData)))
+	e := marshal.NewEnc(num_bytes)
 	e.PutInt(seqno)
 	e.PutInt(uint64(len(*replyData)))
 	e.PutBytes(*replyData)
@@ -136,14 +138,13 @@ func (cl *RPCClient) Call(rpcid uint64, args []byte, reply *[]byte, timeout_ms u
 	cl.mu.Lock()
 	seqno := cl.seq
 	// Overflowing a 64bit counter will take a while, assume it does not happen
-	machine.Assume(cl.seq+1 > cl.seq)
-	cl.seq = cl.seq + 1
+	cl.seq = std.SumAssumeNoOverflow(cl.seq, 1)
 	cl.pending[seqno] = cb
 	cl.mu.Unlock()
 
-	// Assume length of args + extra bytes for header does not overflow length
-	machine.Assume(8+8+(8+uint64(len(args))) > uint64(len(args)))
-	e := marshal.NewEnc(8 + 8 + (8 + uint64(len(args))))
+	// assume no overflow (args would have to be almost 2^64 bytes large...)
+	num_bytes := std.SumAssumeNoOverflow(8 + 8 + 8, uint64(len(args)))
+	e := marshal.NewEnc(num_bytes)
 	e.PutInt(rpcid)
 	e.PutInt(seqno)
 	e.PutInt(uint64(len(args)))
