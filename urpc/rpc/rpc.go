@@ -82,6 +82,7 @@ func (cl *RPCClient) replyThread() {
 		if r.Err {
 			// This connection is *done* -- quit the thread.
 			// The client will hear about this when they do their next `Call`.
+			// FIXME: signal all the clients that are waiting on some `cb.cond`.
 			break
 		}
 		data := r.Data
@@ -158,6 +159,7 @@ func (cl *RPCClient) Call(rpcid uint64, args []byte, reply *[]byte, timeout_ms u
 	// wait for reply
 	cl.mu.Lock()
 	if !*cb.done {
+		// Wait just a single time; Go guarantees no spurious wakeups.
 		// log.Printf("Waiting for reply for call %d(%d)\n", seqno, rpcid)
 		machine.WaitTimeout(cb.cond, timeout_ms) // make sure we don't get stuck waiting forever
 	}
