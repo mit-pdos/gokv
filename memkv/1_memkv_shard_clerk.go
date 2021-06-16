@@ -31,7 +31,7 @@ func (ck *MemKVShardClerk) Put(key uint64, value []byte) ErrorType {
 	args.Key = key
 	args.Value = value
 	// Overflowing a 64bit counter will take a while, assume it dos not happen
-	ck.seq = goose_std.SumAssumeNoOverflow(ck.seq, 1)
+	ck.seq = std.SumAssumeNoOverflow(ck.seq, 1)
 
 	rawRep := new([]byte)
 	// TODO: on ErrDisconnect, re-create RPCClient
@@ -47,7 +47,7 @@ func (ck *MemKVShardClerk) Get(key uint64, value *[]byte) ErrorType {
 	args.Seq = ck.seq
 	args.Key = key
 	// Overflowing a 64bit counter will take a while, assume it dos not happen
-	ck.seq = goose_std.SumAssumeNoOverflow(ck.seq, 1)
+	ck.seq = std.SumAssumeNoOverflow(ck.seq, 1)
 
 	rawRep := new([]byte)
 	// TODO: on ErrDisconnect, re-create RPCClient
@@ -66,7 +66,7 @@ func (ck *MemKVShardClerk) ConditionalPut(key uint64, expectedValue []byte, newV
 	args.ExpectedValue = expectedValue
 	args.NewValue = newValue
 	// Overflowing a 64bit counter will take a while, assume it dos not happen
-	ck.seq = goose_std.SumAssumeNoOverflow(ck.seq, 1)
+	ck.seq = std.SumAssumeNoOverflow(ck.seq, 1)
 
 	rawRep := new([]byte)
 	// TODO: on ErrDisconnect, re-create RPCClient
@@ -85,7 +85,7 @@ func (ck *MemKVShardClerk) InstallShard(sid uint64, kvs map[uint64][]byte) {
 	args.Sid = sid
 	args.Kvs = kvs
 	// Overflowing a 64bit counter will take a while, assume it dos not happen
-	ck.seq = goose_std.SumAssumeNoOverflow(ck.seq, 1)
+	ck.seq = std.SumAssumeNoOverflow(ck.seq, 1)
 
 	rawRep := new([]byte)
 	// TODO: on ErrDisconnect, re-create RPCClient

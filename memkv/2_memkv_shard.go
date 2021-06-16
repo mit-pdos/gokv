@@ -97,7 +97,7 @@ func (s *MemKVShardServer) conditional_put_inner(args *ConditionalPutRequest, re
 
 	if s.shardMap[sid] == true {
 		m := s.kvss[sid]
-		equal := goose_std.BytesEqual(args.ExpectedValue, m[args.Key])
+		equal := std.BytesEqual(args.ExpectedValue, m[args.Key])
 		if equal {
 			m[args.Key] = args.NewValue // give ownership of the slice to the server
 		}
