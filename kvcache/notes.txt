@@ -1,0 +1,41 @@
+= Protocol
+
+Get():
+First do a GetWithLease() against KVCache. If hit, then done.
+If miss, then the server also returns a lease ID. The client then Get()s from
+the back-end DB, and does a Put() using that lease ID into the cache.
+
+Put() with update-tokens on back-end:
+First do a GetUpdateToken() against backend.
+Then, delete cache entry from all caches.
+Finally, update the backend using the update token.
+
+This requires the back-end to have update tokens.
+An update token marks a key as uncacheable, so all future Gets() against the
+back-end do not allow the KV pair to be put in a cache.
+Update tokens can be arbitrarily revoked by the back-end, which can allow keys
+to become cacheable again (if there are no outstanding update tokens), and this
+also makes the update token invalid for a Put().
+
+One approach to adding update tokens is to add an update server.
+The update server keeps track of all the update tokens that have been issued and
+not used/revoked. When one talks to the back-end, one now actually needs to talk
+to the.
+
+Put() with update-tokens in caches:
+First do GetUpdateToken() against all cache servers.
+Then, update the back-end.
+Then, release GetUpdateToken()s.
+
+If a cache server has loaned an update-token for a key that has not been
+returned, then it cannot add that key to its cache.  This means that if a server
+with an outstanding update-token disappears, then that key can never be cached.
+There's no way to recover the update token, because we have no way of telling if
+the update on the backend will happen.  E.g. maybe the client that wants to do
+the update is really slow, and right after revoking the update token, some cache
+server ends up with a cached copy of that key's old value. Then, the slow client
+finally manages to do an update against the backend. That could cause some
+caches to be get out-of-sync with the backend (i.e. this particular incorrect
+approach wouldn't even give eventual consistency).
+
+// First do a DeleteWithFrac() against _all_ KVCaches that serve the backend.
