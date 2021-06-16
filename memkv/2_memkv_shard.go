@@ -2,7 +2,6 @@ package memkv
 
 import (
 	"github.com/mit-pdos/gokv/urpc/rpc"
-	"github.com/tchajed/goose/machine"
 	"github.com/goose-lang/std"
 	"sync"
 )
@@ -186,7 +185,8 @@ func MakeMemKVShardServer(is_init bool) *MemKVShardServer {
 func (s *MemKVShardServer) GetCIDRPC() uint64 {
 	s.mu.Lock()
 	r := s.nextCID
-	machine.Assume(s.nextCID+1 > s.nextCID) // no overflow of CIDs
+	// Overflowing a 64bit counter will take a while, assume it dos not happen
+	std.SumAssumeNoOverflow(s.nextCID, 1)
 	s.nextCID = s.nextCID + 1
 	s.mu.Unlock()
 	return r
