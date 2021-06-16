@@ -2,7 +2,7 @@ package memkv
 
 import (
 	"github.com/mit-pdos/gokv/urpc/rpc"
-	"github.com/tchajed/goose/machine"
+	"github.com/goose-lang/std"
 )
 
 type MemKVShardClerk struct {
@@ -30,8 +30,8 @@ func (ck *MemKVShardClerk) Put(key uint64, value []byte) ErrorType {
 	args.Seq = ck.seq
 	args.Key = key
 	args.Value = value
-	machine.Assume(ck.seq+1 > ck.seq) // Overflowing a 64bit counter will take a while, assume it dos not happen
-	ck.seq = ck.seq + 1
+	// Overflowing a 64bit counter will take a while, assume it dos not happen
+	ck.seq = goose_std.SumAssumeNoOverflow(ck.seq, 1)
 
 	rawRep := new([]byte)
 	// TODO: on ErrDisconnect, re-create RPCClient
@@ -46,8 +46,8 @@ func (ck *MemKVShardClerk) Get(key uint64, value *[]byte) ErrorType {
 	args.CID = ck.cid
 	args.Seq = ck.seq
 	args.Key = key
-	machine.Assume(ck.seq+1 > ck.seq) // Overflowing a 64bit counter will take a while, assume it dos not happen
-	ck.seq = ck.seq + 1
+	// Overflowing a 64bit counter will take a while, assume it dos not happen
+	ck.seq = goose_std.SumAssumeNoOverflow(ck.seq, 1)
 
 	rawRep := new([]byte)
 	// TODO: on ErrDisconnect, re-create RPCClient
@@ -65,8 +65,8 @@ func (ck *MemKVShardClerk) ConditionalPut(key uint64, expectedValue []byte, newV
 	args.Key = key
 	args.ExpectedValue = expectedValue
 	args.NewValue = newValue
-	machine.Assume(ck.seq+1 > ck.seq) // Overflowing a 64bit counter will take a while, assume it dos not happen
-	ck.seq = ck.seq + 1
+	// Overflowing a 64bit counter will take a while, assume it dos not happen
+	ck.seq = goose_std.SumAssumeNoOverflow(ck.seq, 1)
 
 	rawRep := new([]byte)
 	// TODO: on ErrDisconnect, re-create RPCClient
@@ -84,8 +84,8 @@ func (ck *MemKVShardClerk) InstallShard(sid uint64, kvs map[uint64][]byte) {
 	args.Seq = ck.seq
 	args.Sid = sid
 	args.Kvs = kvs
-	machine.Assume(ck.seq+1 > ck.seq) // Overflowing a 64bit counter will take a while, assume it dos not happen
-	ck.seq = ck.seq + 1
+	// Overflowing a 64bit counter will take a while, assume it dos not happen
+	ck.seq = goose_std.SumAssumeNoOverflow(ck.seq, 1)
 
 	rawRep := new([]byte)
 	// TODO: on ErrDisconnect, re-create RPCClient
