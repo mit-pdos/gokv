@@ -83,9 +83,11 @@ func (cl *RPCClient) replyThread() {
 		r := grove_ffi.Receive(cl.conn)
 		if r.Err {
 			// This connection is *done* -- quit the thread and wake all pending requests.
+			cl.mu.Lock()
 			for _, cb := range cl.pending {
 				cb.cond.Signal()
 			}
+			cl.mu.Unlock()
 			break
 		}
 		data := r.Data
@@ -162,6 +164,8 @@ func (cl *RPCClient) Call(rpcid uint64, args []byte, reply *[]byte, timeout_ms u
 	cl.mu.Lock()
 	if !*cb.done {
 		// Wait just a single time; Go guarantees no spurious wakeups.
+		// FIXME: what is the `replyThread` already shut down? Then we will run into
+		// the timeout here.
 		// log.Printf("Waiting for reply for call %d(%d)\n", seqno, rpcid)
 		machine.WaitTimeout(cb.cond, timeout_ms) // make sure we don't get stuck waiting forever
 	}
@@ -171,6 +175,8 @@ func (cl *RPCClient) Call(rpcid uint64, args []byte, reply *[]byte, timeout_ms u
 		return 0 // no error
 	} else {
 		cl.mu.Unlock()
+		// We will also get here when the `replyThread` shut down -- but then the client will
+		// just retry and get an ErrDisconnect the next time.
 		return ErrTimeout
 	}
 }
