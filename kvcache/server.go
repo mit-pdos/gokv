@@ -37,3 +37,10 @@ func (s *KVCacheServer) GetRPC(key uint64, existed *bool, lid *uint64, outv *[]b
 	*outv = v
 	*existed = ok
 }
+
+func (s *KVCacheServer) DeleteRPC(key uint64) {
+	s.mu.Lock()
+	delete(s.kvs, key)
+	delete(s.kleases, key)
+	s.mu.Unlock()
+}
