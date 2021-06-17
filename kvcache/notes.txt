@@ -39,8 +39,19 @@ caches to be get out-of-sync with the backend (i.e. this particular incorrect
 approach wouldn't even give eventual consistency).
 
 = UpdateToken-ifying a back-end DB.
-???
+Idea:
+separate the update-token server from the backend
+have an update-token proxy server, which makes RPCs against the real backend on
+behalf of clients.
+Update-token proxy also keeps state about outstanding update tokens.
 
+It's seemingly possible to add update-tokens if we hold a server-wide lock on
+the proxy server while doing the backend operations.
+It seems possible that we could also hold only a per-key lock while doing these
+backend operations, but it would be easy to do something that deadlocks.
+
+Even a per-key lock seems a bit odd. Unclear yet whether it's fundamentally
+necessary.
 
 = Misc
 [ ] Maybe want one-sided RPCs (i.e. just messages) for the cache.
