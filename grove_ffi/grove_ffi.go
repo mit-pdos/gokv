@@ -157,8 +157,7 @@ func Receive(c Connection) ReceiveRet {
 	data := make([]byte, dataLen)
 	_, err2 := io.ReadFull(c.conn, data)
 	if err2 != nil {
-		// See comment above. No special handling for timeouts, as we are in the middle
-		// of receiving a message so this connection is not in a good state.
+		// See comment above.
 		c.conn.Close()
 		return ReceiveRet { Err: true }
 	}
