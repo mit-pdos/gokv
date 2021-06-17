@@ -82,9 +82,10 @@ func (cl *RPCClient) replyThread() {
 	for {
 		r := grove_ffi.Receive(cl.conn)
 		if r.Err {
-			// This connection is *done* -- quit the thread.
-			// The client will hear about this when they do their next `Call`.
-			// FIXME: signal all the clients that are waiting on some `cb.cond`.
+			// This connection is *done* -- quit the thread and wake all pending requests.
+			for _, cb := range cl.pending {
+				cb.cond.Signal()
+			}
 			break
 		}
 		data := r.Data
