@@ -42,12 +42,14 @@ func (s *UTProxyServer) Get(key uint64, cacheable *bool, outv *[]byte) {
 func (s *UTProxyServer) Put(key uint64, val []byte, updTok uint64) {
 	s.mu.Lock()
 	if s.updToks[key][updTok] {
+		s.mu.Unlock()
+		s.putF(key, val)
+		s.mu.Lock()
 		delete(s.updToks[key], updTok)
 		if len(s.updToks[key]) == 0 {
 			delete(s.updToks, key)
 		}
 		s.mu.Unlock()
-		s.putF(key, val)
 	} else {
 		s.mu.Unlock()
 	}
