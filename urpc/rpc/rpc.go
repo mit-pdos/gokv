@@ -64,9 +64,13 @@ func (srv *RPCServer) Serve(host HostName, numWorkers uint64) {
 	}()
 }
 
+const callbackStateWaiting uint64 = 0
+const callbackStateDone uint64 = 1
+const callbackStateAborted uint64 = 2
+
 type callback struct {
 	reply *[]byte
-	done  *bool
+	state  *uint64
 	cond  *sync.Cond
 }
 
@@ -85,6 +89,7 @@ func (cl *RPCClient) replyThread() {
 			// This connection is *done* -- quit the thread and wake all pending requests.
 			cl.mu.Lock()
 			for _, cb := range cl.pending {
+				*cb.state = callbackStateAborted
 				cb.cond.Signal()
 			}
 			cl.mu.Unlock()
@@ -104,7 +109,7 @@ func (cl *RPCClient) replyThread() {
 		if ok {
 			delete(cl.pending, seqno)
 			*cb.reply = reply
-			*cb.done = true
+			*cb.state = callbackStateDone
 			cb.cond.Signal()
 		}
 		cl.mu.Unlock()
@@ -136,14 +141,20 @@ const ErrDisconnect uint64 = 2
 func (cl *RPCClient) Call(rpcid uint64, args []byte, reply *[]byte, timeout_ms uint64) uint64 {
 	// log.Printf("Started call %d\n", rpcid)
 	reply_buf := new([]byte)
-	cb := &callback{reply: reply_buf, done: new(bool), cond: sync.NewCond(cl.mu)}
-	*cb.done = false
+	cb := &callback{reply: reply_buf, state: new(uint64), cond: sync.NewCond(cl.mu)}
+	*cb.state = callbackStateWaiting
 	cl.mu.Lock()
 	seqno := cl.seq
 	// Overflowing a 64bit counter will take a while, assume it does not happen
 	cl.seq = std.SumAssumeNoOverflow(cl.seq, 1)
 	cl.pending[seqno] = cb
 	cl.mu.Unlock()
+
+	// If the `replyThread` goes down during this call, then
+	// - either this happens before the above critical section,
+	//   in which case the `Send` below will fail immediately;
+	// - or it happens after the critical section, in which case the `replyThread` will set
+	//   our status to `callbackStateAborted` which we will notice below.
 
 	// assume no overflow (args would have to be almost 2^64 bytes large...)
 	num_bytes := std.SumAssumeNoOverflow(8 + 8 + 8, uint64(len(args)))
@@ -162,21 +173,23 @@ func (cl *RPCClient) Call(rpcid uint64, args []byte, reply *[]byte, timeout_ms u
 
 	// wait for reply
 	cl.mu.Lock()
-	if !*cb.done {
+	if *cb.state == callbackStateWaiting {
+		// No reply yet (and `replyThread` hasn't aborted either).
 		// Wait just a single time; Go guarantees no spurious wakeups.
-		// FIXME: what is the `replyThread` already shut down? Then we will run into
-		// the timeout here.
 		// log.Printf("Waiting for reply for call %d(%d)\n", seqno, rpcid)
 		machine.WaitTimeout(cb.cond, timeout_ms) // make sure we don't get stuck waiting forever
 	}
-	if *cb.done {
+	state := *cb.state
+	if state == callbackStateDone {
 		*reply = *reply_buf
 		cl.mu.Unlock()
 		return 0 // no error
 	} else {
 		cl.mu.Unlock()
-		// We will also get here when the `replyThread` shut down -- but then the client will
-		// just retry and get an ErrDisconnect the next time.
-		return ErrTimeout
+		if state == callbackStateAborted {
+			return ErrDisconnect
+		} else {
+			return ErrTimeout
+		}
 	}
 }
