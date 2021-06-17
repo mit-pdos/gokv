@@ -38,4 +38,9 @@ finally manages to do an update against the backend. That could cause some
 caches to be get out-of-sync with the backend (i.e. this particular incorrect
 approach wouldn't even give eventual consistency).
 
-// First do a DeleteWithFrac() against _all_ KVCaches that serve the backend.
+= UpdateToken-ifying a back-end DB.
+???
+
+
+= Misc
+[ ] Maybe want one-sided RPCs (i.e. just messages) for the cache.

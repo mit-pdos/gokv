@@ -1,53 +1,39 @@
-package kvcache
+package kvcached
 
 import (
 	"sync"
 )
 
-type VersionedValue struct {
-	vnum uint64
-	val  []byte
-}
-
 type KVCacheServer struct {
-	mu          *sync.Mutex
-	kvs         map[uint64]VersionedValue
-	leases      map[uint64]uint64
-	nextVersion uint64
+	mu      *sync.Mutex
+	kvs     map[uint64][]byte
+	kleases map[uint64]uint64
+	nextlid uint64
 }
 
-// Does a put only if the version number is larger than the highest vnum seen
-// before
-func (s *KVCacheServer) PutRPC(key uint64, vnum uint64, val []byte) {
+// Does a put only if the lease is valid
+func (s *KVCacheServer) PutRPC(key uint64, lid uint64, val []byte) {
 	s.mu.Lock()
+	// check that lease is still valid
+	if s.kleases[key] >= lid {
+		s.mu.Unlock()
+		return
+	}
+	delete(s.kleases, key)
+	s.kvs[key] = val
 	s.mu.Unlock()
 }
 
 // returns true iff the key existed in the map
-func (s *KVCacheServer) GetRPC(key uint64, outv *[]byte) bool {
+func (s *KVCacheServer) GetRPC(key uint64, existed *bool, lid *uint64, outv *[]byte) {
 	s.mu.Lock()
 	v, ok := s.kvs[key]
-	*outv = v.val
-	s.mu.Unlock()
-	if ok {
-		return true
-	} else {
-		s.mu.Unlock()
-		return false
+	if !ok {
+		*lid = s.nextlid
+		s.kleases[key] = s.nextlid
 	}
-}
-
-// returns true iff the key existed in the map;
-// if it didn't exist, this returns a lease on the key
-func (s *KVCacheServer) GetWithLeaseRPC(key uint64, outv *[]byte) bool {
-	s.mu.Lock()
-	v, ok := s.kvs[key]
-	*outv = v.val
+	s.nextlid++
 	s.mu.Unlock()
-	if ok {
-		return true
-	} else {
-		s.mu.Unlock()
-		return false
-	}
+	*outv = v
+	*existed = ok
 }
