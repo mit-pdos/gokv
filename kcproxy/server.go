@@ -1,10 +1,12 @@
-package kcproxy
+package utproxy
+
+// update-token proxy
 
 import (
 	"sync"
 )
 
-type KCProxyServer struct {
+type UTProxyServer struct {
 	mu *sync.Mutex
 	// functions to put and get to the actual back-end
 	// these should probably be fallible
@@ -16,7 +18,7 @@ type KCProxyServer struct {
 	nextUpdTok uint64
 }
 
-func (s *KCProxyServer) AcquireUpdateToken(key uint64) uint64 {
+func (s *UTProxyServer) AcquireUpdateToken(key uint64) uint64 {
 	s.mu.Lock()
 	u := s.nextUpdTok
 	s.nextUpdTok++
@@ -26,25 +28,27 @@ func (s *KCProxyServer) AcquireUpdateToken(key uint64) uint64 {
 	return u
 }
 
-func (s *KCProxyServer) Get(key uint64, cacheable *bool, outv *[]byte) {
+func (s *UTProxyServer) Get(key uint64, cacheable *bool, outv *[]byte) {
 	// XXX: we don't want to hold this lock, but I have no idea how to correctly
 	// do the back-end get without the lock
 	s.mu.Lock()
-	s.getF(key, outv)
 	if len(s.updToks[key]) == 0 {
 		*cacheable = true
 	}
 	s.mu.Unlock()
+	s.getF(key, outv)
 }
 
-func (s *KCProxyServer) Put(key uint64, val []byte, updTok uint64) {
+func (s *UTProxyServer) Put(key uint64, val []byte, updTok uint64) {
 	s.mu.Lock()
 	if s.updToks[key][updTok] {
+		delete(s.updToks[key], updTok)
+		if len(s.updToks[key]) == 0 {
+			delete(s.updToks, key)
+		}
+		s.mu.Unlock()
 		s.putF(key, val)
+	} else {
+		s.mu.Unlock()
 	}
-	delete(s.updToks[key], updTok)
-	if len(s.updToks[key]) == 0 {
-		delete(s.updToks, key)
-	}
-	s.mu.Unlock()
 }

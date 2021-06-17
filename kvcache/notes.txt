@@ -20,7 +20,7 @@ also makes the update token invalid for a Put().
 One approach to adding update tokens is to add an update server.
 The update server keeps track of all the update tokens that have been issued and
 not used/revoked. When one talks to the back-end, one now actually needs to talk
-to the.
+to the update server.
 
 Put() with update-tokens in caches:
 First do GetUpdateToken() against all cache servers.
@@ -52,6 +52,24 @@ backend operations, but it would be easy to do something that deadlocks.
 
 Even a per-key lock seems a bit odd. Unclear yet whether it's fundamentally
 necessary.
+---
+Say we first check while holding the lock that there are no outstanding
+update-tokens on key `k`.
+Then, release the lock.
+Next we do `v := backend.Get(key)`.
+We reply back to the client that `v` is cacheable.
+Why is this safe?
+two cases:
+case 1.) no one tries updating that key in the time that we've let go of the
+     lock, which reduces to the version in which we don't let go of the lock
+     while doing the back-end Get().
+case 2.) someone tries updating the key after we let go of the mutex.
+     In this case, before the key gets updated in the backend, the client trying
+     to do the update must delete() on all kvcache servers. This means the lease
+     that the Get() client would try to use to update the cache will have been
+     revoked.
+
+
 
 = Misc
 [ ] Maybe want one-sided RPCs (i.e. just messages) for the cache.
