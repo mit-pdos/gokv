@@ -44,3 +44,4 @@ approach wouldn't even give eventual consistency).
 
 = Misc
 [ ] Maybe want one-sided RPCs (i.e. just messages) for the cache.
+[ ] Rename Put() to Insert() in kvcache?
