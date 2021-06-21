@@ -35,9 +35,9 @@ func (ck *MemKVShardClerk) Put(key uint64, value []byte) ErrorType {
 
 	rawRep := new([]byte)
 	// TODO: on ErrDisconnect, re-create RPCClient
-	for ck.cl.Call(KV_PUT, encodePutRequest(args), rawRep, 100/*ms*/) != 0 {
+	for ck.cl.Call(KV_PUT, EncodePutRequest(args), rawRep, 100/*ms*/) != 0 {
 	}
-	rep := decodePutReply(*rawRep)
+	rep := DecodePutReply(*rawRep)
 	return rep.Err
 }
 
@@ -51,9 +51,9 @@ func (ck *MemKVShardClerk) Get(key uint64, value *[]byte) ErrorType {
 
 	rawRep := new([]byte)
 	// TODO: on ErrDisconnect, re-create RPCClient
-	for ck.cl.Call(KV_GET, encodeGetRequest(args), rawRep, 100/*ms*/) != 0 {
+	for ck.cl.Call(KV_GET, EncodeGetRequest(args), rawRep, 100/*ms*/) != 0 {
 	}
-	rep := decodeGetReply(*rawRep)
+	rep := DecodeGetReply(*rawRep)
 	*value = rep.Value
 	return rep.Err
 }
@@ -70,9 +70,9 @@ func (ck *MemKVShardClerk) ConditionalPut(key uint64, expectedValue []byte, newV
 
 	rawRep := new([]byte)
 	// TODO: on ErrDisconnect, re-create RPCClient
-	for ck.cl.Call(KV_CONDITIONAL_PUT, encodeConditionalPutRequest(args), rawRep, 100/*ms*/) != 0 {
+	for ck.cl.Call(KV_CONDITIONAL_PUT, EncodeConditionalPutRequest(args), rawRep, 100/*ms*/) != 0 {
 	}
-	rep := decodeConditionalPutReply(*rawRep)
+	rep := DecodeConditionalPutReply(*rawRep)
 	*success = rep.Success
 	return rep.Err
 }

@@ -201,20 +201,20 @@ func (mkv *MemKVShardServer) Start(host HostName) {
 
 	handlers[KV_PUT] = func(rawReq []byte, rawReply *[]byte) {
 		rep := new(PutReply)
-		mkv.PutRPC(decodePutRequest(rawReq), rep)
-		*rawReply = encodePutReply(rep)
+		mkv.PutRPC(DecodePutRequest(rawReq), rep)
+		*rawReply = EncodePutReply(rep)
 	}
 
 	handlers[KV_GET] = func(rawReq []byte, rawReply *[]byte) {
 		rep := new(GetReply)
-		mkv.GetRPC(decodeGetRequest(rawReq), rep)
-		*rawReply = encodeGetReply(rep)
+		mkv.GetRPC(DecodeGetRequest(rawReq), rep)
+		*rawReply = EncodeGetReply(rep)
 	}
 
 	handlers[KV_CONDITIONAL_PUT] = func(rawReq []byte, rawReply *[]byte) {
 		rep := new(ConditionalPutReply)
-		mkv.ConditionalPutRPC(decodeConditionalPutRequest(rawReq), rep)
-		*rawReply = encodeConditionalPutReply(rep)
+		mkv.ConditionalPutRPC(DecodeConditionalPutRequest(rawReq), rep)
+		*rawReply = EncodeConditionalPutReply(rep)
 	}
 
 	handlers[KV_INS_SHARD] = func(rawReq []byte, rawReply *[]byte) {

@@ -45,7 +45,7 @@ type PutRequest struct {
 }
 
 // doesn't include the operation type
-func encodePutRequest(args *PutRequest) []byte {
+func EncodePutRequest(args *PutRequest) []byte {
 	// assume no overflow (args.Value would have to be almost 2^64 bytes large...)
 	num_bytes := std.SumAssumeNoOverflow(8 + 8 + 8 + 8, uint64(len(args.Value))) // CID + Seq + key + value-len + value
 	e := marshal.NewEnc(num_bytes)
@@ -58,7 +58,7 @@ func encodePutRequest(args *PutRequest) []byte {
 	return e.Finish()
 }
 
-func decodePutRequest(reqData []byte) *PutRequest {
+func DecodePutRequest(reqData []byte) *PutRequest {
 	req := new(PutRequest)
 	d := marshal.NewDec(reqData)
 	req.CID = d.GetInt()
@@ -73,13 +73,13 @@ type PutReply struct {
 	Err ErrorType
 }
 
-func encodePutReply(reply *PutReply) []byte {
+func EncodePutReply(reply *PutReply) []byte {
 	e := marshal.NewEnc(8)
 	e.PutInt(reply.Err)
 	return e.Finish()
 }
 
-func decodePutReply(replyData []byte) *PutReply {
+func DecodePutReply(replyData []byte) *PutReply {
 	reply := new(PutReply)
 	d := marshal.NewDec(replyData)
 	reply.Err = d.GetInt()
@@ -97,7 +97,7 @@ type GetReply struct {
 	Value []byte
 }
 
-func encodeGetRequest(req *GetRequest) []byte {
+func EncodeGetRequest(req *GetRequest) []byte {
 	e := marshal.NewEnc(3 * 8)
 	e.PutInt(req.CID)
 	e.PutInt(req.Seq)
@@ -105,7 +105,7 @@ func encodeGetRequest(req *GetRequest) []byte {
 	return e.Finish()
 }
 
-func decodeGetRequest(rawReq []byte) *GetRequest {
+func DecodeGetRequest(rawReq []byte) *GetRequest {
 	req := new(GetRequest)
 	d := marshal.NewDec(rawReq)
 	req.CID = d.GetInt()
@@ -114,7 +114,7 @@ func decodeGetRequest(rawReq []byte) *GetRequest {
 	return req
 }
 
-func encodeGetReply(rep *GetReply) []byte {
+func EncodeGetReply(rep *GetReply) []byte {
 	// assume no overflow (rep.Value would have to be almost 2^64 bytes large...)
 	num_bytes := std.SumAssumeNoOverflow(8 + 8, uint64(len(rep.Value)))        // CID + Seq + key + value-len + value
 	e := marshal.NewEnc(num_bytes)
@@ -124,7 +124,7 @@ func encodeGetReply(rep *GetReply) []byte {
 	return e.Finish()
 }
 
-func decodeGetReply(rawRep []byte) *GetReply {
+func DecodeGetReply(rawRep []byte) *GetReply {
 	rep := new(GetReply)
 	d := marshal.NewDec(rawRep)
 	rep.Err = d.GetInt()
@@ -146,7 +146,7 @@ type ConditionalPutReply struct {
 	Success bool
 }
 
-func encodeConditionalPutRequest(req *ConditionalPutRequest) []byte {
+func EncodeConditionalPutRequest(req *ConditionalPutRequest) []byte {
 	// assume no overflow (req.NewValue and req.ExpectedValue together would have to be almost 2^64 bytes large...)
 	// CID + Seq + key + exp-value-len + exp-value + new-value-len + new-value
 	num_bytes := std.SumAssumeNoOverflow(8 + 8 + 8 + 8 + 8, std.SumAssumeNoOverflow(uint64(len(req.ExpectedValue)), uint64(len(req.NewValue))))
@@ -161,7 +161,7 @@ func encodeConditionalPutRequest(req *ConditionalPutRequest) []byte {
 	return e.Finish()
 }
 
-func decodeConditionalPutRequest(rawReq []byte) *ConditionalPutRequest {
+func DecodeConditionalPutRequest(rawReq []byte) *ConditionalPutRequest {
 	req := new(ConditionalPutRequest)
 	d := marshal.NewDec(rawReq)
 	req.CID = d.GetInt()
@@ -172,14 +172,14 @@ func decodeConditionalPutRequest(rawReq []byte) *ConditionalPutRequest {
 	return req
 }
 
-func encodeConditionalPutReply(reply *ConditionalPutReply) []byte {
+func EncodeConditionalPutReply(reply *ConditionalPutReply) []byte {
 	e := marshal.NewEnc(8 + 1)
 	e.PutInt(reply.Err)
 	e.PutBool(reply.Success)
 	return e.Finish()
 }
 
-func decodeConditionalPutReply(replyData []byte) *ConditionalPutReply {
+func DecodeConditionalPutReply(replyData []byte) *ConditionalPutReply {
 	reply := new(ConditionalPutReply)
 	d := marshal.NewDec(replyData)
 	reply.Err = d.GetInt()
