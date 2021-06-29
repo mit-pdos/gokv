@@ -7,7 +7,6 @@ import (
 	"net"
 	"strconv"
 	"strings"
-	"sync"
 )
 
 type Address uint64
@@ -91,12 +90,10 @@ func Receive2(l Listener) ReceiveRet {
 type connection struct {
 	conn net.Conn
 	recvCh chan ReceiveRet
-	send_mu *sync.Mutex // guarding *sending* on `conn`
-	recv_mu *sync.Mutex // guarding *receiving* on `conn`
 }
 
 func makeConnection(conn net.Conn, recvCh chan ReceiveRet) Connection {
-	r := &connection { conn: conn, send_mu: new(sync.Mutex), recv_mu: new(sync.Mutex), recvCh: recvCh}
+	r := &connection { conn: conn, recvCh: recvCh}
 	go receiveThread(r)
 	return r
 }
@@ -118,18 +115,16 @@ func Connect(host Address) ConnectRet {
 
 func Send(c Connection, data []byte) bool {
 	// Encode length
-	e := marshal.NewEnc(8)
+	e := marshal.NewEnc(8 + uint64(len(data)))
 	e.PutInt(uint64(len(data)))
-	reqLen := e.Finish()
-
-	c.send_mu.Lock()
-	defer c.send_mu.Unlock()
+	e.PutBytes(data)
+	req := e.Finish()
 
 	// message format: [dataLen] ++ data
-	_, err := c.conn.Write(reqLen)
-	if err == nil {
-		_, err = c.conn.Write(data)
-	}
+	_, err := c.conn.Write(req)
+	// if err == nil {
+	// _, err = c.conn.Write(data)
+	// }
 	// If there was an error, make sure we never send anything on this channel again...
 	// there might have been a partial write!
 	if err != nil {
@@ -140,47 +135,34 @@ func Send(c Connection, data []byte) bool {
 
 type ReceiveRet struct {
 	Err    bool
-	Data   []byte
 	Sender Connection
-}
-
-func receive(c Connection) ReceiveRet {
-	c.recv_mu.Lock()
-	defer c.recv_mu.Unlock()
-
-	// message format: [dataLen] ++ data
-
-	header := make([]byte, 8)
-	_, err := io.ReadFull(c.conn, header)
-	if err != nil {
-		// Looks like this connection is dead.
-		// This can legitimately happen when the other side "hung up", so do not panic.
-		// But also, we clearly lost track here of where in the protocol we are,
-		// so close it.
-		c.conn.Close()
-		return ReceiveRet { Err: true }
-	}
-	d := marshal.NewDec(header)
-	dataLen := d.GetInt()
-
-	data := make([]byte, dataLen)
-	_, err2 := io.ReadFull(c.conn, data)
-	if err2 != nil {
-		// See comment above.
-		c.conn.Close()
-		return ReceiveRet { Err: true }
-	}
-
-	return ReceiveRet { Err: false, Data: data, Sender: c }
+	Data   []byte
 }
 
 func receiveThread(c Connection) {
 	for {
-		m := receive(c)
-		c.recvCh <- m
-		if m.Err {
+		header := make([]byte, 8)
+		_, err := io.ReadFull(c.conn, header)
+		if err != nil {
+			// Looks like this connection is dead.
+			// This can legitimately happen when the other side "hung up", so do not panic.
+			// But also, we clearly lost track here of where in the protocol we are,
+			// so close it.
+			c.conn.Close()
 			return
 		}
+		d := marshal.NewDec(header)
+		dataLen := d.GetInt()
+
+		data := make([]byte, dataLen)
+		_, err2 := io.ReadFull(c.conn, data)
+		if err2 != nil {
+			// See comment above.
+			c.conn.Close()
+			return
+		}
+
+		c.recvCh <- ReceiveRet { Err: false, Data: data, Sender: c }
 	}
 }
 
