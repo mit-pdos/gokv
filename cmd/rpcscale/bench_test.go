@@ -15,7 +15,7 @@ func BenchmarkNullRPC(b *testing.B) {
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		cl.Call(RPC_NULL, nil, reply)
+		cl.Call(RPC_NULL, nil, reply, 100)
 	}
 }
 
@@ -28,7 +28,7 @@ func BenchmarkConcurrentNullRPC(b *testing.B) {
 			cl := rpc.MakeRPCClient(grove_ffi.MakeAddress("0.0.0.0:12345"))
 			reply := new([]byte)
 			for pb.Next() {
-				cl.Call(RPC_NULL, nil, reply)
+				cl.Call(RPC_NULL, nil, reply, 100)
 			}
 		})
 }

@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	_ "net/http/pprof"
+	"github.com/felixge/fgprof"
 )
 
 const (
@@ -14,6 +15,7 @@ const (
 )
 
 func main() {
+	http.DefaultServeMux.Handle("/debug/fgprof", fgprof.Handler())
 	go func() {
 		log.Println(http.ListenAndServe("localhost:6060", nil))
 	}()

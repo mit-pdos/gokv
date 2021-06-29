@@ -47,7 +47,7 @@ func (srv *RPCServer) readThread(conn grove_ffi.Connection) {
 		seqno := d.GetInt()
 		reqLen := d.GetInt()
 		req := d.GetBytes(reqLen)
-		srv.rpcHandle(conn, rpcid, seqno, req) // XXX: this could (and probably should) be in a goroutine YYY: but readThread is already its own goroutine, so that seems redundant?
+		go srv.rpcHandle(conn, rpcid, seqno, req) // XXX: this could (and probably should) be in a goroutine YYY: but readThread is already its own goroutine, so that seems redundant?
 		continue
 	}
 }
@@ -121,6 +121,8 @@ func MakeRPCClient(host_name HostName) *RPCClient {
 	host := grove_ffi.Address(host_name)
 	a := grove_ffi.Connect(host)
 	// Assume no error
+	// FIXME: shouldn't assume that this is error-free when we try to reconnect
+	// because of a temporary network failure
 	machine.Assume(!a.Err)
 
 	cl := &RPCClient{

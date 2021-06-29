@@ -49,7 +49,6 @@ func (s *MKRouterServer) PutRPC(args *memkv.PutRequest) {
 	s.mu.Unlock()
 }
 
-
 func (mkv *MKRouterServer) Start(host HostName) {
 	handlers := make(map[uint64]func([]byte, *[]byte))
 

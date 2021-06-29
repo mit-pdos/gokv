@@ -3,12 +3,13 @@ package main
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc/rpc"
+	"github.com/tchajed/marshal"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 	_ "net/http/pprof"
+	"sync/atomic"
 	"testing"
 	"time"
-	"sync/atomic"
-    "golang.org/x/text/language"
-    "golang.org/x/text/message"
 )
 
 func benchConcurrentNullRPC(numClients int) {
@@ -23,7 +24,7 @@ func benchConcurrentNullRPC(numClients int) {
 			prevOps := atomic.LoadUint64(totalOps)
 			time.Sleep(reportInterval)
 			currOps := atomic.LoadUint64(totalOps) // BUG: should check the amount of elapsed time to be more accurate, rather than assuming it's just reportInterval exactly
-			p.Printf("%d ops/sec in the past %v\n", currOps - prevOps, reportInterval)
+			p.Printf("%d ops/sec in the past %v\n", currOps-prevOps, reportInterval)
 		}
 
 	}()
@@ -32,12 +33,18 @@ func benchConcurrentNullRPC(numClients int) {
 		cl := rpc.MakeRPCClient(grove_ffi.MakeAddress("0.0.0.0:12345"))
 		go func() {
 			for {
-				cl.Call(RPC_NULL, nil, reply)
+				cl.Call(RPC_NULL, nil, reply, 100)
 				atomic.AddUint64(totalOps, 1)
+
+				e := marshal.NewEnc(8 + 8)
+				e.PutInt(0)
+				e.PutInt(0)
+				// e.PutBytes(make[]byte)
+				*reply = e.Finish()
 			}
 		}()
 	}
-	select{}
+	select {}
 }
 
 func TestBenchConcurrentRPC(t *testing.T) {
