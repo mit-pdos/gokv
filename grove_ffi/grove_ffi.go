@@ -59,6 +59,7 @@ func AddressToStr(e Address) string {
 /// Listener
 type listener struct {
 	l net.Listener
+	recvCh chan ReceiveRet
 }
 
 type Listener *listener
@@ -69,28 +70,35 @@ func Listen(host Address) Listener {
 		// Assume() no error on Listen. This should fail loud and early, retrying makes little sense (likely the port is already used).
 		panic(err)
 	}
-	return &listener{l}
+	return &listener{l:l, recvCh:make(chan ReceiveRet)}
 }
 
-func Accept(l Listener) Connection {
+func Accept(l Listener) {
 	conn, err := l.l.Accept()
 	if err != nil {
 		// This should not usually happen... something seems wrong.
 		panic(err)
 	}
 
-	return makeConnection(conn)
+	makeConnection(conn, l.recvCh)
+}
+
+func Receive2(l Listener) ReceiveRet {
+	return <-l.recvCh
 }
 
 /// Connection
 type connection struct {
 	conn net.Conn
+	recvCh chan ReceiveRet
 	send_mu *sync.Mutex // guarding *sending* on `conn`
 	recv_mu *sync.Mutex // guarding *receiving* on `conn`
 }
 
-func makeConnection(conn net.Conn) Connection {
-	return &connection { conn: conn, send_mu: new(sync.Mutex), recv_mu: new(sync.Mutex) }
+func makeConnection(conn net.Conn, recvCh chan ReceiveRet) Connection {
+	r := &connection { conn: conn, send_mu: new(sync.Mutex), recv_mu: new(sync.Mutex), recvCh: recvCh}
+	go receiveThread(r)
+	return r
 }
 
 type Connection *connection
@@ -105,7 +113,7 @@ func Connect(host Address) ConnectRet {
 	if err != nil {
 		return ConnectRet { Err: true }
 	}
-	return ConnectRet { Err: false, Connection: makeConnection(conn) }
+	return ConnectRet { Err: false, Connection: makeConnection(conn, make(chan ReceiveRet)) }
 }
 
 func Send(c Connection, data []byte) bool {
@@ -133,9 +141,10 @@ func Send(c Connection, data []byte) bool {
 type ReceiveRet struct {
 	Err    bool
 	Data   []byte
+	Sender Connection
 }
 
-func Receive(c Connection) ReceiveRet {
+func receive(c Connection) ReceiveRet {
 	c.recv_mu.Lock()
 	defer c.recv_mu.Unlock()
 
@@ -162,5 +171,19 @@ func Receive(c Connection) ReceiveRet {
 		return ReceiveRet { Err: true }
 	}
 
-	return ReceiveRet { Err: false, Data: data }
+	return ReceiveRet { Err: false, Data: data, Sender: c }
+}
+
+func receiveThread(c Connection) {
+	for {
+		m := receive(c)
+		c.recvCh <- m
+		if m.Err {
+			return
+		}
+	}
+}
+
+func Receive(c Connection) ReceiveRet {
+	return <-c.recvCh
 }

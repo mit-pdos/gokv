@@ -34,12 +34,13 @@ func MakeRPCServer(handlers map[uint64]func([]byte, *[]byte)) *RPCServer {
 	return &RPCServer{handlers: handlers}
 }
 
-func (srv *RPCServer) readThread(conn grove_ffi.Connection) {
+func (srv *RPCServer) readThread(conn grove_ffi.Listener) {
 	for {
-		r := grove_ffi.Receive(conn)
+		r := grove_ffi.Receive2(conn)
 		if r.Err {
 			// This connection is *done* -- quit the thread.
-			break
+			// break
+			continue
 		}
 		data := r.Data
 		d := marshal.NewDec(data)
@@ -47,19 +48,22 @@ func (srv *RPCServer) readThread(conn grove_ffi.Connection) {
 		seqno := d.GetInt()
 		reqLen := d.GetInt()
 		req := d.GetBytes(reqLen)
-		srv.rpcHandle(conn, rpcid, seqno, req) // XXX: this could (and probably should) be in a goroutine YYY: but readThread is already its own goroutine, so that seems redundant?
+		srv.rpcHandle(r.Sender, rpcid, seqno, req) // XXX: this could (and probably should) be in a goroutine YYY: but readThread is already its own goroutine, so that seems redundant?
 		continue
 	}
 }
 
 func (srv *RPCServer) Serve(host HostName, numWorkers uint64) {
 	listener := grove_ffi.Listen(grove_ffi.Address(host))
+	for i := uint64(0); i < numWorkers; i++ {
+		go func() {
+			srv.readThread(listener)
+		}()
+	}
+
 	go func() {
 		for {
-			conn := grove_ffi.Accept(listener);
-			go func() {
-				srv.readThread(conn)
-			}()
+			grove_ffi.Accept(listener);
 		}
 	}()
 }
