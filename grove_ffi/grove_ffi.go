@@ -110,18 +110,16 @@ func Connect(host Address) ConnectRet {
 
 func Send(c Connection, data []byte) bool {
 	// Encode length
-	e := marshal.NewEnc(8)
+	e := marshal.NewEnc(8 + uint64(len(data)))
 	e.PutInt(uint64(len(data)))
-	reqLen := e.Finish()
+	e.PutBytes(data)
+	msg := e.Finish()
 
 	c.send_mu.Lock()
 	defer c.send_mu.Unlock()
 
 	// message format: [dataLen] ++ data
-	_, err := c.conn.Write(reqLen)
-	if err == nil {
-		_, err = c.conn.Write(data)
-	}
+	_, err := c.conn.Write(msg)
 	// If there was an error, make sure we never send anything on this channel again...
 	// there might have been a partial write!
 	if err != nil {
