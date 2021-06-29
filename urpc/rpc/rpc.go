@@ -47,7 +47,7 @@ func (srv *RPCServer) readThread(conn grove_ffi.Connection) {
 		seqno := d.GetInt()
 		reqLen := d.GetInt()
 		req := d.GetBytes(reqLen)
-		go srv.rpcHandle(conn, rpcid, seqno, req) // XXX: this could (and probably should) be in a goroutine YYY: but readThread is already its own goroutine, so that seems redundant?
+		srv.rpcHandle(conn, rpcid, seqno, req) // XXX: this could (and probably should) be in a goroutine YYY: but readThread is already its own goroutine, so that seems redundant?
 		continue
 	}
 }
