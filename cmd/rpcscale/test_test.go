@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc/rpc"
-	"github.com/tchajed/marshal"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 	_ "net/http/pprof"
@@ -35,12 +34,6 @@ func benchConcurrentNullRPC(numClients int) {
 			for {
 				cl.Call(RPC_NULL, nil, reply, 100)
 				atomic.AddUint64(totalOps, 1)
-
-				e := marshal.NewEnc(8 + 8)
-				e.PutInt(0)
-				e.PutInt(0)
-				// e.PutBytes(make[]byte)
-				*reply = e.Finish()
 			}
 		}()
 	}

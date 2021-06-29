@@ -2,16 +2,18 @@ package main
 
 import (
 	"fmt"
+	"github.com/felixge/fgprof"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc/rpc"
+	"github.com/tchajed/marshal"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
-	"github.com/felixge/fgprof"
 )
 
 const (
-	RPC_NULL = iota
+	RPC_NULL = uint64(0) // equal to KV_FRESHCID
+	KV_GET   = uint64(2)
 )
 
 func main() {
@@ -21,7 +23,16 @@ func main() {
 	}()
 
 	handlers := make(map[uint64]func([]byte, *[]byte))
-	handlers[RPC_NULL] = func([]byte, *[]byte) {
+	handlers[RPC_NULL] = func(args []byte, reply *[]byte) {
+		e := marshal.NewEnc(8)
+		e.PutInt(0)
+		*reply = e.Finish()
+	}
+	handlers[KV_GET] = func(args []byte, reply *[]byte) {
+		e := marshal.NewEnc(8 + 8)
+		e.PutInt(0)
+		e.PutInt(0)
+		*reply = e.Finish()
 	}
 
 	s := rpc.MakeRPCServer(handlers)
