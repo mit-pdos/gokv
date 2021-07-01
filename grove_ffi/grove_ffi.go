@@ -109,7 +109,7 @@ func Connect(host Address) ConnectRet {
 }
 
 func Send(c Connection, data []byte) bool {
-	// Encode length
+	// Encode message
 	e := marshal.NewEnc(8 + uint64(len(data)))
 	e.PutInt(uint64(len(data)))
 	e.PutBytes(data)
@@ -119,6 +119,7 @@ func Send(c Connection, data []byte) bool {
 	defer c.send_mu.Unlock()
 
 	// message format: [dataLen] ++ data
+	// Writing in a single call is faster than 2 calls despite the unnecessary copy.
 	_, err := c.conn.Write(msg)
 	// If there was an error, make sure we never send anything on this channel again...
 	// there might have been a partial write!
