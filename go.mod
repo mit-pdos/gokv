@@ -10,5 +10,5 @@ require (
 	github.com/tchajed/goose v0.3.1
 	github.com/tchajed/marshal v0.2.0
 	github.com/upamanyus/urpc v0.0.0-20210412143254-587eba24740c
-	golang.org/x/text v0.3.5 // indirect
+	golang.org/x/text v0.3.5
 )
