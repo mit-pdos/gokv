@@ -227,7 +227,8 @@ func DecSliceMap(d marshal.Dec) map[uint64][]byte {
 }
 
 func encodeInstallShardRequest(req *InstallShardRequest) []byte {
-	e := marshal.NewEnc(8 + 8 + 8 + SizeOfMarshalledMap(req.Kvs))
+	num_bytes := std.SumAssumeNoOverflow(8 + 8 + 8, SizeOfMarshalledMap(req.Kvs))
+	e := marshal.NewEnc(num_bytes)
 	e.PutInt(req.CID)
 	e.PutInt(req.Seq)
 	e.PutInt(req.Sid)
