@@ -2,6 +2,7 @@ package memkv
 
 import (
 	"github.com/mit-pdos/gokv/urpc/rpc"
+	"sync"
 )
 
 type MemKVCoordClerk struct {
@@ -11,7 +12,7 @@ type MemKVCoordClerk struct {
 func (ck *MemKVCoordClerk) AddShardServer(dst HostName) {
 	rawRep := new([]byte)
 	// TODO: on ErrDisconnect, re-create RPCClient
-	for ck.cl.Call(COORD_ADD, encodeUint64(dst), rawRep, 10000/*ms*/) != 0 {
+	for ck.cl.Call(COORD_ADD, encodeUint64(dst), rawRep, 10000 /*ms*/) != 0 {
 	}
 	return
 }
@@ -19,7 +20,7 @@ func (ck *MemKVCoordClerk) AddShardServer(dst HostName) {
 func (ck *MemKVCoordClerk) GetShardMap() []HostName {
 	rawRep := new([]byte)
 	// TODO: on ErrDisconnect, re-create RPCClient
-	for ck.cl.Call(COORD_GET, make([]byte, 0), rawRep, 100/*ms*/) != 0 {
+	for ck.cl.Call(COORD_GET, make([]byte, 0), rawRep, 100 /*ms*/) != 0 {
 	}
 	return decodeShardMap(*rawRep)
 }
@@ -87,6 +88,27 @@ func (ck *MemKVClerk) ConditionalPut(key uint64, expectedValue []byte, newValue 
 
 func (ck *MemKVClerk) Add(host HostName) {
 	ck.coordCk.AddShardServer(host)
+}
+
+// returns a slice of "values" (which are byte slices) in the same order as the
+// keys passed in as input
+// FIXME: benchmark
+func (ck *MemKVClerk) MGet(keys []uint64) [][]byte {
+	num_left := len(keys)
+	num_left_mu := new(sync.Mutex)
+	num_left_cond := sync.NewCond(num_left_mu)
+	vals := make([][]byte, len(keys))
+
+	for i, k := range keys {
+		go func() {
+			vals[i] = ck.Get(k)
+		}()
+	}
+
+	for num_left > 0 {
+		num_left_cond.Wait()
+	}
+	return vals
 }
 
 func MakeMemKVClerk(coord HostName) *MemKVClerk {
