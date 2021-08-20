@@ -199,7 +199,8 @@ func SizeOfMarshalledMap(m map[uint64][]byte) uint64 {
 	var s uint64
 	s = 8
 	for _, value := range m {
-		s += (uint64(len(value)) + 8 + 8)
+		v := std.SumAssumeNoOverflow(uint64(len(value)), 8 + 8)
+		s = std.SumAssumeNoOverflow(s, v)
 	}
 	return s
 }
