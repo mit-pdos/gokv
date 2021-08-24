@@ -63,7 +63,8 @@ func (c *ConnMan) CallAtLeastOnce(host HostName, rpcid uint64, args []byte, repl
 			if cl != c.rpcCls[host] { // our RPCClient is already out of date
 				cl = c.rpcCls[host]
 			} else {
-				cl = c.getNewClient(cl, host)
+				delete(c.rpcCls, host)
+				cl = c.getNewClient(host)
 			}
 			c.mu.Unlock()
 			continue
