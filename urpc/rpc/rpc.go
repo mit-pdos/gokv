@@ -86,7 +86,7 @@ func (cl *RPCClient) replyThread() {
 	for {
 		r := grove_ffi.Receive(cl.conn)
 		if r.Err {
-			// This connection is *done* -- quit the thread and wake all pending requests.
+			// This connection is unusable, so quit the thread and wake all pending requests.
 			cl.mu.Lock()
 			for _, cb := range cl.pending {
 				*cb.state = callbackStateAborted
