@@ -26,28 +26,26 @@ func (c *ConnMan) getClient(host HostName) *rpc.RPCClient {
 		if ok {
 			ret = cl
 			break
-		} else {
-			// want to open a new RPCClient without a thundering herd of threads all
-			// making their own RPCClient
-			// XXX: This is written under the assumption that MakeRPCClient
-			// takes a long time compared to the other critical sections of c.mu
-			// (e.g. this might establish a TCP connection, incurring some
-			// network delay)
-			cond, ok := c.making[host];
-			if ok { // someone else is making the host
-				cond.Wait()
-				continue
-			} else {
-				c.making[host] = sync.NewCond(c.mu)
-				c.mu.Unlock()
-				ret = rpc.MakeRPCClient(host)
-				c.mu.Lock()
-				c.rpcCls[host] = ret
-				c.making[host].Broadcast()
-				delete(c.making, host)
-				break
-			}
 		}
+		// want to open a new RPCClient without a thundering herd of threads all
+		// making their own RPCClient
+		// XXX: This is written under the assumption that MakeRPCClient
+		// takes a long time compared to the other critical sections of c.mu
+		// (e.g. this might establish a TCP connection, incurring some
+		// network delay)
+		cond, ok := c.making[host];
+		if ok { // someone else is making the host
+			cond.Wait()
+			continue
+		}
+		c.making[host] = sync.NewCond(c.mu)
+		c.mu.Unlock()
+		ret = rpc.MakeRPCClient(host)
+		c.mu.Lock()
+		c.rpcCls[host] = ret
+		c.making[host].Broadcast()
+		delete(c.making, host)
+		break
 	}
 	c.mu.Unlock()
 	return ret
