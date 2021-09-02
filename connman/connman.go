@@ -38,12 +38,13 @@ func (c *ConnMan) getClient(host HostName) *rpc.RPCClient {
 			cond.Wait()
 			continue
 		}
-		c.making[host] = sync.NewCond(c.mu)
+		my_cond := sync.NewCond(c.mu)
+		c.making[host] = my_cond
 		c.mu.Unlock()
 		ret = rpc.MakeRPCClient(host)
 		c.mu.Lock()
 		c.rpcCls[host] = ret
-		c.making[host].Broadcast()
+		my_cond.Broadcast()
 		delete(c.making, host)
 		break
 	}
@@ -61,7 +62,8 @@ func (c *ConnMan) CallAtLeastOnce(host HostName, rpcid uint64, args []byte, repl
 		if err == rpc.ErrTimeout {
 			// just retry
 			continue
-		} else if err == rpc.ErrDisconnect {
+		}
+		if err == rpc.ErrDisconnect {
 			// need to try reconnecting
 			c.mu.Lock()
 			if cl == c.rpcCls[host] { // our RPCClient might already be out of date
@@ -70,8 +72,7 @@ func (c *ConnMan) CallAtLeastOnce(host HostName, rpcid uint64, args []byte, repl
 			c.mu.Unlock()
 			cl = c.getClient(host)
 			continue
-		} else {
-			break
 		}
+		break
 	}
 }
