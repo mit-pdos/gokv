@@ -103,7 +103,7 @@ func MakeMemKVCoordServer(initserver HostName) *MemKVCoord {
 func (c *MemKVCoord) Start(host HostName) {
 	handlers := make(map[uint64]func([]byte, *[]byte))
 	handlers[COORD_ADD] = func(rawReq []byte, rawRep *[]byte) {
-		s := decodeUint64(rawReq)
+		s := DecodeUint64(rawReq)
 		c.AddServerRPC(s)
 	}
 	handlers[COORD_GET] = c.GetShardMapRPC

@@ -267,13 +267,14 @@ func decodeMoveShardRequest(rawReq []byte) *MoveShardRequest {
 	return req
 }
 
-func encodeUint64(i uint64) []byte {
+// FIXME: these should just be in goose std or something
+func EncodeUint64(i uint64) []byte {
 	e := marshal.NewEnc(8)
 	e.PutInt(i)
 	return e.Finish()
 }
 
-func decodeUint64(raw []byte) uint64 {
+func DecodeUint64(raw []byte) uint64 {
 	return marshal.NewDec(raw).GetInt()
 }
 

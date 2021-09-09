@@ -18,7 +18,7 @@ func MakeFreshKVClerk(host HostName) *MemKVShardClerk {
 	// TODO: on ErrDisconnect, re-create RPCClient
 	for ck.cl.Call(KV_FRESHCID, make([]byte, 0), rawRep, 100/*ms*/) != 0 {
 	}
-	ck.cid = decodeUint64(*rawRep)
+	ck.cid = DecodeUint64(*rawRep)
 	ck.seq = 1
 
 	return ck

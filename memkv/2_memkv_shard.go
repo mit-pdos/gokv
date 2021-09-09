@@ -196,7 +196,7 @@ func (mkv *MemKVShardServer) Start(host HostName) {
 	handlers := make(map[uint64]func([]byte, *[]byte))
 
 	handlers[KV_FRESHCID] = func(rawReq []byte, rawReply *[]byte) {
-		*rawReply = encodeUint64(mkv.GetCIDRPC())
+		*rawReply = EncodeUint64(mkv.GetCIDRPC())
 	}
 
 	handlers[KV_PUT] = func(rawReq []byte, rawReply *[]byte) {

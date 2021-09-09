@@ -12,7 +12,7 @@ type MemKVCoordClerk struct {
 func (ck *MemKVCoordClerk) AddShardServer(dst HostName) {
 	rawRep := new([]byte)
 	// TODO: on ErrDisconnect, re-create RPCClient
-	for ck.cl.Call(COORD_ADD, encodeUint64(dst), rawRep, 10000 /*ms*/) != 0 {
+	for ck.cl.Call(COORD_ADD, EncodeUint64(dst), rawRep, 10000 /*ms*/) != 0 {
 	}
 	return
 }
