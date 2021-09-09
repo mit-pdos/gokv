@@ -92,8 +92,8 @@ func (ck *MemKVClerk) Add(host HostName) {
 
 func multipar(num uint64, op func(uint64)) {
 	var num_left = num
-	var num_left_mu = new(sync.Mutex)
-	var num_left_cond = sync.NewCond(num_left_mu)
+	num_left_mu := new(sync.Mutex)
+	num_left_cond := sync.NewCond(num_left_mu)
 
 	for i := uint64(0); i < num; i++ {
 		go func() {
