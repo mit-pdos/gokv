@@ -90,24 +90,37 @@ func (ck *MemKVClerk) Add(host HostName) {
 	ck.coordCk.AddShardServer(host)
 }
 
+func multipar(num uint64, op func(uint64)) {
+	var num_left = num
+	var num_left_mu = new(sync.Mutex)
+	var num_left_cond = sync.NewCond(num_left_mu)
+
+	for i := uint64(0); i < num; i++ {
+		go func() {
+			op(i)
+			// Signal that this one is done
+			num_left_mu.Lock()
+			num_left -= 1
+			num_left_cond.Signal()
+			num_left_mu.Unlock()
+		}()
+	}
+
+	num_left_mu.Lock()
+	for num_left > 0 {
+		num_left_cond.Wait()
+	}
+	num_left_mu.Unlock()
+}
+
 // returns a slice of "values" (which are byte slices) in the same order as the
 // keys passed in as input
 // FIXME: benchmark
 func (ck *MemKVClerk) MGet(keys []uint64) [][]byte {
-	num_left := len(keys)
-	num_left_mu := new(sync.Mutex)
-	num_left_cond := sync.NewCond(num_left_mu)
 	vals := make([][]byte, len(keys))
-
-	for i, k := range keys {
-		go func() {
-			vals[i] = ck.Get(k)
-		}()
-	}
-
-	for num_left > 0 {
-		num_left_cond.Wait()
-	}
+	multipar(uint64(len(keys)), func(i uint64) {
+		vals[i] = ck.Get(keys[i])
+	})
 	return vals
 }
 
