@@ -11,6 +11,7 @@ const COORD_GET = uint64(2)
 
 type ShardClerkSet struct {
 	cls map[HostName]*MemKVShardClerk
+	rpcCaller RpcCaller // FIXME: init
 }
 
 func MakeShardClerkSet() *ShardClerkSet {
@@ -20,7 +21,7 @@ func MakeShardClerkSet() *ShardClerkSet {
 func (s *ShardClerkSet) GetClerk(host HostName) *MemKVShardClerk {
 	ck, ok := s.cls[host]
 	if !ok {
-		ck2 := MakeFreshKVClerk(host)
+		ck2 := MakeFreshKVClerk(host, s.rpcCaller)
 		s.cls[host] = ck2
 		return ck2
 	} else {
@@ -30,7 +31,6 @@ func (s *ShardClerkSet) GetClerk(host HostName) *MemKVShardClerk {
 
 type MemKVCoord struct {
 	mu          *sync.Mutex
-	config      map[HostName]string
 	shardMap    []HostName          // maps from sid -> host that currently owns it
 	hostShards  map[HostName]uint64 // maps from host -> num shard that it currently has
 	shardClerks *ShardClerkSet

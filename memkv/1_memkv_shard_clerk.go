@@ -1,23 +1,22 @@
 package memkv
 
 import (
-	"github.com/mit-pdos/gokv/urpc/rpc"
 	"github.com/goose-lang/std"
 )
 
 type MemKVShardClerk struct {
 	seq uint64
 	cid uint64
-	cl  *rpc.RPCClient
+	host HostName
+	rpcCaller RpcCaller
 }
 
-func MakeFreshKVClerk(host HostName) *MemKVShardClerk {
+func MakeFreshKVClerk(host HostName, rpcCaller RpcCaller) *MemKVShardClerk {
 	ck := new(MemKVShardClerk)
-	ck.cl = rpc.MakeRPCClient(host)
+	ck.host = host
+	ck.rpcCaller = rpcCaller
 	rawRep := new([]byte)
-	// TODO: on ErrDisconnect, re-create RPCClient
-	for ck.cl.Call(KV_FRESHCID, make([]byte, 0), rawRep, 100/*ms*/) != 0 {
-	}
+	ck.rpcCaller(host, KV_FRESHCID, make([]byte, 0), rawRep, 100/*ms*/)
 	ck.cid = DecodeUint64(*rawRep)
 	ck.seq = 1
 
@@ -34,9 +33,7 @@ func (ck *MemKVShardClerk) Put(key uint64, value []byte) ErrorType {
 	ck.seq = std.SumAssumeNoOverflow(ck.seq, 1)
 
 	rawRep := new([]byte)
-	// TODO: on ErrDisconnect, re-create RPCClient
-	for ck.cl.Call(KV_PUT, EncodePutRequest(args), rawRep, 100/*ms*/) != 0 {
-	}
+	ck.rpcCaller(ck.host, KV_PUT, EncodePutRequest(args), rawRep, 100/*ms*/)
 	rep := DecodePutReply(*rawRep)
 	return rep.Err
 }
@@ -50,9 +47,7 @@ func (ck *MemKVShardClerk) Get(key uint64, value *[]byte) ErrorType {
 	ck.seq = std.SumAssumeNoOverflow(ck.seq, 1)
 
 	rawRep := new([]byte)
-	// TODO: on ErrDisconnect, re-create RPCClient
-	for ck.cl.Call(KV_GET, EncodeGetRequest(args), rawRep, 100/*ms*/) != 0 {
-	}
+	ck.rpcCaller(ck.host, KV_GET, EncodeGetRequest(args), rawRep, 100/*ms*/)
 	rep := DecodeGetReply(*rawRep)
 	*value = rep.Value
 	return rep.Err
@@ -69,9 +64,7 @@ func (ck *MemKVShardClerk) ConditionalPut(key uint64, expectedValue []byte, newV
 	ck.seq = std.SumAssumeNoOverflow(ck.seq, 1)
 
 	rawRep := new([]byte)
-	// TODO: on ErrDisconnect, re-create RPCClient
-	for ck.cl.Call(KV_CONDITIONAL_PUT, EncodeConditionalPutRequest(args), rawRep, 100/*ms*/) != 0 {
-	}
+	ck.rpcCaller(ck.host, KV_CONDITIONAL_PUT, EncodeConditionalPutRequest(args), rawRep, 100/*ms*/)
 	rep := DecodeConditionalPutReply(*rawRep)
 	*success = rep.Success
 	return rep.Err
@@ -88,9 +81,7 @@ func (ck *MemKVShardClerk) InstallShard(sid uint64, kvs map[uint64][]byte) {
 	ck.seq = std.SumAssumeNoOverflow(ck.seq, 1)
 
 	rawRep := new([]byte)
-	// TODO: on ErrDisconnect, re-create RPCClient
-	for ck.cl.Call(KV_INS_SHARD, encodeInstallShardRequest(args), rawRep, 100/*ms*/) != 0 {
-	}
+	ck.rpcCaller(ck.host, KV_INS_SHARD, encodeInstallShardRequest(args), rawRep, 100/*ms*/)
 	// log.Printf("InstallShard %d finished", sid)
 }
 
@@ -100,7 +91,5 @@ func (ck *MemKVShardClerk) MoveShard(sid uint64, dst HostName) {
 	args.Dst = dst
 
 	rawRep := new([]byte)
-	// TODO: on ErrDisconnect, re-create RPCClient
-	for ck.cl.Call(KV_MOV_SHARD, encodeMoveShardRequest(args), rawRep, 100/*ms*/) != 0 {
-	}
+	ck.rpcCaller(ck.host, KV_MOV_SHARD, encodeMoveShardRequest(args), rawRep, 100/*ms*/)
 }
