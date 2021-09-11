@@ -53,9 +53,8 @@ func (p *KVClerkPool) Get(key uint64) []byte {
 		p.mu.Unlock()
 	}
 
-	value := make([]byte, 0)
 	// we now own ck
-	value = ck.Get(key)
+	value := ck.Get(key)
 
 	p.mu.Lock()
 	p.freeClerks = append(p.freeClerks, ck)
