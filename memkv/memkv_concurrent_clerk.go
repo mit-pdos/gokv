@@ -2,6 +2,7 @@ package memkv
 
 import (
 	"sync"
+	"github.com/goose-lang/std"
 )
 
 type KVClerk interface {
@@ -60,6 +61,17 @@ func (p *KVClerkPool) Get(key uint64) []byte {
 	p.freeClerks = append(p.freeClerks, ck)
 	p.mu.Unlock()
 	return value
+}
+
+// returns a slice of "values" (which are byte slices) in the same order as the
+// keys passed in as input
+// FIXME: benchmark
+func (p *KVClerkPool) MGet(keys []uint64) [][]byte {
+	vals := make([][]byte, len(keys))
+	std.Multipar(uint64(len(keys)), func(i uint64) {
+		vals[i] = p.Get(keys[i])
+	})
+	return vals
 }
 
 func MakeKVClerkPool(numInit uint64, numClients uint64, factory func() KVClerk) *KVClerkPool {

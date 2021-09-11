@@ -2,7 +2,6 @@ package memkv
 
 import (
 	"github.com/mit-pdos/gokv/urpc/rpc"
-	"github.com/goose-lang/std"
 )
 
 type MemKVCoordClerk struct {
@@ -88,17 +87,6 @@ func (ck *MemKVClerk) ConditionalPut(key uint64, expectedValue []byte, newValue 
 
 func (ck *MemKVClerk) Add(host HostName) {
 	ck.coordCk.AddShardServer(host)
-}
-
-// returns a slice of "values" (which are byte slices) in the same order as the
-// keys passed in as input
-// FIXME: benchmark
-func (ck *MemKVClerk) MGet(keys []uint64) [][]byte {
-	vals := make([][]byte, len(keys))
-	std.Multipar(uint64(len(keys)), func(i uint64) {
-		vals[i] = ck.Get(keys[i])
-	})
-	return vals
 }
 
 func MakeMemKVClerk(coord HostName) *MemKVClerk {
