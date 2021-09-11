@@ -1,26 +1,23 @@
 package memkv
 
 import (
-	"github.com/mit-pdos/gokv/urpc/rpc"
+	"github.com/mit-pdos/gokv/connman"
 )
 
 type MemKVCoordClerk struct {
-	cl *rpc.RPCClient
+	host HostName
+	c *connman.ConnMan
 }
 
 func (ck *MemKVCoordClerk) AddShardServer(dst HostName) {
 	rawRep := new([]byte)
-	// TODO: on ErrDisconnect, re-create RPCClient
-	for ck.cl.Call(COORD_ADD, EncodeUint64(dst), rawRep, 10000 /*ms*/) != 0 {
-	}
+	ck.c.CallAtLeastOnce(ck.host, COORD_ADD, EncodeUint64(dst), rawRep, 10000 /*ms*/)
 	return
 }
 
 func (ck *MemKVCoordClerk) GetShardMap() []HostName {
 	rawRep := new([]byte)
-	// TODO: on ErrDisconnect, re-create RPCClient
-	for ck.cl.Call(COORD_GET, make([]byte, 0), rawRep, 100 /*ms*/) != 0 {
-	}
+	ck.c.CallAtLeastOnce(ck.host, COORD_GET, make([]byte, 0), rawRep, 100 /*ms*/)
 	return decodeShardMap(*rawRep)
 }
 
@@ -93,7 +90,8 @@ func MakeMemKVClerk(coord HostName) *MemKVClerk {
 	cck := new(MemKVCoordClerk)
 	ck := new(MemKVClerk)
 	ck.coordCk = cck
-	ck.coordCk.cl = rpc.MakeRPCClient(coord)
+	ck.coordCk.host = coord
+	ck.coordCk.c = connman.MakeConnMan()
 	ck.shardClerks = MakeShardClerkSet()
 	ck.shardMap = ck.coordCk.GetShardMap()
 	return ck
