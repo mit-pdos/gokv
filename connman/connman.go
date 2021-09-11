@@ -17,6 +17,14 @@ type ConnMan struct {
 	making map[HostName]*sync.Cond // a key exists iff someone is making the RPCClient for that host right now
 }
 
+func MakeConnMan() *ConnMan {
+	c := new(ConnMan)
+	c.mu = new(sync.Mutex)
+	c.rpcCls = make(map[HostName]*rpc.RPCClient)
+	c.making = make(map[HostName]*sync.Cond)
+	return c
+}
+
 func (c *ConnMan) getClient(host HostName) *rpc.RPCClient {
 	var ret *rpc.RPCClient
 

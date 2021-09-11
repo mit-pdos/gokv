@@ -19,7 +19,6 @@ type MemKVShardServer struct {
 	// if anything is in shardMap, then we have a map[] initialized in kvss
 	kvss  []KvMap // \box(size=NSHARDS)
 	peers map[HostName]*MemKVShardClerk
-	rpcCaller RpcCaller // FIXME: init
 }
 
 type PutArgs struct {
@@ -148,7 +147,7 @@ func (s *MemKVShardServer) MoveShardRPC(args *MoveShardRequest) {
 	_, ok := s.peers[args.Dst]
 	if !ok {
 		// s.mu.Unlock()
-		ck := MakeFreshKVClerk(args.Dst, s.rpcCaller)
+		ck := MakeFreshKVClerk(args.Dst)
 		// s.mu.Lock()
 		s.peers[args.Dst] = ck
 	}
