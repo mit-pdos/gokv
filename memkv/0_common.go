@@ -11,8 +11,6 @@ type ValueType = uint64
 
 type ErrorType = uint64
 
-type RpcCaller = func (HostName, uint64, []byte, *[]byte, uint64)
-
 const (
 	ENone          = uint64(0)
 	EDontHaveShard = uint64(1)
