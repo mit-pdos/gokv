@@ -87,12 +87,13 @@ func (ck *MemKVClerk) Add(host HostName) {
 }
 
 func MakeMemKVClerk(coord HostName) *MemKVClerk {
+	c := connman.MakeConnMan()
 	cck := new(MemKVCoordClerk)
 	ck := new(MemKVClerk)
 	ck.coordCk = cck
 	ck.coordCk.host = coord
-	ck.coordCk.c = connman.MakeConnMan()
-	ck.shardClerks = MakeShardClerkSet()
+	ck.coordCk.c = c
+	ck.shardClerks = MakeShardClerkSet(c)
 	ck.shardMap = ck.coordCk.GetShardMap()
 	return ck
 }

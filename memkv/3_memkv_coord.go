@@ -1,6 +1,7 @@
 package memkv
 
 import (
+	"github.com/mit-pdos/gokv/connman"
 	"github.com/mit-pdos/gokv/urpc/rpc"
 	"log"
 	"sync"
@@ -11,16 +12,17 @@ const COORD_GET = uint64(2)
 
 type ShardClerkSet struct {
 	cls map[HostName]*MemKVShardClerk
+	c *connman.ConnMan
 }
 
-func MakeShardClerkSet() *ShardClerkSet {
-	return &ShardClerkSet{cls: make(map[HostName]*MemKVShardClerk)}
+func MakeShardClerkSet(c *connman.ConnMan) *ShardClerkSet {
+	return &ShardClerkSet{cls: make(map[HostName]*MemKVShardClerk), c: c}
 }
 
 func (s *ShardClerkSet) GetClerk(host HostName) *MemKVShardClerk {
 	ck, ok := s.cls[host]
 	if !ok {
-		ck2 := MakeFreshKVClerk(host)
+		ck2 := MakeFreshKVClerk(host, s.c)
 		s.cls[host] = ck2
 		return ck2
 	} else {
@@ -95,7 +97,7 @@ func MakeMemKVCoordServer(initserver HostName) *MemKVCoord {
 	}
 	s.hostShards = make(map[HostName]uint64)
 	s.hostShards[initserver] = NSHARD
-	s.shardClerks = MakeShardClerkSet()
+	s.shardClerks = MakeShardClerkSet(connman.MakeConnMan())
 	return s
 }
 

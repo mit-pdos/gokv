@@ -1,6 +1,7 @@
 package memkv
 
 import (
+	"github.com/mit-pdos/gokv/connman"
 	"github.com/mit-pdos/gokv/urpc/rpc"
 	"github.com/goose-lang/std"
 	"sync"
@@ -147,7 +148,9 @@ func (s *MemKVShardServer) MoveShardRPC(args *MoveShardRequest) {
 	_, ok := s.peers[args.Dst]
 	if !ok {
 		// s.mu.Unlock()
-		ck := MakeFreshKVClerk(args.Dst)
+		// FIXME is there somewhere we can get a ConnMan from?
+		c := connman.MakeConnMan()
+		ck := MakeFreshKVClerk(args.Dst, c)
 		// s.mu.Lock()
 		s.peers[args.Dst] = ck
 	}

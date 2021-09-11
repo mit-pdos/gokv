@@ -12,10 +12,10 @@ type MemKVShardClerk struct {
 	c *connman.ConnMan
 }
 
-func MakeFreshKVClerk(host HostName) *MemKVShardClerk {
+func MakeFreshKVClerk(host HostName, c *connman.ConnMan) *MemKVShardClerk {
 	ck := new(MemKVShardClerk)
 	ck.host = host
-	ck.c = connman.MakeConnMan()
+	ck.c = c
 	rawRep := new([]byte)
 	ck.c.CallAtLeastOnce(host, KV_FRESHCID, make([]byte, 0), rawRep, 100/*ms*/)
 	ck.cid = DecodeUint64(*rawRep)
