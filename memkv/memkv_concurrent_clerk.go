@@ -5,25 +5,26 @@ import (
 	"github.com/goose-lang/std"
 )
 
+type MemKVClerkPtr *MemKVClerk
+
 type KVClerkPool struct {
 	mu *sync.Mutex
 	// queue of free clerks
-	freeClerks []*MemKVClerk
+	freeClerks []MemKVClerkPtr
 	coord HostName
 }
 
 func (p *KVClerkPool) getClerk() *MemKVClerk {
 	p.mu.Lock()
-	var ck *MemKVClerk
 	if len(p.freeClerks) == 0 {
 		p.mu.Unlock() // don't want to hold lock while making a fresh clerk
-		ck = MakeMemKVClerk(p.coord)
+		return MakeMemKVClerk(p.coord)
 	} else {
-		ck = p.freeClerks[0]
+		ck := p.freeClerks[0]
 		p.freeClerks = p.freeClerks[1:]
 		p.mu.Unlock()
+		return ck
 	}
-	return ck
 }
 
 func (p *KVClerkPool) putClerk(ck *MemKVClerk) {
@@ -73,7 +74,7 @@ func MakeKVClerkPool(numInit uint64, coord HostName) *KVClerkPool {
 	p := new(KVClerkPool)
 	p.mu = new(sync.Mutex)
 	p.coord = coord
-	p.freeClerks = make([]*MemKVClerk, numInit)
+	p.freeClerks = make([]MemKVClerkPtr, numInit)
 	for i := uint64(0); i < numInit; i++ {
 		p.freeClerks[i] = MakeMemKVClerk(p.coord)
 	}
