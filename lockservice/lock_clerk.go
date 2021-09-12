@@ -2,6 +2,7 @@ package lockservice
 
 import (
 	"github.com/mit-pdos/gokv/memkv"
+	"github.com/mit-pdos/gokv/connman"
 )
 
 type LockClerk struct {
@@ -17,8 +18,8 @@ func (ck *LockClerk) Unlock(key uint64) {
 	ck.kv.Put(key, make([]byte, 0))
 }
 
-func MakeLockClerk(lockhost memkv.HostName) *LockClerk {
+func MakeLockClerk(lockhost memkv.HostName, cm *connman.ConnMan) *LockClerk {
 	return &LockClerk{
-		kv: memkv.MakeMemKVClerk(lockhost),
+		kv: memkv.MakeMemKVClerk(lockhost, cm),
 	}
 }

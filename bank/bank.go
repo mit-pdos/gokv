@@ -3,6 +3,7 @@ package bank
 import (
 	"github.com/mit-pdos/gokv/lockservice"
 	"github.com/mit-pdos/gokv/memkv"
+	"github.com/mit-pdos/gokv/connman"
 )
 
 type BankClerk struct {
@@ -59,10 +60,10 @@ func (bck *BankClerk) SimpleAudit() uint64 {
 	return sum
 }
 
-func MakeBankClerk(lockhost memkv.HostName, kvhost memkv.HostName, acc1 uint64, acc2 uint64, cid uint64) *BankClerk {
+func MakeBankClerk(lockhost memkv.HostName, kvhost memkv.HostName, cm *connman.ConnMan, acc1 uint64, acc2 uint64, cid uint64) *BankClerk {
 	bck := new(BankClerk)
-	bck.lck = lockservice.MakeLockClerk(lockhost)
-	bck.kvck = memkv.MakeMemKVClerk(kvhost)
+	bck.lck = lockservice.MakeLockClerk(lockhost, cm)
+	bck.kvck = memkv.MakeMemKVClerk(kvhost, cm)
 	bck.acc1 = acc1
 	bck.acc2 = acc2
 	return bck
