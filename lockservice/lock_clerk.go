@@ -9,7 +9,7 @@ type LockClerk struct {
 }
 
 func (ck *LockClerk) Lock(key uint64) {
-	for ck.kv.ConditionalPut(key, make([]byte, 0), make([]byte, 1)) {
+	for !(ck.kv.ConditionalPut(key, make([]byte, 0), make([]byte, 1))) {
 	}
 }
 
