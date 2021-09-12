@@ -70,14 +70,10 @@ func (p *KVClerkPool) MGet(keys []uint64) [][]byte {
 	return vals
 }
 
-func MakeKVClerkPool(numInit uint64, coord HostName) *KVClerkPool {
+func MakeKVClerkPool(coord HostName) *KVClerkPool {
 	p := new(KVClerkPool)
 	p.mu = new(sync.Mutex)
 	p.coord = coord
-	p.freeClerks = make([]MemKVClerkPtr, numInit)
-	for i := uint64(0); i < numInit; i++ {
-		p.freeClerks[i] = MakeMemKVClerk(p.coord)
-	}
-
+	p.freeClerks = make([]MemKVClerkPtr, 0)
 	return p
 }
