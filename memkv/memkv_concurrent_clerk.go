@@ -1,8 +1,9 @@
 package memkv
 
 import (
-	"sync"
 	"github.com/goose-lang/std"
+	"github.com/mit-pdos/gokv/connman"
+	"sync"
 )
 
 type MemKVClerkPtr *MemKVClerk
@@ -11,7 +12,8 @@ type KVClerkPool struct {
 	mu *sync.Mutex
 	// queue of free clerks
 	freeClerks []MemKVClerkPtr
-	coord HostName
+	cm         *connman.ConnMan
+	coord      HostName
 }
 
 func (p *KVClerkPool) getClerk() *MemKVClerk {
@@ -19,7 +21,7 @@ func (p *KVClerkPool) getClerk() *MemKVClerk {
 	n := len(p.freeClerks)
 	if n == 0 {
 		p.mu.Unlock() // don't want to hold lock while making a fresh clerk
-		return MakeMemKVClerk(p.coord)
+		return MakeMemKVClerk(p.coord, p.cm)
 	} else {
 		ck := p.freeClerks[n-1]
 		p.freeClerks = p.freeClerks[:n-1]

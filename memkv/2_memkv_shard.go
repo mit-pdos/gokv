@@ -20,6 +20,7 @@ type MemKVShardServer struct {
 	// if anything is in shardMap, then we have a map[] initialized in kvss
 	kvss  []KvMap // \box(size=NSHARDS)
 	peers map[HostName]*MemKVShardClerk
+	cm *connman.ConnMan
 }
 
 type PutArgs struct {
@@ -148,9 +149,7 @@ func (s *MemKVShardServer) MoveShardRPC(args *MoveShardRequest) {
 	_, ok := s.peers[args.Dst]
 	if !ok {
 		// s.mu.Unlock()
-		// FIXME is there somewhere we can get a ConnMan from?
-		c := connman.MakeConnMan()
-		ck := MakeFreshKVClerk(args.Dst, c)
+		ck := MakeFreshKVShardClerk(args.Dst, s.cm)
 		// s.mu.Lock()
 		s.peers[args.Dst] = ck
 	}
@@ -176,6 +175,7 @@ func MakeMemKVShardServer(is_init bool) *MemKVShardServer {
 	srv.shardMap = make([]bool, NSHARD)
 	srv.kvss = make([]KvMap, NSHARD)
 	srv.peers = make(map[HostName]*MemKVShardClerk)
+	srv.cm = connman.MakeConnMan()
 	for i := uint64(0); i < NSHARD; i++ {
 		srv.shardMap[i] = is_init
 		if is_init {

@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/mit-pdos/gokv/grove_ffi"
+	"github.com/mit-pdos/gokv/connman"
 	"github.com/mit-pdos/gokv/memkv"
 	"os"
 	"strconv"
@@ -28,7 +29,7 @@ func main() {
 	usage_assert(coordStr != "")
 
 	coord := grove_ffi.MakeAddress(coordStr)
-	ck := memkv.MakeMemKVClerk(coord)
+	ck := memkv.MakeMemKVClerk(coord, connman.MakeConnMan())
 
 	a := flag.Args()
 	usage_assert(len(a) > 0)

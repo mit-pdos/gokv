@@ -22,7 +22,7 @@ func MakeShardClerkSet(c *connman.ConnMan) *ShardClerkSet {
 func (s *ShardClerkSet) GetClerk(host HostName) *MemKVShardClerk {
 	ck, ok := s.cls[host]
 	if !ok {
-		ck2 := MakeFreshKVClerk(host, s.c)
+		ck2 := MakeFreshKVShardClerk(host, s.c)
 		s.cls[host] = ck2
 		return ck2
 	} else {
