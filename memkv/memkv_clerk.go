@@ -28,7 +28,6 @@ type MemKVClerk struct {
 	shardClerks *ShardClerkSet
 	coordCk     *MemKVCoordClerk
 	shardMap    []HostName // size == NSHARD; maps from sid -> host that currently owns it
-	cm          *connman.ConnMan
 }
 
 func (ck *MemKVClerk) Get(key uint64) []byte {
@@ -90,7 +89,6 @@ func (ck *MemKVClerk) Add(host HostName) {
 func MakeMemKVClerk(coord HostName, cm *connman.ConnMan) *MemKVClerk {
 	cck := new(MemKVCoordClerk)
 	ck := new(MemKVClerk)
-	ck.cm = cm
 	ck.coordCk = cck
 	ck.coordCk.host = coord
 	ck.coordCk.c = cm
