@@ -12,7 +12,7 @@ type MemKVShardClerk struct {
 	c *connman.ConnMan
 }
 
-func MakeFreshKVClerk(host HostName, c *connman.ConnMan) *MemKVShardClerk {
+func MakeFreshKVShardClerk(host HostName, c *connman.ConnMan) *MemKVShardClerk {
 	ck := new(MemKVShardClerk)
 	ck.host = host
 	ck.c = c

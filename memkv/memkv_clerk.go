@@ -6,7 +6,7 @@ import (
 
 type MemKVCoordClerk struct {
 	host HostName
-	c *connman.ConnMan
+	c    *connman.ConnMan
 }
 
 func (ck *MemKVCoordClerk) AddShardServer(dst HostName) {
@@ -28,6 +28,7 @@ type MemKVClerk struct {
 	shardClerks *ShardClerkSet
 	coordCk     *MemKVCoordClerk
 	shardMap    []HostName // size == NSHARD; maps from sid -> host that currently owns it
+	cm          *connman.ConnMan
 }
 
 func (ck *MemKVClerk) Get(key uint64) []byte {
@@ -86,14 +87,14 @@ func (ck *MemKVClerk) Add(host HostName) {
 	ck.coordCk.AddShardServer(host)
 }
 
-func MakeMemKVClerk(coord HostName) *MemKVClerk {
-	c := connman.MakeConnMan()
+func MakeMemKVClerk(coord HostName, cm *connman.ConnMan) *MemKVClerk {
 	cck := new(MemKVCoordClerk)
 	ck := new(MemKVClerk)
+	ck.cm = cm
 	ck.coordCk = cck
 	ck.coordCk.host = coord
-	ck.coordCk.c = c
-	ck.shardClerks = MakeShardClerkSet(c)
+	ck.coordCk.c = cm
+	ck.shardClerks = MakeShardClerkSet(cm)
 	ck.shardMap = ck.coordCk.GetShardMap()
 	return ck
 }
