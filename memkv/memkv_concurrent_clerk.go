@@ -16,12 +16,13 @@ type KVClerkPool struct {
 
 func (p *KVClerkPool) getClerk() *MemKVClerk {
 	p.mu.Lock()
-	if len(p.freeClerks) == 0 {
+	n := len(p.freeClerks)
+	if n == 0 {
 		p.mu.Unlock() // don't want to hold lock while making a fresh clerk
 		return MakeMemKVClerk(p.coord)
 	} else {
-		ck := p.freeClerks[0]
-		p.freeClerks = p.freeClerks[1:]
+		ck := p.freeClerks[n-1]
+		p.freeClerks = p.freeClerks[:n-1]
 		p.mu.Unlock()
 		return ck
 	}
@@ -57,6 +58,18 @@ func (p *KVClerkPool) Get(key uint64) []byte {
 	p.putClerk(ck)
 
 	return value
+}
+
+func (p *KVClerkPool) ConditionalPut(key uint64, expectedValue []byte, newValue []byte) bool {
+	ck := p.getClerk()
+
+	// we now own ck
+	ret := ck.ConditionalPut(key, expectedValue, newValue)
+
+	// done with ck, so asynchronously put it back in the free list
+	p.putClerk(ck)
+
+	return ret
 }
 
 // returns a slice of "values" (which are byte slices) in the same order as the
