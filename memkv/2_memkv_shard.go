@@ -9,7 +9,7 @@ import (
 
 type KvMap = map[uint64][]byte
 
-type MemKVShardServer struct {
+type KVShardServer struct {
 	me        string //
 	mu        *sync.Mutex
 	lastReply map[uint64]ShardReply
@@ -19,7 +19,7 @@ type MemKVShardServer struct {
 	shardMap []bool // \box(size=NSHARDS)
 	// if anything is in shardMap, then we have a map[] initialized in kvss
 	kvss  []KvMap // \box(size=NSHARDS)
-	peers map[HostName]*MemKVShardClerk
+	peers map[HostName]*KVShardClerk // FIXME use ShardClerkSet, maybe?
 	cm *connman.ConnMan
 }
 
@@ -28,7 +28,7 @@ type PutArgs struct {
 	Value ValueType
 }
 
-func (s *MemKVShardServer) put_inner(args *PutRequest, reply *PutReply) {
+func (s *KVShardServer) put_inner(args *PutRequest, reply *PutReply) {
 	last, ok := s.lastSeq[args.CID]
 	seq := args.Seq
 	if ok && seq <= last {
@@ -49,13 +49,13 @@ func (s *MemKVShardServer) put_inner(args *PutRequest, reply *PutReply) {
 	s.lastReply[args.CID] = ShardReply{Err: reply.Err}
 }
 
-func (s *MemKVShardServer) PutRPC(args *PutRequest, reply *PutReply) {
+func (s *KVShardServer) PutRPC(args *PutRequest, reply *PutReply) {
 	s.mu.Lock()
 	s.put_inner(args, reply)
 	s.mu.Unlock()
 }
 
-func (s *MemKVShardServer) get_inner(args *GetRequest, reply *GetReply) {
+func (s *KVShardServer) get_inner(args *GetRequest, reply *GetReply) {
 	last, ok := s.lastSeq[args.CID]
 	seq := args.Seq
 	if ok && seq <= last {
@@ -77,13 +77,13 @@ func (s *MemKVShardServer) get_inner(args *GetRequest, reply *GetReply) {
 	s.lastReply[args.CID] = ShardReply{Err: reply.Err, Value: reply.Value}
 }
 
-func (s *MemKVShardServer) GetRPC(args *GetRequest, reply *GetReply) {
+func (s *KVShardServer) GetRPC(args *GetRequest, reply *GetReply) {
 	s.mu.Lock()
 	s.get_inner(args, reply)
 	s.mu.Unlock()
 }
 
-func (s *MemKVShardServer) conditional_put_inner(args *ConditionalPutRequest, reply *ConditionalPutReply) {
+func (s *KVShardServer) conditional_put_inner(args *ConditionalPutRequest, reply *ConditionalPutReply) {
 	last, ok := s.lastSeq[args.CID]
 	seq := args.Seq
 	if ok && seq <= last {
@@ -111,7 +111,7 @@ func (s *MemKVShardServer) conditional_put_inner(args *ConditionalPutRequest, re
 	s.lastReply[args.CID] = ShardReply{Err: reply.Err, Success: reply.Success}
 }
 
-func (s *MemKVShardServer) ConditionalPutRPC(args *ConditionalPutRequest, reply *ConditionalPutReply) {
+func (s *KVShardServer) ConditionalPutRPC(args *ConditionalPutRequest, reply *ConditionalPutReply) {
 	s.mu.Lock()
 	s.conditional_put_inner(args, reply)
 	s.mu.Unlock()
@@ -123,7 +123,7 @@ func (s *MemKVShardServer) ConditionalPutRPC(args *ConditionalPutRequest, reply 
 // will only grant half the ghost state, and physical state will keep track of
 // the fact that the shard is only good for read-only operations up until that
 // flag is updated (i.e. until RemoveShard() is run).
-func (s *MemKVShardServer) install_shard_inner(args *InstallShardRequest) {
+func (s *KVShardServer) install_shard_inner(args *InstallShardRequest) {
 	// log.Printf("SHARD INSTALLING %d", args.Sid)
 	last, ok := s.lastSeq[args.CID]
 	seq := args.Seq
@@ -138,13 +138,13 @@ func (s *MemKVShardServer) install_shard_inner(args *InstallShardRequest) {
 	// log.Printf("SHARD FINISHED INSTALLING %d", args.Sid)
 }
 
-func (s *MemKVShardServer) InstallShardRPC(args *InstallShardRequest) {
+func (s *KVShardServer) InstallShardRPC(args *InstallShardRequest) {
 	s.mu.Lock()
 	s.install_shard_inner(args)
 	s.mu.Unlock()
 }
 
-func (s *MemKVShardServer) MoveShardRPC(args *MoveShardRequest) {
+func (s *KVShardServer) MoveShardRPC(args *MoveShardRequest) {
 	s.mu.Lock()
 	_, ok := s.peers[args.Dst]
 	if !ok {
@@ -167,14 +167,14 @@ func (s *MemKVShardServer) MoveShardRPC(args *MoveShardRequest) {
 	s.mu.Unlock()
 }
 
-func MakeMemKVShardServer(is_init bool) *MemKVShardServer {
-	srv := new(MemKVShardServer)
+func MakeKVShardServer(is_init bool) *KVShardServer {
+	srv := new(KVShardServer)
 	srv.mu = new(sync.Mutex)
 	srv.lastReply = make(map[uint64]ShardReply)
 	srv.lastSeq = make(map[uint64]uint64)
 	srv.shardMap = make([]bool, NSHARD)
 	srv.kvss = make([]KvMap, NSHARD)
-	srv.peers = make(map[HostName]*MemKVShardClerk)
+	srv.peers = make(map[HostName]*KVShardClerk)
 	srv.cm = connman.MakeConnMan()
 	for i := uint64(0); i < NSHARD; i++ {
 		srv.shardMap[i] = is_init
@@ -185,7 +185,7 @@ func MakeMemKVShardServer(is_init bool) *MemKVShardServer {
 	return srv
 }
 
-func (s *MemKVShardServer) GetCIDRPC() uint64 {
+func (s *KVShardServer) GetCIDRPC() uint64 {
 	s.mu.Lock()
 	r := s.nextCID
 	// Overflowing a 64bit counter will take a while, assume it dos not happen
@@ -195,7 +195,7 @@ func (s *MemKVShardServer) GetCIDRPC() uint64 {
 	return r
 }
 
-func (mkv *MemKVShardServer) Start(host HostName) {
+func (mkv *KVShardServer) Start(host HostName) {
 	handlers := make(map[uint64]func([]byte, *[]byte))
 
 	handlers[KV_FRESHCID] = func(rawReq []byte, rawReply *[]byte) {

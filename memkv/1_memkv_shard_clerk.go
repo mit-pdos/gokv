@@ -5,15 +5,15 @@ import (
 	"github.com/goose-lang/std"
 )
 
-type MemKVShardClerk struct {
+type KVShardClerk struct {
 	seq uint64
 	cid uint64
 	host HostName
 	c *connman.ConnMan
 }
 
-func MakeFreshKVShardClerk(host HostName, c *connman.ConnMan) *MemKVShardClerk {
-	ck := new(MemKVShardClerk)
+func MakeFreshKVShardClerk(host HostName, c *connman.ConnMan) *KVShardClerk {
+	ck := new(KVShardClerk)
 	ck.host = host
 	ck.c = c
 	rawRep := new([]byte)
@@ -24,7 +24,7 @@ func MakeFreshKVShardClerk(host HostName, c *connman.ConnMan) *MemKVShardClerk {
 	return ck
 }
 
-func (ck *MemKVShardClerk) Put(key uint64, value []byte) ErrorType {
+func (ck *KVShardClerk) Put(key uint64, value []byte) ErrorType {
 	args := new(PutRequest)
 	args.CID = ck.cid
 	args.Seq = ck.seq
@@ -39,7 +39,7 @@ func (ck *MemKVShardClerk) Put(key uint64, value []byte) ErrorType {
 	return rep.Err
 }
 
-func (ck *MemKVShardClerk) Get(key uint64, value *[]byte) ErrorType {
+func (ck *KVShardClerk) Get(key uint64, value *[]byte) ErrorType {
 	args := new(GetRequest)
 	args.CID = ck.cid
 	args.Seq = ck.seq
@@ -54,7 +54,7 @@ func (ck *MemKVShardClerk) Get(key uint64, value *[]byte) ErrorType {
 	return rep.Err
 }
 
-func (ck *MemKVShardClerk) ConditionalPut(key uint64, expectedValue []byte, newValue []byte, success *bool) ErrorType {
+func (ck *KVShardClerk) ConditionalPut(key uint64, expectedValue []byte, newValue []byte, success *bool) ErrorType {
 	args := new(ConditionalPutRequest)
 	args.CID = ck.cid
 	args.Seq = ck.seq
@@ -71,7 +71,7 @@ func (ck *MemKVShardClerk) ConditionalPut(key uint64, expectedValue []byte, newV
 	return rep.Err
 }
 
-func (ck *MemKVShardClerk) InstallShard(sid uint64, kvs map[uint64][]byte) {
+func (ck *KVShardClerk) InstallShard(sid uint64, kvs map[uint64][]byte) {
 	// log.Printf("InstallShard %d starting", sid)
 	args := new(InstallShardRequest)
 	args.CID = ck.cid
@@ -86,11 +86,32 @@ func (ck *MemKVShardClerk) InstallShard(sid uint64, kvs map[uint64][]byte) {
 	// log.Printf("InstallShard %d finished", sid)
 }
 
-func (ck *MemKVShardClerk) MoveShard(sid uint64, dst HostName) {
+func (ck *KVShardClerk) MoveShard(sid uint64, dst HostName) {
 	args := new(MoveShardRequest)
 	args.Sid = sid
 	args.Dst = dst
 
 	rawRep := new([]byte)
 	ck.c.CallAtLeastOnce(ck.host, KV_MOV_SHARD, encodeMoveShardRequest(args), rawRep, 100/*ms*/)
+}
+
+// The coordinator, and the main clerk, need to talk to a bunch of shards.
+type ShardClerkSet struct {
+	cls map[HostName]*KVShardClerk
+	c *connman.ConnMan
+}
+
+func MakeShardClerkSet(c *connman.ConnMan) *ShardClerkSet {
+	return &ShardClerkSet{cls: make(map[HostName]*KVShardClerk), c: c}
+}
+
+func (s *ShardClerkSet) GetClerk(host HostName) *KVShardClerk {
+	ck, ok := s.cls[host]
+	if !ok {
+		ck2 := MakeFreshKVShardClerk(host, s.c)
+		s.cls[host] = ck2
+		return ck2
+	} else {
+		return ck
+	}
 }

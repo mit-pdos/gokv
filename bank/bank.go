@@ -8,7 +8,7 @@ import (
 
 type BankClerk struct {
 	lck  *lockservice.LockClerk
-	kvck *memkv.MemKVClerk
+	kvck *memkv.SeqKVClerk
 	acc1 uint64
 	acc2 uint64
 }
@@ -63,7 +63,7 @@ func (bck *BankClerk) SimpleAudit() uint64 {
 func MakeBankClerk(lockhost memkv.HostName, kvhost memkv.HostName, cm *connman.ConnMan, acc1 uint64, acc2 uint64, cid uint64) *BankClerk {
 	bck := new(BankClerk)
 	bck.lck = lockservice.MakeLockClerk(lockhost, cm)
-	bck.kvck = memkv.MakeMemKVClerk(kvhost, cm)
+	bck.kvck = memkv.MakeSeqKVClerk(kvhost, cm)
 	bck.acc1 = acc1
 	bck.acc2 = acc2
 	return bck

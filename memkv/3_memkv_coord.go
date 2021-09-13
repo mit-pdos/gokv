@@ -10,34 +10,14 @@ import (
 const COORD_ADD = uint64(1)
 const COORD_GET = uint64(2)
 
-type ShardClerkSet struct {
-	cls map[HostName]*MemKVShardClerk
-	c *connman.ConnMan
-}
-
-func MakeShardClerkSet(c *connman.ConnMan) *ShardClerkSet {
-	return &ShardClerkSet{cls: make(map[HostName]*MemKVShardClerk), c: c}
-}
-
-func (s *ShardClerkSet) GetClerk(host HostName) *MemKVShardClerk {
-	ck, ok := s.cls[host]
-	if !ok {
-		ck2 := MakeFreshKVShardClerk(host, s.c)
-		s.cls[host] = ck2
-		return ck2
-	} else {
-		return ck
-	}
-}
-
-type MemKVCoord struct {
+type KVCoord struct {
 	mu          *sync.Mutex
 	shardMap    []HostName          // maps from sid -> host that currently owns it
 	hostShards  map[HostName]uint64 // maps from host -> num shard that it currently has
 	shardClerks *ShardClerkSet
 }
 
-func (c *MemKVCoord) AddServerRPC(newhost HostName) {
+func (c *KVCoord) AddServerRPC(newhost HostName) {
 	c.mu.Lock()
 	// Greedily rebalances shards using minimum number of migrations
 
@@ -81,14 +61,14 @@ func (c *MemKVCoord) AddServerRPC(newhost HostName) {
 	c.mu.Unlock()
 }
 
-func (c *MemKVCoord) GetShardMapRPC(_ []byte, rep *[]byte) {
+func (c *KVCoord) GetShardMapRPC(_ []byte, rep *[]byte) {
 	c.mu.Lock()
 	*rep = encodeShardMap(&c.shardMap)
 	c.mu.Unlock()
 }
 
-func MakeMemKVCoordServer(initserver HostName) *MemKVCoord {
-	s := new(MemKVCoord)
+func MakeKVCoordServer(initserver HostName) *KVCoord {
+	s := new(KVCoord)
 	s.mu = new(sync.Mutex)
 
 	s.shardMap = make([]HostName, NSHARD)
@@ -101,7 +81,7 @@ func MakeMemKVCoordServer(initserver HostName) *MemKVCoord {
 	return s
 }
 
-func (c *MemKVCoord) Start(host HostName) {
+func (c *KVCoord) Start(host HostName) {
 	handlers := make(map[uint64]func([]byte, *[]byte))
 	handlers[COORD_ADD] = func(rawReq []byte, rawRep *[]byte) {
 		s := DecodeUint64(rawReq)

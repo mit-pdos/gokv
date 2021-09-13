@@ -6,7 +6,7 @@ import (
 )
 
 type LockClerk struct {
-	kv *memkv.MemKVClerk
+	kv *memkv.KVClerk
 }
 
 func (ck *LockClerk) Lock(key uint64) {
@@ -20,6 +20,6 @@ func (ck *LockClerk) Unlock(key uint64) {
 
 func MakeLockClerk(lockhost memkv.HostName, cm *connman.ConnMan) *LockClerk {
 	return &LockClerk{
-		kv: memkv.MakeMemKVClerk(lockhost, cm),
+		kv: memkv.MakeKVClerk(lockhost, cm),
 	}
 }
