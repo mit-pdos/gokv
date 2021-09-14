@@ -21,7 +21,7 @@ func (p *KVClerk) getSeqClerk() *SeqKVClerk {
 	n := len(p.freeClerks)
 	if n == 0 {
 		p.mu.Unlock() // don't want to hold lock while making a fresh clerk
-		return MakeSeqKVClerk(p.coord, p.cm)
+		return MakeSeqKVClerk(p.coord, connman.MakeConnMan()) // XXX: different connman for each seqkvclerk
 	} else {
 		ck := p.freeClerks[n-1]
 		p.freeClerks = p.freeClerks[:n-1]
