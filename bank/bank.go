@@ -83,7 +83,7 @@ func MakeBankClerk(lockhost memkv.HostName, kvhost memkv.HostName, cm *connman.C
 	if (std.BytesEqual(bck.kvck.Get(init_flag), make([]byte, 0))) {
 		bck.kvck.Put(acc1, memkv.EncodeUint64(BAL_TOTAL))
 		bck.kvck.Put(acc2, memkv.EncodeUint64(0))
-		bck.kvck.Put(init_flag, memkv.EncodeUint64(1))
+		bck.kvck.Put(init_flag, make([]byte, 1))
 	}
 	bck.lck.Unlock(init_flag)
 
