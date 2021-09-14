@@ -30,7 +30,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	s := memkv.MakeMemKVShardServer(is_init)
+	s := memkv.MakeKVShardServer(is_init)
 	me := grove_ffi.MakeAddress(fmt.Sprintf("0.0.0.0:%d", port))
 	log.Printf("Started shard server on port %d; id %d", port, me)
 	s.Start(me)

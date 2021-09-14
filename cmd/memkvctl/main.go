@@ -29,7 +29,7 @@ func main() {
 	usage_assert(coordStr != "")
 
 	coord := grove_ffi.MakeAddress(coordStr)
-	ck := memkv.MakeMemKVClerk(coord, connman.MakeConnMan())
+	ck := memkv.MakeKVClerk(coord, connman.MakeConnMan())
 
 	a := flag.Args()
 	usage_assert(len(a) > 0)

@@ -74,6 +74,12 @@ func (p *KVClerk) ConditionalPut(key uint64, expectedValue []byte, newValue []by
 	return ret
 }
 
+func (p *KVClerk) Add(host HostName) {
+	ck := p.getSeqClerk()
+	ck.coordCk.AddShardServer(host)
+	p.putSeqClerk(ck)
+}
+
 // returns a slice of "values" (which are byte slices) in the same order as the
 // keys passed in as input
 // FIXME: benchmark
