@@ -11,7 +11,7 @@ type KVCoordClerk struct {
 
 func (ck *KVCoordClerk) AddShardServer(dst HostName) {
 	rawRep := new([]byte)
-	ck.c.CallAtLeastOnce(ck.host, COORD_ADD, EncodeUint64(dst), rawRep, 10000 /*ms*/)
+	ck.c.CallAtLeastOnce(ck.host, COORD_ADD, EncodeUint64(dst), rawRep, 50000 /*ms*/)
 	return
 }
 
