@@ -1,10 +1,14 @@
 package bank
 
 import (
+	"github.com/goose-lang/std"
 	"github.com/mit-pdos/gokv/lockservice"
 	"github.com/mit-pdos/gokv/memkv"
 	"github.com/mit-pdos/gokv/connman"
 )
+
+// The maximum money supply, initially will all belong to acc1
+const BAL_TOTAL = uint64(1000)
 
 type BankClerk struct {
 	lck  *lockservice.LockClerk
@@ -52,19 +56,36 @@ func (bck *BankClerk) SimpleTransfer(amount uint64) {
 	bck.transfer_internal(bck.acc1, bck.acc2, amount)
 }
 
-// If account balance in acc_from is at least amount, transfer amount to acc_to
-func (bck *BankClerk) SimpleAudit() uint64 {
+func (bck *BankClerk) get_total() uint64 {
 	acquire_two(bck.lck, bck.acc1, bck.acc2)
 	sum := memkv.DecodeUint64(bck.kvck.Get(bck.acc1)) + memkv.DecodeUint64(bck.kvck.Get(bck.acc2))
 	release_two(bck.lck, bck.acc1, bck.acc2)
 	return sum
 }
 
-func MakeBankClerk(lockhost memkv.HostName, kvhost memkv.HostName, cm *connman.ConnMan, acc1 uint64, acc2 uint64, cid uint64) *BankClerk {
+func (bck *BankClerk) SimpleAudit() {
+	for {
+		if(bck.get_total() != BAL_TOTAL) {
+			panic("Balance total invariant violated")
+		}
+	}
+}
+
+func MakeBankClerk(lockhost memkv.HostName, kvhost memkv.HostName, cm *connman.ConnMan, init_flag uint64, acc1 uint64, acc2 uint64, cid uint64) *BankClerk {
 	bck := new(BankClerk)
 	bck.lck = lockservice.MakeLockClerk(lockhost, cm)
 	bck.kvck = memkv.MakeSeqKVClerk(kvhost, cm)
 	bck.acc1 = acc1
 	bck.acc2 = acc2
+
+	bck.lck.Lock(init_flag)
+	// If init_flag has an empty value, initialize the accounts and set the flag.
+	if (std.BytesEqual(bck.kvck.Get(init_flag), make([]byte, 0))) {
+		bck.kvck.Put(acc1, memkv.EncodeUint64(BAL_TOTAL))
+		bck.kvck.Put(acc2, memkv.EncodeUint64(0))
+		bck.kvck.Put(init_flag, memkv.EncodeUint64(1))
+	}
+	bck.lck.Unlock(init_flag)
+
 	return bck
 }
