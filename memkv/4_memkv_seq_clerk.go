@@ -17,7 +17,7 @@ func (ck *KVCoordClerk) AddShardServer(dst HostName) {
 
 func (ck *KVCoordClerk) GetShardMap() []HostName {
 	rawRep := new([]byte)
-	ck.c.CallAtLeastOnce(ck.host, COORD_GET, make([]byte, 0), rawRep, 2000 /*ms*/)
+	ck.c.CallAtLeastOnce(ck.host, COORD_GET, make([]byte, 0), rawRep, 50000 /*ms*/)
 	return decodeShardMap(*rawRep)
 }
 
