@@ -16,7 +16,7 @@ const (
 	EDontHaveShard = uint64(1)
 )
 
-const NSHARD = uint64(65536)
+const NSHARD = uint64(1024)
 
 // rpc ids
 const KV_FRESHCID = uint64(0)
