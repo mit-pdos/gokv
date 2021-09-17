@@ -74,9 +74,10 @@ func (p *KVClerk) ConditionalPut(key uint64, expectedValue []byte, newValue []by
 	return ret
 }
 
+// FIXME: rename to AddShardServer
 func (p *KVClerk) Add(host HostName) {
 	ck := p.getSeqClerk()
-	ck.coordCk.AddShardServer(host)
+	ck.Add(host)
 	p.putSeqClerk(ck)
 }
 
