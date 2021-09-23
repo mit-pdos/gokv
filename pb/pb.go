@@ -56,3 +56,7 @@ func (b *BackupServer) UpdateLogRPC(log []byte) {
 	}
 	b.mu.Unlock()
 }
+
+func (p *BackupServer) TryToBecomePrimaryRPC() {
+
+}
