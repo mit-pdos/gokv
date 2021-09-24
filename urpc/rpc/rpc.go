@@ -191,6 +191,8 @@ func (cl *RPCClient) Call(rpcid uint64, args []byte, reply *[]byte, timeout_ms u
 		if state == callbackStateAborted {
 			return ErrDisconnect
 		} else {
+			// FIXME: in case of timeout, resend message with the same "seq", so that if the
+			// server responds to a resend, we accept that response for the original request.
 			return ErrTimeout
 		}
 	}
