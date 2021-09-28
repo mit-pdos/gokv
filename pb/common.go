@@ -6,7 +6,6 @@ import (
 )
 
 type PBConfiguration struct {
-	cn       uint64
 	replicas []rpc.HostName
 	primary  rpc.HostName
 }
@@ -16,6 +15,7 @@ func EncodePBConfiguration(p *PBConfiguration) []byte {
 	return nil
 }
 
-func DecodePBConfiguration(data []byte, p *PBConfiguration) {
+func DecodePBConfiguration(d []byte) *PBConfiguration {
 	// FIXME: impl
+	return nil
 }

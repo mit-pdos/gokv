@@ -45,6 +45,21 @@ func DecodePutArgs(data []byte) *PutArgs {
 	return args
 }
 
+func EncodeVersionedValue(v *VersionedValue) []byte {
+	enc := marshal.NewEnc(8 + uint64(len(v.val)))
+	enc.PutInt(v.ver)
+	enc.PutBytes(v.val)
+	return enc.Finish()
+}
+
+func DecodeVersionedValue(data []byte) *VersionedValue {
+	dec := marshal.NewDec(data)
+	v := new(VersionedValue)
+	v.ver = dec.GetInt()
+	v.val = dec.GetBytes(uint64(len(data)) - 8)
+	return v
+}
+
 func (s *ConfServer) PutRPC(args *PutArgs) bool {
 	s.mu.Lock()
 	_, ok := s.kvs[args.key]
@@ -96,4 +111,21 @@ func (c *ConfClerk) Put(key, prevVer uint64, newVal []byte) bool {
 		return (uint64(len(*raw_reply)) > 0)
 	}
 	return false
+}
+
+func (c *ConfClerk) Get(key uint64) *VersionedValue {
+	raw_reply := new([]byte)
+	raw_args := make([]byte, 8)
+	machine.UInt64Put(raw_args, key)
+
+	err := c.cl.Call(CONF_GET, raw_args, raw_reply, 100 /* ms */)
+	if err == 0 {
+		return DecodeVersionedValue(*raw_reply)
+	}
+	// FIXME: else retry or report error
+	return nil
+}
+
+func MakeConfClerk(confServer rpc.HostName) *ConfClerk {
+	return nil
 }

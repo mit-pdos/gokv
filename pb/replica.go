@@ -1,14 +1,18 @@
 package pb
 
 import (
-	// "github.com/mit-pdos/gokv/urpc/rpc"
+	"github.com/mit-pdos/gokv/urpc/rpc"
 	"sync"
 )
 
+type LogEntry = []byte
+
 type ReplicaServer struct {
 	mu        *sync.Mutex
-	opLog     []byte
+	opLog     []LogEntry
 	commitIdx uint64
+
+	cn        uint64 // conf num
 	conf      *PBConfiguration
 	isPrimary bool // optimization
 
@@ -17,37 +21,51 @@ type ReplicaServer struct {
 
 // This should be invoked locally by services to attempt appending op to the
 // log
-func (s *ReplicaServer) Append(op []byte) bool {
+func (s *ReplicaServer) StartAppend(op LogEntry) bool {
 	s.mu.Lock()
 	if s.isPrimary {
 		return false
 		s.mu.Unlock()
 	}
-	s.opLog = append(s.opLog, op...)
+	s.opLog = append(s.opLog, op)
 	s.mu.Unlock()
 	return true
 }
 
+func (s *ReplicaServer) Append(op LogEntry) bool {
+	s.mu.Lock()
+	if s.isPrimary {
+		return false
+		s.mu.Unlock()
+	}
+	s.opLog = append(s.opLog, op)
+	s.mu.Unlock()
+	// FIXME: make AppendRPCs to all of the servers and collect their responses.
+	// If any of them time out, kick them out of the system.
+	return true
+}
+
+func (s *ReplicaServer) GetNextLogEntry() []byte {
+	// FIXME: impl
+	return nil
+}
+
 type AppendArgs struct {
 	cn        uint64
-	logid     uint64
-	entries   []byte
+	log       []LogEntry
 	commitIdx uint64
 }
 
 func (s *ReplicaServer) AppendRPC(args AppendArgs) bool {
 	s.mu.Lock()
-	if s.conf.cn != args.cn {
+	if s.cn != args.cn {
 		// FIXME: if args.cn > s.conf.cn, then we should talk to the confserver
 		s.mu.Unlock()
 		return false
 	}
 
-	if args.logid+uint64(len(args.entries)) > uint64(len(s.opLog)) {
-		// XXX: can prove that len(s.opLog) >= logid(!)
-		// FIXME: to account for case of args.cn > s.conf.cn, we should
-		// overwrite s.opLog with whatever is in args.entries
-		s.opLog = append(s.opLog, args.entries[uint64(len(s.opLog))-args.logid:]...)
+	if uint64(len(args.log)) > uint64(len(s.opLog)) {
+		s.opLog = args.log
 	}
 	if args.commitIdx > s.commitIdx {
 		s.commitIdx = args.commitIdx
@@ -57,11 +75,24 @@ func (s *ReplicaServer) AppendRPC(args AppendArgs) bool {
 	return true
 }
 
-// For adding a new server into the system. A backup or primary (or anyone that
-// can) invokes this with the committed part of the log.
-// This returns a witness that the
-func (s *ReplicaServer) CatchUpRPC(log []byte) {
+// used for recovery/adding a new node into the system
+func (s *ReplicaServer) GetLogRPC(_ []byte, reply *[]byte) {
 	s.mu.Lock()
-	// FIXME: impl
+	// FIXME: have to marshal this now...
+	// *reply = s.opLog
 	s.mu.Unlock()
+}
+
+func StartReplicaServer(me rpc.HostName, confServer rpc.HostName) *ReplicaServer {
+	s := new(ReplicaServer)
+	s.mu = new(sync.Mutex)
+	s.opLog = make([]LogEntry, 0)
+	s.commitIdx = 0
+	s.confClerk = MakeConfClerk(confServer)
+	v := s.confClerk.Get(0)
+	s.cn = v.ver
+	s.conf = DecodePBConfiguration(v.val)
+
+	s.isPrimary = (me == s.conf.primary)
+	return s
 }
