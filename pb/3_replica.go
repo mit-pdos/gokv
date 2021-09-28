@@ -20,7 +20,7 @@ type ReplicaServer struct {
 	isPrimary bool
 
 	// matchIndex []uint64 //
-	matchLog []([]LogEntry)
+	matchLog [][]LogEntry
 }
 
 // This should be invoked locally by services to attempt appending op to the
@@ -28,8 +28,8 @@ type ReplicaServer struct {
 func (s *ReplicaServer) StartAppend(op LogEntry) bool {
 	s.mu.Lock()
 	if s.isPrimary {
-		return false
 		s.mu.Unlock()
+		return false
 	}
 	s.opLog = append(s.opLog, op)
 	s.mu.Unlock()
@@ -39,8 +39,8 @@ func (s *ReplicaServer) StartAppend(op LogEntry) bool {
 func (s *ReplicaServer) Append(op LogEntry) bool {
 	s.mu.Lock()
 	if s.isPrimary {
-		return false
 		s.mu.Unlock()
+		return false
 	}
 	s.opLog = append(s.opLog, op)
 
@@ -55,7 +55,8 @@ func (s *ReplicaServer) Append(op LogEntry) bool {
 	// If any of them time out, kick them out of the system.
 
 	for i, ck := range clerks {
-		go func(ck *ReplicaClerk) {
+		ck := ck // XXX: because goose doesn't support passing in parameters
+		go func() {
 			ck.AppendRPC(args)
 			s.mu.Lock()
 			if s.cn == args.cn {
@@ -64,7 +65,7 @@ func (s *ReplicaServer) Append(op LogEntry) bool {
 				}
 			}
 			s.mu.Unlock()
-		}(ck)
+		}()
 	}
 	return true
 }
@@ -72,12 +73,6 @@ func (s *ReplicaServer) Append(op LogEntry) bool {
 func (s *ReplicaServer) GetNextLogEntry() []byte {
 	// FIXME: impl
 	return nil
-}
-
-type AppendArgs struct {
-	cn        uint64
-	log       []LogEntry
-	commitIdx uint64
 }
 
 func (s *ReplicaServer) AppendRPC(args AppendArgs) bool {

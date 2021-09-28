@@ -4,6 +4,12 @@ import (
 	"github.com/mit-pdos/gokv/urpc/rpc"
 )
 
+type AppendArgs struct {
+	cn        uint64
+	log       []LogEntry
+	commitIdx uint64
+}
+
 type ReplicaClerk struct {
 	cl *rpc.RPCClient
 }
