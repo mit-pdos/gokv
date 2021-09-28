@@ -8,15 +8,19 @@ import (
 type LogEntry = []byte
 
 type ReplicaServer struct {
-	mu        *sync.Mutex
+	mu   *sync.Mutex
+	cn   uint64 // conf num
+	conf *PBConfiguration
+
+	confClerk     *ConfClerk
+	replicaClerks []*ReplicaClerk
+
 	opLog     []LogEntry
 	commitIdx uint64
+	isPrimary bool
 
-	cn        uint64 // conf num
-	conf      *PBConfiguration
-	isPrimary bool // optimization
-
-	confClerk *ConfClerk
+	// matchIndex []uint64 //
+	matchLog []([]LogEntry)
 }
 
 // This should be invoked locally by services to attempt appending op to the
@@ -39,9 +43,29 @@ func (s *ReplicaServer) Append(op LogEntry) bool {
 		s.mu.Unlock()
 	}
 	s.opLog = append(s.opLog, op)
+
+	clerks := s.replicaClerks
+	args := AppendArgs{
+		cn:        s.cn,
+		log:       s.opLog,
+		commitIdx: s.commitIdx,
+	}
 	s.mu.Unlock()
 	// FIXME: make AppendRPCs to all of the servers and collect their responses.
 	// If any of them time out, kick them out of the system.
+
+	for i, ck := range clerks {
+		go func(ck *ReplicaClerk) {
+			ck.AppendRPC(args)
+			s.mu.Lock()
+			if s.cn == args.cn {
+				if len(s.matchLog[i]) > len(args.log) {
+					s.matchLog[i] = args.log
+				}
+			}
+			s.mu.Unlock()
+		}(ck)
+	}
 	return true
 }
 
