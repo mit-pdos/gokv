@@ -8,19 +8,20 @@ import (
 type LogEntry = []byte
 
 type ReplicaServer struct {
-	mu   *sync.Mutex
-	cn   uint64 // conf num
-	conf *PBConfiguration
+	mu        *sync.Mutex
+	cn        uint64 // conf num
+	conf      *PBConfiguration
+	isPrimary bool
 
 	confClerk     *ConfClerk
 	replicaClerks []*ReplicaClerk
 
-	opLog     []LogEntry
-	commitIdx uint64
-	isPrimary bool
+	opLog []LogEntry
 
-	// matchIndex []uint64 //
-	matchLog [][]LogEntry
+	commitIdx  uint64
+	appliedIdx uint64
+	commitCond *sync.Cond
+	matchIdx []uint64
 }
 
 // This should be invoked locally by services to attempt appending op to the
@@ -34,6 +35,16 @@ func (s *ReplicaServer) StartAppend(op LogEntry) bool {
 	s.opLog = append(s.opLog, op)
 	s.mu.Unlock()
 	return true
+}
+
+func min(l []uint64) uint64 {
+	var m uint64 = uint64(18446744073709551615)
+	for _, v := range l {
+		if v < m {
+			m = v
+		}
+	}
+	return m
 }
 
 func (s *ReplicaServer) Append(op LogEntry) bool {
@@ -51,8 +62,8 @@ func (s *ReplicaServer) Append(op LogEntry) bool {
 		commitIdx: s.commitIdx,
 	}
 	s.mu.Unlock()
-	// FIXME: make AppendRPCs to all of the servers and collect their responses.
-	// If any of them time out, kick them out of the system.
+	// FIXME: If any replicas time out, kick them out of the system.
+	// TODO: replica can respond back to primary with newer config num
 
 	for i, ck := range clerks {
 		ck := ck // XXX: because goose doesn't support passing in parameters
@@ -60,8 +71,15 @@ func (s *ReplicaServer) Append(op LogEntry) bool {
 			ck.AppendRPC(args)
 			s.mu.Lock()
 			if s.cn == args.cn {
-				if len(s.matchLog[i]) > len(args.log) {
-					s.matchLog[i] = args.log
+				if s.matchIdx[i] < uint64(len(args.log)) {
+					s.matchIdx[i] = uint64(len(args.log))
+
+					// check if commitIdx can be increased
+					m := min(s.matchIdx)
+					if m > s.commitIdx {
+						s.commitIdx = m
+						s.commitCond.Signal()
+					}
 				}
 			}
 			s.mu.Unlock()
@@ -70,9 +88,16 @@ func (s *ReplicaServer) Append(op LogEntry) bool {
 	return true
 }
 
-func (s *ReplicaServer) GetNextLogEntry() []byte {
-	// FIXME: impl
-	return nil
+func (s *ReplicaServer) GetNextLogEntry() LogEntry {
+	s.mu.Lock()
+	for s.appliedIdx >= s.commitIdx {
+		s.commitCond.Wait()
+	}
+
+	s.appliedIdx += 1
+	ret := s.opLog[s.commitIdx]
+	s.mu.Unlock()
+	return ret
 }
 
 func (s *ReplicaServer) AppendRPC(args AppendArgs) bool {
@@ -88,7 +113,7 @@ func (s *ReplicaServer) AppendRPC(args AppendArgs) bool {
 	}
 	if args.commitIdx > s.commitIdx {
 		s.commitIdx = args.commitIdx
-		// FIXME: signal commitIdx
+		s.commitCond.Signal()
 	}
 	s.mu.Unlock()
 	return true
@@ -102,7 +127,7 @@ func (s *ReplicaServer) GetLogRPC(_ []byte, reply *[]byte) {
 	s.mu.Unlock()
 }
 
-func StartReplicaServer(me rpc.HostName, confServer rpc.HostName) *ReplicaServer {
+func StartReplicaServer(me rpc.HostName, confServer rpc.HostName) {
 	s := new(ReplicaServer)
 	s.mu = new(sync.Mutex)
 	s.opLog = make([]LogEntry, 0)
@@ -113,5 +138,4 @@ func StartReplicaServer(me rpc.HostName, confServer rpc.HostName) *ReplicaServer
 	s.conf = DecodePBConfiguration(v.val)
 
 	s.isPrimary = (me == s.conf.primary)
-	return s
 }
