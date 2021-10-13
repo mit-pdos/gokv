@@ -2,6 +2,7 @@ package pb
 
 import (
 	"github.com/mit-pdos/gokv/urpc/rpc"
+	"github.com/tchajed/marshal"
 )
 
 const REPLICA_APPEND = uint64(0)
@@ -12,8 +13,25 @@ const REPLICA_APPEND = uint64(0)
 
 type AppendArgs struct {
 	cn        uint64
-	log       []LogEntry
 	commitIdx uint64
+	log       []LogEntry
+}
+
+func EncodeAppendArgs(args *AppendArgs) []byte {
+	enc := marshal.NewEnc(16 + uint64(len(args.log)))
+	enc.PutInt(args.cn)
+	enc.PutInt(args.commitIdx)
+	enc.PutBytes(args.log)
+	return enc.Finish()
+}
+
+func DecodeAppendArgs(raw_args []byte) *AppendArgs {
+	a := new(AppendArgs)
+	dec := marshal.NewDec(raw_args)
+	a.cn = dec.GetInt()
+	a.commitIdx = dec.GetInt()
+	a.log = dec.GetBytes(uint64(len(raw_args)) - 16)
+	return a
 }
 
 type ReplicaClerk struct {
@@ -21,8 +39,11 @@ type ReplicaClerk struct {
 }
 
 func (ck *ReplicaClerk) AppendRPC(args *AppendArgs) bool {
-	// FIXME impl
+	raw_args := EncodeAppendArgs(args)
+	reply := new([]byte)
+	err := ck.cl.Call(REPLICA_APPEND, raw_args, reply, 100 /* ms */)
+	if err == 0 && len(*reply) > 0 {
+		return true
+	}
 	return false
 }
-
-// func (ck *ReplicaClerk) GetLogRPC()

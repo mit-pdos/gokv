@@ -11,7 +11,6 @@ type PBConfiguration struct {
 }
 
 func EncodePBConfiguration(p *PBConfiguration) []byte {
-	// FIXME: impl
 	return nil
 }
 

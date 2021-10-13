@@ -5,7 +5,8 @@ import (
 	"sync"
 )
 
-type LogEntry = []byte
+// Ultimately, might make this be []byte
+type LogEntry = byte
 
 type ReplicaServer struct {
 	mu        *sync.Mutex
