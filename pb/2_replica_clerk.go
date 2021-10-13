@@ -5,8 +5,10 @@ import (
 )
 
 const REPLICA_APPEND = uint64(0)
-const REPLICA_GETLOG = uint64(1)
-const PRIMARY_ADDREPLICA = uint64(2)
+// const REPLICA_GETLOG = uint64(1)
+// const PRIMARY_ADDREPLICA = uint64(2)
+
+// RPC arg/reply types + marshalling code for them
 
 type AppendArgs struct {
 	cn        uint64
@@ -18,7 +20,7 @@ type ReplicaClerk struct {
 	cl *rpc.RPCClient
 }
 
-func (ck *ReplicaClerk) AppendRPC(args AppendArgs) bool {
+func (ck *ReplicaClerk) AppendRPC(args *AppendArgs) bool {
 	// FIXME impl
 	return false
 }

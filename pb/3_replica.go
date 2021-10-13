@@ -47,6 +47,23 @@ func min(l []uint64) uint64 {
 	return m
 }
 
+func (s *ReplicaServer) postAppendRPC(i uint64, args *AppendArgs) {
+	s.mu.Lock()
+	if s.cn == args.cn {
+		if s.matchIdx[i] > uint64(len(args.log)) {
+			s.matchIdx[i] = uint64(len(args.log))
+
+			// check if commitIdx can be increased
+			m := min(s.matchIdx)
+			if m > s.commitIdx {
+				s.commitIdx = m
+				s.commitCond.Signal()
+			}
+		}
+	}
+	s.mu.Unlock()
+}
+
 func (s *ReplicaServer) Append(op LogEntry) bool {
 	s.mu.Lock()
 	if s.isPrimary {
@@ -56,64 +73,45 @@ func (s *ReplicaServer) Append(op LogEntry) bool {
 	s.opLog = append(s.opLog, op)
 
 	clerks := s.replicaClerks
-	args := AppendArgs{
+	args := &AppendArgs{
 		cn:        s.cn,
 		log:       s.opLog,
 		commitIdx: s.commitIdx,
 	}
 	s.mu.Unlock()
-	// FIXME: If any replicas time out, kick them out of the system.
-	// TODO: replica can respond back to primary with newer config num
 
+	// XXX: use multipar?
 	for i, ck := range clerks {
 		ck := ck // XXX: because goose doesn't support passing in parameters
 		go func() {
 			ck.AppendRPC(args)
-			s.mu.Lock()
-			if s.cn == args.cn {
-				if s.matchIdx[i] < uint64(len(args.log)) {
-					s.matchIdx[i] = uint64(len(args.log))
-
-					// check if commitIdx can be increased
-					m := min(s.matchIdx)
-					if m > s.commitIdx {
-						s.commitIdx = m
-						s.commitCond.Signal()
-					}
-				}
-			}
-			s.mu.Unlock()
+			s.postAppendRPC(uint64(i), args)
 		}()
 	}
 	return true
 }
 
-func (s *ReplicaServer) GetNextLogEntry() LogEntry {
+func (s *ReplicaServer) GetCommittedLog() []LogEntry {
 	s.mu.Lock()
-	for s.appliedIdx >= s.commitIdx {
-		s.commitCond.Wait()
-	}
-
-	s.appliedIdx += 1
-	ret := s.opLog[s.commitIdx]
+	r := s.opLog[:s.commitIdx+1]
 	s.mu.Unlock()
-	return ret
+	return r
 }
 
-func (s *ReplicaServer) AppendRPC(args AppendArgs) bool {
+func (s *ReplicaServer) AppendRPC(args *AppendArgs) bool {
 	s.mu.Lock()
-	if s.cn != args.cn {
-		// FIXME: if args.cn > s.conf.cn, then we should talk to the confserver
+	if s.cn > args.cn {
 		s.mu.Unlock()
 		return false
 	}
 
-	if uint64(len(args.log)) > uint64(len(s.opLog)) {
+	if s.cn < args.cn || uint64(len(args.log)) > uint64(len(s.opLog)) {
 		s.opLog = args.log
 	}
+	s.cn = args.cn
+
 	if args.commitIdx > s.commitIdx {
 		s.commitIdx = args.commitIdx
-		s.commitCond.Signal()
 	}
 	s.mu.Unlock()
 	return true
@@ -122,20 +120,28 @@ func (s *ReplicaServer) AppendRPC(args AppendArgs) bool {
 // used for recovery/adding a new node into the system
 func (s *ReplicaServer) GetLogRPC(_ []byte, reply *[]byte) {
 	s.mu.Lock()
-	// FIXME: have to marshal this now...
+	// FIXME(add server): have to marshal this now...
 	// *reply = s.opLog
 	s.mu.Unlock()
 }
 
-func StartReplicaServer(me rpc.HostName, confServer rpc.HostName) {
+func StartReplicaServer(me rpc.HostName, confServer rpc.HostName) *ReplicaServer {
+	// construct the ReplicaServer object
 	s := new(ReplicaServer)
 	s.mu = new(sync.Mutex)
 	s.opLog = make([]LogEntry, 0)
 	s.commitIdx = 0
+
 	s.confClerk = MakeConfClerk(confServer)
 	v := s.confClerk.Get(0)
 	s.cn = v.ver
 	s.conf = DecodePBConfiguration(v.val)
 
 	s.isPrimary = (me == s.conf.primary)
+
+	// Now start it
+	handlers := make(map[uint64]func([]byte, *[]byte))
+	handlers[REPLICA_APPEND] = func(raw_args []byte, raw_reply *[]byte) {
+	}
+	return s
 }
