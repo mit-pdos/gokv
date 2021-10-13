@@ -123,6 +123,7 @@ func (c *ConfClerk) Get(key uint64) *VersionedValue {
 		return DecodeVersionedValue(*raw_reply)
 	}
 	// FIXME: else retry or report error
+	machine.Assume(false)
 	return nil
 }
 

@@ -11,7 +11,9 @@ type LogEntry = byte
 type ReplicaServer struct {
 	mu        *sync.Mutex
 	cn        uint64 // conf num
-	conf      *PBConfiguration
+	conf      *PBConfiguration // XXX: this is currently unused, but later
+	                           // should be used for reconnecting etc. at least
+	                           // by the primary
 	isPrimary bool
 
 	confClerk     *ConfClerk
@@ -20,22 +22,19 @@ type ReplicaServer struct {
 	opLog []LogEntry
 
 	commitIdx  uint64
-	appliedIdx uint64
 	commitCond *sync.Cond
-	matchIdx []uint64
+	matchIdx   []uint64
 }
 
-// This should be invoked locally by services to attempt appending op to the
-// log
-func (s *ReplicaServer) StartAppend(op LogEntry) bool {
-	s.mu.Lock()
-	if s.isPrimary {
-		s.mu.Unlock()
-		return false
+func (s *ReplicaServer) UpdateConfig() {
+	v := s.confClerk.Get(0)
+
+	// in principle, this could be updated concurrently with a different
+	// UpdateConfig
+	if v.ver > s.cn {
+		s.cn = v.ver
+		s.conf = DecodePBConfiguration(v.val)
 	}
-	s.opLog = append(s.opLog, op)
-	s.mu.Unlock()
-	return true
 }
 
 func min(l []uint64) uint64 {
@@ -65,7 +64,9 @@ func (s *ReplicaServer) postAppendRPC(i uint64, args *AppendArgs) {
 	s.mu.Unlock()
 }
 
-func (s *ReplicaServer) Append(op LogEntry) bool {
+// This should be invoked locally by services to attempt appending op to the
+// log
+func (s *ReplicaServer) StartAppend(op LogEntry) bool {
 	s.mu.Lock()
 	if s.isPrimary {
 		s.mu.Unlock()
@@ -118,11 +119,28 @@ func (s *ReplicaServer) AppendRPC(args *AppendArgs) bool {
 	return true
 }
 
-// used for recovery/adding a new node into the system
-func (s *ReplicaServer) GetLogRPC(_ []byte, reply *[]byte) {
+// controller tells the primary to become the primary, and gives it the config
+func (s *ReplicaServer) BecomePrimary(args *BecomePrimaryArgs) {
 	s.mu.Lock()
-	// FIXME(add server): have to marshal this now...
-	// *reply = s.opLog
+	if s.cn > args.cn {
+		return
+	}
+	s.cn = args.cn
+	s.conf = args.conf
+	s.matchIdx = make([]uint64, len(args.conf.replicas))
+
+	replicaClerks := make([]*ReplicaClerk, len(args.conf.replicas))
+	for i, _ := range(s.conf.replicas) {
+		replicaClerks[i] = MakeReplicaClerk(s.conf.replicas[i])
+	}
+
+	s.mu.Unlock()
+}
+
+// used for recovery/adding a new node into the system
+func (s *ReplicaServer) GetCommitLogRPC(_ []byte, reply *[]byte) {
+	s.mu.Lock()
+	*reply = s.opLog[:s.commitIdx]
 	s.mu.Unlock()
 }
 
@@ -150,5 +168,10 @@ func StartReplicaServer(me rpc.HostName, confServer rpc.HostName) *ReplicaServer
 			*raw_reply = make([]byte, 0)
 		}
 	}
+	handlers[REPLICA_GETLOG] = s.GetCommitLogRPC
+
+	r := rpc.MakeRPCServer(handlers)
+	r.Serve(me, 1)
+
 	return s
 }

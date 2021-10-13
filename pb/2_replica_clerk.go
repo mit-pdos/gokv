@@ -6,7 +6,8 @@ import (
 )
 
 const REPLICA_APPEND = uint64(0)
-// const REPLICA_GETLOG = uint64(1)
+const REPLICA_GETLOG = uint64(1)
+
 // const PRIMARY_ADDREPLICA = uint64(2)
 
 // RPC arg/reply types + marshalling code for them
@@ -34,6 +35,11 @@ func DecodeAppendArgs(raw_args []byte) *AppendArgs {
 	return a
 }
 
+type BecomePrimaryArgs struct {
+	cn     uint64
+	conf *PBConfiguration
+}
+
 type ReplicaClerk struct {
 	cl *rpc.RPCClient
 }
@@ -46,4 +52,10 @@ func (ck *ReplicaClerk) AppendRPC(args *AppendArgs) bool {
 		return true
 	}
 	return false
+}
+
+func MakeReplicaClerk(host rpc.HostName) *ReplicaClerk {
+	ck := new(ReplicaClerk)
+	ck.cl = rpc.MakeRPCClient(host)
+	return nil
 }
