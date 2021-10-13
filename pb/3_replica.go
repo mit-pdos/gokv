@@ -143,6 +143,12 @@ func StartReplicaServer(me rpc.HostName, confServer rpc.HostName) *ReplicaServer
 	// Now start it
 	handlers := make(map[uint64]func([]byte, *[]byte))
 	handlers[REPLICA_APPEND] = func(raw_args []byte, raw_reply *[]byte) {
+		a := DecodeAppendArgs(raw_args)
+		if s.AppendRPC(a) {
+			*raw_reply = make([]byte, 1)
+		} else {
+			*raw_reply = make([]byte, 0)
+		}
 	}
 	return s
 }
