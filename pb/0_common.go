@@ -2,19 +2,26 @@ package pb
 
 import (
 	"github.com/mit-pdos/gokv/urpc/rpc"
-	// "github.com/tchajed/marshal"
+	"github.com/tchajed/marshal"
 )
 
-type PBConfiguration struct {
-	replicas []rpc.HostName
-	primary  rpc.HostName
+type Configuration struct {
+	Primary  rpc.HostName
+	Replicas []rpc.HostName
 }
 
-func EncodePBConfiguration(p *PBConfiguration) []byte {
-	return nil
+func EncodePBConfiguration(p *Configuration) []byte {
+	enc := marshal.NewEnc(8 + 8 * uint64(len(p.Replicas)))
+	enc.PutInt(p.Primary)
+	enc.PutInt(uint64(len(p.Replicas)))
+	enc.PutInts(p.Replicas)
+	return enc.Finish()
 }
 
-func DecodePBConfiguration(d []byte) *PBConfiguration {
-	// FIXME: impl
-	return nil
+func DecodePBConfiguration(raw_conf []byte) *Configuration {
+	c := new(Configuration)
+	dec := marshal.NewDec(raw_conf)
+	c.Primary = dec.GetInt()
+	c.Replicas = dec.GetInts(dec.GetInt())
+	return c
 }

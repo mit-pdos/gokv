@@ -9,14 +9,13 @@ import (
 type LogEntry = byte
 
 type ReplicaServer struct {
-	mu        *sync.Mutex
-	cn        uint64 // conf num
-	conf      *PBConfiguration // XXX: this is currently unused, but later
-	                           // should be used for reconnecting etc. at least
-	                           // by the primary
+	mu   *sync.Mutex
+	cn   uint64         // conf num
+	conf *Configuration // XXX: this is currently unused, but later
+	// should be used for reconnecting etc. at least by the primary
 	isPrimary bool
 
-	confClerk     *ConfClerk
+	// confClerk     *ConfClerk
 	replicaClerks []*ReplicaClerk
 
 	opLog []LogEntry
@@ -26,16 +25,17 @@ type ReplicaServer struct {
 	matchIdx   []uint64
 }
 
-func (s *ReplicaServer) UpdateConfig() {
-	v := s.confClerk.Get(0)
-
-	// in principle, this could be updated concurrently with a different
-	// UpdateConfig
-	if v.ver > s.cn {
-		s.cn = v.ver
-		s.conf = DecodePBConfiguration(v.val)
-	}
-}
+// func (s *ReplicaServer) UpdateConfig() {
+// v := s.confClerk.Get(0)
+//
+// // in principle, this could be updated concurrently with a different
+// // UpdateConfig
+// conf := DecodePBConfiguration(v.val)
+// if s.me == conf.primary {
+// s.cn = v.ver
+// s.conf = DecodePBConfiguration(v.val)
+// }
+// }
 
 func min(l []uint64) uint64 {
 	var m uint64 = uint64(18446744073709551615)
@@ -120,18 +120,18 @@ func (s *ReplicaServer) AppendRPC(args *AppendArgs) bool {
 }
 
 // controller tells the primary to become the primary, and gives it the config
-func (s *ReplicaServer) BecomePrimary(args *BecomePrimaryArgs) {
+func (s *ReplicaServer) BecomePrimaryRPC(args *BecomePrimaryArgs) {
 	s.mu.Lock()
 	if s.cn > args.cn {
 		return
 	}
 	s.cn = args.cn
 	s.conf = args.conf
-	s.matchIdx = make([]uint64, len(args.conf.replicas))
+	s.matchIdx = make([]uint64, len(args.conf.Replicas))
 
-	replicaClerks := make([]*ReplicaClerk, len(args.conf.replicas))
-	for i, _ := range(s.conf.replicas) {
-		replicaClerks[i] = MakeReplicaClerk(s.conf.replicas[i])
+	replicaClerks := make([]*ReplicaClerk, len(args.conf.Replicas))
+	for i, _ := range s.conf.Replicas {
+		replicaClerks[i] = MakeReplicaClerk(s.conf.Replicas[i])
 	}
 
 	s.mu.Unlock()
@@ -151,12 +151,13 @@ func StartReplicaServer(me rpc.HostName, confServer rpc.HostName) *ReplicaServer
 	s.opLog = make([]LogEntry, 0)
 	s.commitIdx = 0
 
-	s.confClerk = MakeConfClerk(confServer)
-	v := s.confClerk.Get(0)
-	s.cn = v.ver
-	s.conf = DecodePBConfiguration(v.val)
+	// s.confClerk = MakeConfClerk(confServer)
+	// v := s.confClerk.Get(0)
+	// s.cn = v.ver
+	// s.conf = DecodePBConfiguration(v.val)
+	s.cn = 0
 
-	s.isPrimary = (me == s.conf.primary)
+	s.isPrimary = (me == s.conf.Primary)
 
 	// Now start it
 	handlers := make(map[uint64]func([]byte, *[]byte))
@@ -169,6 +170,9 @@ func StartReplicaServer(me rpc.HostName, confServer rpc.HostName) *ReplicaServer
 		}
 	}
 	handlers[REPLICA_GETLOG] = s.GetCommitLogRPC
+	handlers[REPLICA_BECOMEPRIMARY] = func(raw_args []byte, raw_reply *[]byte) {
+		s.BecomePrimaryRPC(DecodeBecomePrimaryArgs(raw_args))
+	}
 
 	r := rpc.MakeRPCServer(handlers)
 	r.Serve(me, 1)

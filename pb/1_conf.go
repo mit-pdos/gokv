@@ -2,8 +2,8 @@ package pb
 
 import (
 	"github.com/mit-pdos/gokv/urpc/rpc"
-	"github.com/tchajed/marshal"
 	"github.com/tchajed/goose/machine"
+	"github.com/tchajed/marshal"
 	"sync"
 )
 
@@ -63,10 +63,12 @@ func DecodeVersionedValue(data []byte) *VersionedValue {
 func (s *ConfServer) PutRPC(args *PutArgs) bool {
 	s.mu.Lock()
 	_, ok := s.kvs[args.key]
-	if ok && s.kvs[args.key].ver == args.prevVer {
-		s.kvs[args.key] = VersionedValue{ver: args.prevVer + 1, val: args.newVal}
+	if ok {
+		if s.kvs[args.key].ver == args.prevVer {
+			s.kvs[args.key] = VersionedValue{ver: args.prevVer + 1, val: args.newVal}
+		}
 	} else {
-		s.kvs[args.key] = VersionedValue{ver: 1, val: args.newVal}
+		s.kvs[args.key] = VersionedValue{ver: args.prevVer + 1, val: args.newVal}
 	}
 	s.mu.Unlock()
 	return true
@@ -105,7 +107,7 @@ type ConfClerk struct {
 
 func (c *ConfClerk) Put(key, prevVer uint64, newVal []byte) bool {
 	raw_reply := new([]byte)
-	raw_args := EncodePutArgs(&PutArgs{key:key, prevVer:prevVer, newVal:newVal})
+	raw_args := EncodePutArgs(&PutArgs{key: key, prevVer: prevVer, newVal: newVal})
 	err := c.cl.Call(CONF_PUT, raw_args, raw_reply, 100 /* ms */)
 	if err == 0 { // FIXME: add ENone or some such
 		return (uint64(len(*raw_reply)) > 0)
@@ -128,5 +130,5 @@ func (c *ConfClerk) Get(key uint64) *VersionedValue {
 }
 
 func MakeConfClerk(confServer rpc.HostName) *ConfClerk {
-	return nil
+	return &ConfClerk{cl: rpc.MakeRPCClient(confServer)}
 }

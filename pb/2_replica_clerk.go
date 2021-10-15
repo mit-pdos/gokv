@@ -3,10 +3,12 @@ package pb
 import (
 	"github.com/mit-pdos/gokv/urpc/rpc"
 	"github.com/tchajed/marshal"
+	"github.com/tchajed/goose/machine"
 )
 
 const REPLICA_APPEND = uint64(0)
 const REPLICA_GETLOG = uint64(1)
+const REPLICA_BECOMEPRIMARY = uint64(2)
 
 // const PRIMARY_ADDREPLICA = uint64(2)
 
@@ -37,7 +39,23 @@ func DecodeAppendArgs(raw_args []byte) *AppendArgs {
 
 type BecomePrimaryArgs struct {
 	cn     uint64
-	conf *PBConfiguration
+	conf *Configuration
+}
+
+func EncodeBecomePrimaryArgs(args *BecomePrimaryArgs) []byte {
+	encodedConf := EncodePBConfiguration(args.conf)
+	enc := marshal.NewEnc(8 + uint64(len(encodedConf)))
+	enc.PutInt(args.cn)
+	enc.PutBytes(encodedConf)
+	return enc.Finish()
+}
+
+func DecodeBecomePrimaryArgs(raw_args []byte) *BecomePrimaryArgs {
+	a := new(BecomePrimaryArgs)
+	dec := marshal.NewDec(raw_args)
+	a.cn = dec.GetInt()
+	a.conf = DecodePBConfiguration(raw_args[8:])
+	return a
 }
 
 type ReplicaClerk struct {
@@ -52,6 +70,13 @@ func (ck *ReplicaClerk) AppendRPC(args *AppendArgs) bool {
 		return true
 	}
 	return false
+}
+
+func (ck *ReplicaClerk) BecomePrimaryRPC(args *BecomePrimaryArgs) {
+	raw_args := EncodeBecomePrimaryArgs(args)
+	reply := new([]byte)
+	err := ck.cl.Call(REPLICA_BECOMEPRIMARY, raw_args, reply, 100 /* ms */)
+	machine.Assume(err != 0)
 }
 
 func MakeReplicaClerk(host rpc.HostName) *ReplicaClerk {
