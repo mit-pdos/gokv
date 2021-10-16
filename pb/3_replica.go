@@ -2,6 +2,7 @@ package pb
 
 import (
 	"github.com/mit-pdos/gokv/urpc/rpc"
+	"log"
 	"sync"
 )
 
@@ -50,14 +51,15 @@ func min(l []uint64) uint64 {
 func (s *ReplicaServer) postAppendRPC(i uint64, args *AppendArgs) {
 	s.mu.Lock()
 	if s.cn == args.cn {
-		if s.matchIdx[i] > uint64(len(args.log)) {
+		log.Println("postAppendRPC")
+		if s.matchIdx[i] < uint64(len(args.log)) {
 			s.matchIdx[i] = uint64(len(args.log))
 
 			// check if commitIdx can be increased
 			m := min(s.matchIdx)
 			if m > s.commitIdx {
 				s.commitIdx = m
-				s.commitCond.Signal()
+				// s.commitCond.Signal()
 			}
 		}
 	}
@@ -68,7 +70,7 @@ func (s *ReplicaServer) postAppendRPC(i uint64, args *AppendArgs) {
 // log
 func (s *ReplicaServer) StartAppend(op LogEntry) bool {
 	s.mu.Lock()
-	if s.isPrimary {
+	if !s.isPrimary {
 		s.mu.Unlock()
 		return false
 	}
@@ -85,6 +87,7 @@ func (s *ReplicaServer) StartAppend(op LogEntry) bool {
 	// XXX: use multipar?
 	for i, ck := range clerks {
 		ck := ck // XXX: because goose doesn't support passing in parameters
+		i := i
 		go func() {
 			ck.AppendRPC(args)
 			s.postAppendRPC(uint64(i), args)
@@ -95,7 +98,8 @@ func (s *ReplicaServer) StartAppend(op LogEntry) bool {
 
 func (s *ReplicaServer) GetCommittedLog() []LogEntry {
 	s.mu.Lock()
-	r := s.opLog[:s.commitIdx+1]
+	// r := s.opLog
+	r := s.opLog[:s.commitIdx]
 	s.mu.Unlock()
 	return r
 }
@@ -122,16 +126,18 @@ func (s *ReplicaServer) AppendRPC(args *AppendArgs) bool {
 // controller tells the primary to become the primary, and gives it the config
 func (s *ReplicaServer) BecomePrimaryRPC(args *BecomePrimaryArgs) {
 	s.mu.Lock()
-	if s.cn > args.cn {
+	log.Printf("Becoming primary")
+	if s.cn > args.Cn {
 		return
 	}
-	s.cn = args.cn
-	s.conf = args.conf
-	s.matchIdx = make([]uint64, len(args.conf.Replicas))
+	s.isPrimary = true
+	s.cn = args.Cn
+	s.conf = args.Conf
+	s.matchIdx = make([]uint64, len(args.Conf.Replicas))
 
-	replicaClerks := make([]*ReplicaClerk, len(args.conf.Replicas))
+	s.replicaClerks = make([]*ReplicaClerk, len(args.Conf.Replicas))
 	for i, _ := range s.conf.Replicas {
-		replicaClerks[i] = MakeReplicaClerk(s.conf.Replicas[i])
+		s.replicaClerks[i] = MakeReplicaClerk(s.conf.Replicas[i])
 	}
 
 	s.mu.Unlock()
@@ -144,7 +150,7 @@ func (s *ReplicaServer) GetCommitLogRPC(_ []byte, reply *[]byte) {
 	s.mu.Unlock()
 }
 
-func StartReplicaServer(me rpc.HostName, confServer rpc.HostName) *ReplicaServer {
+func StartReplicaServer(me rpc.HostName) *ReplicaServer {
 	// construct the ReplicaServer object
 	s := new(ReplicaServer)
 	s.mu = new(sync.Mutex)
@@ -157,7 +163,7 @@ func StartReplicaServer(me rpc.HostName, confServer rpc.HostName) *ReplicaServer
 	// s.conf = DecodePBConfiguration(v.val)
 	s.cn = 0
 
-	s.isPrimary = (me == s.conf.Primary)
+	s.isPrimary = false
 
 	// Now start it
 	handlers := make(map[uint64]func([]byte, *[]byte))

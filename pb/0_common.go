@@ -11,7 +11,7 @@ type Configuration struct {
 }
 
 func EncodePBConfiguration(p *Configuration) []byte {
-	enc := marshal.NewEnc(8 + 8 * uint64(len(p.Replicas)))
+	enc := marshal.NewEnc(8 + 8 + 8 * uint64(len(p.Replicas)))
 	enc.PutInt(p.Primary)
 	enc.PutInt(uint64(len(p.Replicas)))
 	enc.PutInts(p.Replicas)

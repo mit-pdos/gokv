@@ -79,17 +79,17 @@ def start_system():
     for p in config["replicaports"]:
         conf = conf + ["127.0.0.1:" + p]
 
-    start_command(["go", "run", "./cmd/confsrv", "-port", config["confport"]])
+    # FIXME: start this
+    # start_command(["go", "run", "./cmd/confsrv", "-port", config["confport"]])
 
     for p in config["replicaports"]:
-        start_command(["go", "run", "./cmd/replicasrv", "-conf", confhost,
-                       "-port", p])
+        start_command(["go", "run", "./cmd/replicasrv", "-port", p])
 
-    time.sleep(5)
+    time.sleep(2)
     # wait for servers to be up so that we can start the controller and have the
     # controller inform the primary about the current config
-    start_command(["go", "run", "./cmd/ctrlsrv", "-conf", confhost, "-port",
-                   config["ctrlport"]] + conf)
+    start_command(["go", "run", "./cmd/ctrlsrv", # "-conf", confhost,
+                   "-port", config["ctrlport"]] + conf)
     return
 
 def main():

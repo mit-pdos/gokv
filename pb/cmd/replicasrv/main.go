@@ -6,9 +6,11 @@ import (
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/pb"
 	"log"
-	"os"
+	"math/rand"
 	"net/http"
 	_ "net/http/pprof"
+	"os"
+	"time"
 )
 
 func main() {
@@ -16,24 +18,25 @@ func main() {
 		log.Println(http.ListenAndServe("localhost:6060", nil))
 	}()
 
-	var confStr string
 	var port uint64
 
-	// FIXME: confStr should be unnecessary, the config server can just talk to
-	// the replica
-	flag.StringVar(&confStr, "conf", "", "address of the configuration server")
 	flag.Uint64Var(&port, "port", 0, "port number to user for server")
-	// flag.StringVar(&coord, "coord", "", "address of coordinator")
 	flag.Parse()
 
-	if port == 0 || confStr == "" {
+	if port == 0 {
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
 
 	me := grove_ffi.MakeAddress(fmt.Sprintf("0.0.0.0:%d", port))
-	conf := grove_ffi.MakeAddress(confStr)
-	pb.StartReplicaServer(me, conf)
+	s := pb.StartReplicaServer(me)
 	log.Printf("Started replica server on port %d; id %d", port, me)
+
+	time.Sleep(2000 * time.Millisecond)
+	for {
+		s.StartAppend(byte(rand.Uint64() % 256))
+		time.Sleep(300 * time.Millisecond)
+		log.Printf("CommitLog[%d] :%+v\n", port, s.GetCommittedLog())
+	}
 	select {}
 }

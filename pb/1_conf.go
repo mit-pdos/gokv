@@ -85,7 +85,11 @@ func (s *ConfServer) GetRPC(key uint64, v *VersionedValue) {
 	s.mu.Unlock()
 }
 
-func (s *ConfServer) Start() {
+func StartConfServer(me rpc.HostName) {
+	s := new(ConfServer)
+	s.mu = new(sync.Mutex)
+	s.kvs = make(map[uint64]VersionedValue)
+
 	handlers := make(map[uint64]func([]byte, *[]byte))
 	handlers[CONF_PUT] = func(args []byte, rep *[]byte) {
 		if s.PutRPC(DecodePutArgs(args)) {
@@ -99,6 +103,9 @@ func (s *ConfServer) Start() {
 		v := new(VersionedValue)
 		s.GetRPC(machine.UInt64Get(args), v)
 	}
+
+	r := rpc.MakeRPCServer(handlers)
+	r.Serve(me, 1)
 }
 
 type ConfClerk struct {
