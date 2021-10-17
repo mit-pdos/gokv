@@ -9,6 +9,7 @@ import (
 const REPLICA_APPEND = uint64(0)
 const REPLICA_GETLOG = uint64(1)
 const REPLICA_BECOMEPRIMARY = uint64(2)
+const REPLICA_HEARTBEAT = uint64(3)
 
 // const PRIMARY_ADDREPLICA = uint64(2)
 
@@ -77,6 +78,11 @@ func (ck *ReplicaClerk) BecomePrimaryRPC(args *BecomePrimaryArgs) {
 	reply := new([]byte)
 	err := ck.cl.Call(REPLICA_BECOMEPRIMARY, raw_args, reply, 20000 /* ms */)
 	machine.Assume(err == 0)
+}
+
+func (ck *ReplicaClerk) HeartbeatRPC() bool {
+	reply := new([]byte)
+	return ck.cl.Call(REPLICA_HEARTBEAT, make([]byte, 0), reply, 1000) == 0
 }
 
 func MakeReplicaClerk(host rpc.HostName) *ReplicaClerk {

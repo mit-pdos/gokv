@@ -35,7 +35,7 @@ func main() {
 	time.Sleep(2000 * time.Millisecond)
 	for {
 		s.StartAppend(byte(rand.Uint64() % 256))
-		time.Sleep(300 * time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
 		log.Printf("CommitLog[%d] :%+v\n", port, s.GetCommittedLog())
 	}
 	select {}

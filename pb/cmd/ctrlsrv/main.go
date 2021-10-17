@@ -28,12 +28,14 @@ func main() {
 
 	primary := grove_ffi.MakeAddress(fmt.Sprintf("0.0.0.0:12202"))
 	replicas := make([]uint64, 0)
+	replicas = append(replicas, primary)
 	replicas = append(replicas, grove_ffi.MakeAddress(fmt.Sprintf("0.0.0.0:12203")))
 	replicas = append(replicas, grove_ffi.MakeAddress(fmt.Sprintf("0.0.0.0:12204")))
 	replicas = append(replicas, grove_ffi.MakeAddress(fmt.Sprintf("0.0.0.0:12205")))
+	replicas = append(replicas, grove_ffi.MakeAddress(fmt.Sprintf("0.0.0.0:12206")))
 	me := grove_ffi.MakeAddress(fmt.Sprintf("0.0.0.0:%d", port))
 	log.Printf("Connecting to id %d", primary)
-	controller.StartControllerServer(me, primary, replicas)
+	controller.StartControllerServer(me, replicas)
 	log.Printf("Started controller server on port %d; id %d", port, me)
 
 	select {}

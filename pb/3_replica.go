@@ -51,9 +51,9 @@ func min(l []uint64) uint64 {
 func (s *ReplicaServer) postAppendRPC(i uint64, args *AppendArgs) {
 	s.mu.Lock()
 	if s.cn == args.cn {
-		log.Println("postAppendRPC")
-		if s.matchIdx[i] < uint64(len(args.log)) {
-			s.matchIdx[i] = uint64(len(args.log))
+		// log.Println("postAppendRPC")
+		if s.matchIdx[i+1] < uint64(len(args.log)) {
+			s.matchIdx[i+1] = uint64(len(args.log))
 
 			// check if commitIdx can be increased
 			m := min(s.matchIdx)
@@ -75,6 +75,7 @@ func (s *ReplicaServer) StartAppend(op LogEntry) bool {
 		return false
 	}
 	s.opLog = append(s.opLog, op)
+	s.matchIdx[0] = uint64(len(s.opLog)) // FIXME: trigger commitIdx update
 
 	clerks := s.replicaClerks
 	args := &AppendArgs{
@@ -126,8 +127,8 @@ func (s *ReplicaServer) AppendRPC(args *AppendArgs) bool {
 // controller tells the primary to become the primary, and gives it the config
 func (s *ReplicaServer) BecomePrimaryRPC(args *BecomePrimaryArgs) {
 	s.mu.Lock()
-	log.Printf("Becoming primary")
-	if s.cn > args.Cn {
+	log.Printf("Becoming primary in %d, %+v", args.Cn, args.Conf.Replicas)
+	if s.cn >= args.Cn {
 		return
 	}
 	s.isPrimary = true
@@ -135,9 +136,9 @@ func (s *ReplicaServer) BecomePrimaryRPC(args *BecomePrimaryArgs) {
 	s.conf = args.Conf
 	s.matchIdx = make([]uint64, len(args.Conf.Replicas))
 
-	s.replicaClerks = make([]*ReplicaClerk, len(args.Conf.Replicas))
-	for i, _ := range s.conf.Replicas {
-		s.replicaClerks[i] = MakeReplicaClerk(s.conf.Replicas[i])
+	s.replicaClerks = make([]*ReplicaClerk, len(args.Conf.Replicas) - 1)
+	for i, _ := range s.conf.Replicas[1:] {
+		s.replicaClerks[i] = MakeReplicaClerk(s.conf.Replicas[i+1])
 	}
 
 	s.mu.Unlock()
@@ -180,6 +181,8 @@ func StartReplicaServer(me rpc.HostName) *ReplicaServer {
 		s.BecomePrimaryRPC(DecodeBecomePrimaryArgs(raw_args))
 	}
 
+	handlers[REPLICA_HEARTBEAT] = func(_ []byte, _ *[]byte) {
+	}
 	r := rpc.MakeRPCServer(handlers)
 	r.Serve(me, 1)
 

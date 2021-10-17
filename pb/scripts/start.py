@@ -82,14 +82,20 @@ def start_system():
     # FIXME: start this
     # start_command(["go", "run", "./cmd/confsrv", "-port", config["confport"]])
 
+    replicas = []
     for p in config["replicaports"]:
-        start_command(["go", "run", "./cmd/replicasrv", "-port", p])
+        replicas.append(start_command(["go", "run", "./cmd/replicasrv", "-port", p]))
 
     time.sleep(2)
     # wait for servers to be up so that we can start the controller and have the
     # controller inform the primary about the current config
     start_command(["go", "run", "./cmd/ctrlsrv", # "-conf", confhost,
                    "-port", config["ctrlport"]] + conf)
+    time.sleep(4)
+    os.killpg(os.getpgid(replicas[1].pid), signal.SIGKILL)
+    os.killpg(os.getpgid(replicas[2].pid), signal.SIGKILL)
+    time.sleep(4)
+    os.killpg(os.getpgid(replicas[0].pid), signal.SIGKILL)
     return
 
 def main():
