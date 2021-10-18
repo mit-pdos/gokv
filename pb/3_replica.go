@@ -151,6 +151,9 @@ func (s *ReplicaServer) GetCommitLogRPC(_ []byte, reply *[]byte) {
 	s.mu.Unlock()
 }
 
+func (s *ReplicaServer) AddNewServerRPC() {
+}
+
 func StartReplicaServer(me rpc.HostName) *ReplicaServer {
 	// construct the ReplicaServer object
 	s := new(ReplicaServer)

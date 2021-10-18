@@ -93,6 +93,10 @@ func (s *ControllerServer) HandleFailedReplicas() {
 	ck.BecomePrimaryRPC(&pb.BecomePrimaryArgs{Cn: s.cn, Conf: s.conf})
 }
 
+func (s *ControllerServer) AddServerRPC(newServer rpc.HostName) {
+
+}
+
 // This should be invoked locally by services to attempt appending op to the
 // log
 func StartControllerServer(me rpc.HostName, replicas []rpc.HostName) {
