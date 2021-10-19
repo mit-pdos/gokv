@@ -2,6 +2,7 @@ package pb
 
 import (
 	"github.com/mit-pdos/gokv/urpc/rpc"
+	"github.com/tchajed/goose/machine"
 	"log"
 	"sync"
 )
@@ -128,7 +129,27 @@ func (s *ReplicaServer) AppendRPC(args *AppendArgs) bool {
 func (s *ReplicaServer) BecomePrimaryRPC(args *BecomePrimaryArgs) {
 	s.mu.Lock()
 	log.Printf("Becoming primary in %d, %+v", args.Cn, args.Conf.Replicas)
+
 	if s.cn >= args.Cn {
+		return
+	} else if args.Cn > s.cn + 1 && s.cn == 0 {
+		// XXX: if s.cn == 0 and e.g. I'm asked to become leader of
+		// configuration 17, it's possible that stuff was committed in old
+		// configurations, and I was added to the system but never got an
+		// AppendRPC from a previous primary, so I have an incomplete log.
+		// For now, just panic. Slightly better would be to return an error to
+		// the controller.
+		// Even better would be to have the configuration server *know* that
+		// XXX: This assumes that a node can't be added, then removed, then
+		// added again with its state intact. If this did happen, then the node
+		// would have a positive s.cn (e.g. 13), see a BecomePrimary(cn=17) and
+		// do it, even though it might have been kicked out in CN 13 and not
+		// even know it. To allow for nodes to reenter with their state present,
+		// we'd need the BecomePrimaryRPC to include a "StartCN" with the
+		// property that the node has been in the system from args.StartCN up to
+		// args.Cn. If the local number is at least StartCN, then the node can
+		// successfully become primary, otherwise it can't.
+		machine.Assume(false)
 		return
 	}
 	s.isPrimary = true
@@ -149,9 +170,6 @@ func (s *ReplicaServer) GetCommitLogRPC(_ []byte, reply *[]byte) {
 	s.mu.Lock()
 	*reply = s.opLog[:s.commitIdx]
 	s.mu.Unlock()
-}
-
-func (s *ReplicaServer) AddNewServerRPC() {
 }
 
 func StartReplicaServer(me rpc.HostName) *ReplicaServer {

@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 	"log"
+	"github.com/tchajed/marshal"
 )
 
 type ControllerServer struct {
@@ -93,8 +94,13 @@ func (s *ControllerServer) HandleFailedReplicas() {
 	ck.BecomePrimaryRPC(&pb.BecomePrimaryArgs{Cn: s.cn, Conf: s.conf})
 }
 
-func (s *ControllerServer) AddServerRPC(newServer rpc.HostName) {
-
+func (s *ControllerServer) AddNewServerRPC(newServer rpc.HostName) {
+	s.mu.Lock()
+	s.cn = s.cn + 1
+	s.conf = &pb.Configuration{Replicas: append(s.conf.Replicas, newServer)}
+	ck := pb.MakeReplicaClerk(s.conf.Replicas[0])
+	ck.BecomePrimaryRPC(&pb.BecomePrimaryArgs{Cn: s.cn, Conf: s.conf})
+	s.mu.Unlock()
 }
 
 // This should be invoked locally by services to attempt appending op to the
@@ -109,4 +115,13 @@ func StartControllerServer(me rpc.HostName, replicas []rpc.HostName) {
 	ck.BecomePrimaryRPC(&pb.BecomePrimaryArgs{Cn: 1, Conf: s.conf})
 
 	s.HeartbeatThread()
+
+	handlers := make(map[uint64]func([]byte, *[]byte))
+	handlers[CONTROLLER_ADD] = func(raw_args []byte, _ *[]byte) {
+		dec := marshal.NewDec(raw_args)
+		newServer := dec.GetInt()
+		s.AddNewServerRPC(newServer)
+	}
+	r := rpc.MakeRPCServer(handlers)
+	r.Serve(me, 1)
 }
