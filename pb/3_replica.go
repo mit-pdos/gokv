@@ -115,8 +115,8 @@ func (s *ReplicaServer) AppendRPC(args *AppendArgs) bool {
 
 	if s.cn < args.cn || uint64(len(args.log)) > uint64(len(s.opLog)) {
 		s.opLog = args.log
+		s.cn = args.cn
 	}
-	s.cn = args.cn
 
 	if args.commitIdx > s.commitIdx {
 		s.commitIdx = args.commitIdx
