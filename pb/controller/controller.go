@@ -4,7 +4,7 @@ import (
 	"github.com/mit-pdos/gokv/pb"
 	"github.com/mit-pdos/gokv/urpc/rpc"
 	"sync"
-	"time"
+	"github.com/mit-pdos/gokv/time"
 	"log"
 	"github.com/tchajed/marshal"
 )
@@ -18,7 +18,7 @@ type ControllerServer struct {
 }
 
 func (s *ControllerServer) HeartbeatThread() {
-	HBTIMEOUT := time.Duration(uint64(2)) * time.Second
+	HBTIMEOUT := uint64(2) * time.Second
 
 	for {
 		// start making heartbeats
@@ -72,7 +72,7 @@ func (s *ControllerServer) HeartbeatThread() {
 					}
 				}()
 			}
-			time.Sleep(time.Duration(uint64(500)) * time.Millisecond)
+			time.Sleep(uint64(500) * time.Millisecond)
 		}
 	}
 }
