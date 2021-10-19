@@ -17,6 +17,23 @@ type ControllerServer struct {
 	failed   map[uint64]bool
 }
 
+func (s *ControllerServer) HandleFailedReplicas() {
+	log.Printf("In config %d, %+v failed", s.cn, s.failed)
+	n := uint64(len(s.conf.Replicas)) - uint64(len(s.failed))
+	var newReplicas = make([]rpc.HostName, 0, n)
+	for i, r := range s.conf.Replicas {
+		if !s.failed[uint64(i)] {
+			newReplicas = append(newReplicas, r)
+		}
+	}
+
+	s.conf = &pb.Configuration{Replicas: newReplicas}
+	s.cn += 1
+
+	ck := pb.MakeReplicaClerk(newReplicas[0])
+	ck.BecomePrimaryRPC(&pb.BecomePrimaryArgs{Cn: s.cn, Conf: s.conf})
+}
+
 func (s *ControllerServer) HeartbeatThread() {
 	HBTIMEOUT := uint64(2) * time.Second
 
@@ -75,23 +92,6 @@ func (s *ControllerServer) HeartbeatThread() {
 			time.Sleep(uint64(500) * time.Millisecond)
 		}
 	}
-}
-
-func (s *ControllerServer) HandleFailedReplicas() {
-	log.Printf("In config %d, %+v failed", s.cn, s.failed)
-	n := uint64(len(s.conf.Replicas)) - uint64(len(s.failed))
-	var newReplicas = make([]rpc.HostName, 0, n)
-	for i, r := range s.conf.Replicas {
-		if !s.failed[uint64(i)] {
-			newReplicas = append(newReplicas, r)
-		}
-	}
-
-	s.conf = &pb.Configuration{Replicas: newReplicas}
-	s.cn += 1
-
-	ck := pb.MakeReplicaClerk(newReplicas[0])
-	ck.BecomePrimaryRPC(&pb.BecomePrimaryArgs{Cn: s.cn, Conf: s.conf})
 }
 
 func (s *ControllerServer) AddNewServerRPC(newServer rpc.HostName) {
