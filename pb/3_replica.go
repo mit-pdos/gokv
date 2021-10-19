@@ -132,7 +132,9 @@ func (s *ReplicaServer) BecomePrimaryRPC(args *BecomePrimaryArgs) {
 
 	if s.cn >= args.Cn {
 		return
-	} else if args.Cn > s.cn + 1 && s.cn == 0 {
+	}
+	// FIXME(goose): should be able to put "else if" here
+	if args.Cn > s.cn + 1 && s.cn == 0 {
 		// XXX: if s.cn == 0 and e.g. I'm asked to become leader of
 		// configuration 17, it's possible that stuff was committed in old
 		// configurations, and I was added to the system but never got an

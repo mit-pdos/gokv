@@ -18,7 +18,7 @@ type ControllerServer struct {
 }
 
 func (s *ControllerServer) HeartbeatThread() {
-	HBTIMEOUT := time.Duration(2) * time.Second
+	HBTIMEOUT := time.Duration(uint64(2)) * time.Second
 
 	for {
 		// start making heartbeats
@@ -72,7 +72,7 @@ func (s *ControllerServer) HeartbeatThread() {
 					}
 				}()
 			}
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(time.Duration(uint64(500)) * time.Millisecond)
 		}
 	}
 }
@@ -80,7 +80,7 @@ func (s *ControllerServer) HeartbeatThread() {
 func (s *ControllerServer) HandleFailedReplicas() {
 	log.Printf("In config %d, %+v failed", s.cn, s.failed)
 	n := uint64(len(s.conf.Replicas)) - uint64(len(s.failed))
-	newReplicas := make([]rpc.HostName, 0, n)
+	var newReplicas = make([]rpc.HostName, 0, n)
 	for i, r := range s.conf.Replicas {
 		if !s.failed[uint64(i)] {
 			newReplicas = append(newReplicas, r)
@@ -114,7 +114,7 @@ func StartControllerServer(me rpc.HostName, replicas []rpc.HostName) {
 	ck := pb.MakeReplicaClerk(replicas[0])
 	ck.BecomePrimaryRPC(&pb.BecomePrimaryArgs{Cn: 1, Conf: s.conf})
 
-	go s.HeartbeatThread()
+	go func() { s.HeartbeatThread() }() // for goose; this is silly
 
 	handlers := make(map[uint64]func([]byte, *[]byte))
 	handlers[CONTROLLER_ADD] = func(raw_args []byte, _ *[]byte) {
