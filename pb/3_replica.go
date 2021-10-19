@@ -121,6 +121,7 @@ func (s *ReplicaServer) AppendRPC(args *AppendArgs) bool {
 	if args.commitIdx > s.commitIdx {
 		s.commitIdx = args.commitIdx
 	}
+	s.isPrimary = false
 	s.mu.Unlock()
 	return true
 }
