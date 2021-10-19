@@ -92,6 +92,11 @@ def start_system():
     start_command(["go", "run", "./cmd/ctrlsrv", # "-conf", confhost,
                    "-port", config["ctrlport"]] + conf)
     time.sleep(4)
+
+    start_command(["go", "run", "./cmd/ctrlctl",
+                   "-ctrl", "127.0.0.1:"+config["ctrlport"], "add", "127.0.0.1:12204"])
+    time.sleep(99999999)
+
     os.killpg(os.getpgid(replicas[1].pid), signal.SIGKILL)
     os.killpg(os.getpgid(replicas[2].pid), signal.SIGKILL)
     time.sleep(4)

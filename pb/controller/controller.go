@@ -114,7 +114,7 @@ func StartControllerServer(me rpc.HostName, replicas []rpc.HostName) {
 	ck := pb.MakeReplicaClerk(replicas[0])
 	ck.BecomePrimaryRPC(&pb.BecomePrimaryArgs{Cn: 1, Conf: s.conf})
 
-	s.HeartbeatThread()
+	go s.HeartbeatThread()
 
 	handlers := make(map[uint64]func([]byte, *[]byte))
 	handlers[CONTROLLER_ADD] = func(raw_args []byte, _ *[]byte) {
