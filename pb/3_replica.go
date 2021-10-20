@@ -53,14 +53,13 @@ func (s *ReplicaServer) postAppendRPC(i uint64, args *AppendArgs) {
 	s.mu.Lock()
 	if s.cn == args.cn {
 		// log.Println("postAppendRPC")
-		if s.matchIdx[i+1] < uint64(len(args.log)) {
-			s.matchIdx[i+1] = uint64(len(args.log))
+		if s.matchIdx[i] < uint64(len(args.log)) {
+			s.matchIdx[i] = uint64(len(args.log))
 
 			// check if commitIdx can be increased
 			m := min(s.matchIdx)
 			if m > s.commitIdx {
 				s.commitIdx = m
-				// s.commitCond.Signal()
 			}
 		}
 	}
@@ -92,7 +91,7 @@ func (s *ReplicaServer) StartAppend(op LogEntry) bool {
 		i := i
 		go func() {
 			ck.AppendRPC(args)
-			s.postAppendRPC(uint64(i), args)
+			s.postAppendRPC(uint64(i)+1, args)
 		}()
 	}
 	return true
