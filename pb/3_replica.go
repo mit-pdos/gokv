@@ -161,7 +161,7 @@ func (s *ReplicaServer) BecomePrimaryRPC(args *BecomePrimaryArgs) {
 	s.matchIdx = make([]uint64, len(args.Conf.Replicas))
 
 	s.replicaClerks = make([]*ReplicaClerk, len(args.Conf.Replicas) - 1)
-	for i, _ := range args.Conf.Replicas[1:] {
+	for i, _ := range s.replicaClerks {
 		s.replicaClerks[i] = MakeReplicaClerk(args.Conf.Replicas[i+1])
 	}
 	s.mu.Unlock()
