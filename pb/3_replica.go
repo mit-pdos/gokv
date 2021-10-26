@@ -131,6 +131,7 @@ func (s *ReplicaServer) BecomePrimaryRPC(args *BecomePrimaryArgs) {
 	log.Printf("Becoming primary in %d, %+v", args.Cn, args.Conf.Replicas)
 
 	if s.cn >= args.Cn {
+		s.mu.Unlock()
 		return
 	}
 	// FIXME(goose): should be able to put "else if" here
@@ -156,14 +157,13 @@ func (s *ReplicaServer) BecomePrimaryRPC(args *BecomePrimaryArgs) {
 	}
 	s.isPrimary = true
 	s.cn = args.Cn
-	s.conf = args.Conf
+	// s.conf = args.Conf
 	s.matchIdx = make([]uint64, len(args.Conf.Replicas))
 
 	s.replicaClerks = make([]*ReplicaClerk, len(args.Conf.Replicas) - 1)
-	for i, _ := range s.conf.Replicas[1:] {
-		s.replicaClerks[i] = MakeReplicaClerk(s.conf.Replicas[i+1])
+	for i, _ := range args.Conf.Replicas[1:] {
+		s.replicaClerks[i] = MakeReplicaClerk(args.Conf.Replicas[i+1])
 	}
-
 	s.mu.Unlock()
 }
 
