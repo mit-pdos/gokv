@@ -6,12 +6,10 @@ import (
 	"sync"
 )
 
-type seqKVClerkPtr *SeqKVClerk
-
 type KVClerk struct {
 	mu *sync.Mutex
 	// queue of free clerks
-	freeClerks []seqKVClerkPtr
+	freeClerks []*SeqKVClerk
 	cm         *connman.ConnMan
 	coord      HostName
 }
@@ -97,6 +95,6 @@ func MakeKVClerk(coord HostName, cm *connman.ConnMan) *KVClerk {
 	p.mu = new(sync.Mutex)
 	p.coord = coord
 	p.cm = cm
-	p.freeClerks = make([]seqKVClerkPtr, 0)
+	p.freeClerks = make([]*SeqKVClerk, 0)
 	return p
 }
