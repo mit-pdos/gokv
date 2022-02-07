@@ -4,6 +4,7 @@ import (
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc/rpc"
 	"github.com/tchajed/goose/machine"
+	"github.com/tchajed/marshal"
 	"sync"
 )
 
@@ -16,9 +17,9 @@ type CtrServer struct {
 
 // requires lock to be held
 func (s *CtrServer) MakeDurable() {
-	a := make([]byte, 8)
-	machine.UInt64Put(a, s.val)
-	grove_ffi.Write(s.filename, a)
+	e := marshal.NewEnc(8)
+	e.PutInt(s.val)
+	grove_ffi.Write(s.filename, e.Finish())
 }
 
 func (s *CtrServer) FetchAndIncrement() uint64 {
@@ -47,8 +48,9 @@ func main() {
 	handlers := make(map[uint64]func([]byte, *[]byte))
 	handlers[0] = func(args []byte, reply *[]byte) {
 		v := s.FetchAndIncrement()
-		*reply = make([]byte, 8)
-		machine.UInt64Put(*reply, v)
+		e := marshal.NewEnc(8)
+		e.PutInt(v)
+		*reply = e.Finish()
 	}
 	rs := rpc.MakeRPCServer(handlers)
 	rs.Serve(me, 1)
