@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc/rpc"
-	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/marshal"
 	"sync"
 )
@@ -42,7 +41,8 @@ func main() {
 	if len(a) == 0 {
 		s.val = 0
 	} else {
-		s.val = machine.UInt64Get(a)
+		d := marshal.NewDec(a)
+		s.val = d.GetInt()
 	}
 
 	handlers := make(map[uint64]func([]byte, *[]byte))
