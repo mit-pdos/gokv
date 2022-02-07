@@ -52,5 +52,5 @@ func main() {
 	}
 	rs := rpc.MakeRPCServer(handlers)
 	rs.Serve(me, 1)
-	select{}
+	// select{}
 }
