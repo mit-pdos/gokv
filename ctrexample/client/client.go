@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/mit-pdos/gokv/urpc/rpc"
 	"github.com/tchajed/goose/machine"
+	"github.com/tchajed/marshal"
 	"fmt"
 )
 
@@ -22,7 +23,8 @@ func main() {
 		if err != 0 {
 			continue // failed, just retry
 		}
-		v := machine.UInt64Get(*rep)
+		dec := marshal.NewDec(*rep)
+		v := dec.GetInt()
 
 		machine.Assert(v >= localBound);
 		localBound = v
