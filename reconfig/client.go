@@ -9,9 +9,19 @@ type Clerk struct {
 	cl *rpc.RPCClient
 }
 
+type OpType = []byte
+
+type Error = uint64
+
+const (
+	ENone       = uint64(0)
+	ENotPrimary = uint64(1)
+	EStale      = uint64(2)
+)
+
 type DoOperationArgs struct {
-	cn uint64
-	op []byte
+	cn  uint64
+	op  []byte
 	osn uint64
 }
 
@@ -20,18 +30,30 @@ type Configuration struct {
 }
 
 type BecomeReplicaArgs struct {
-	cn uint64
+	cn    uint64
 	state []byte
-	osn uint64
+	osn   uint64
 }
 
 type BecomePrimaryArgs struct {
-	conf Configuration
+	conf    Configuration
 	repArgs *BecomeReplicaArgs
 }
 
-func (ck *Clerk) DoOperation(args *DoOperationArgs) bool {
-	return false
+type GetStateReply struct {
+	cn    uint64
+	state []byte
+	osn   uint64
+}
+
+func (ck *Clerk) DoOperation(args *DoOperationArgs) Error {
+	// FIXME: impl
+	return EStale
+}
+
+func (ck *Clerk) BecomeReplica(args *BecomeReplicaArgs) Error {
+	// FIXME: impl
+	return EStale
 }
 
 func MakeClerk(host grove_ffi.Address) *Clerk {

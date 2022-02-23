@@ -11,19 +11,16 @@ type Server struct {
 	cn        uint64
 	isPrimary bool
 	clerks    []*Clerk
+	sealed    bool
 }
 
-type OpType = []byte
-
-type Error = uint64
-
-const (
-	ENone       = uint64(0)
-	ENotPrimary = uint64(1)
-)
-
-func ApplyOp(state *[]byte, op OpType) {
+// Applies the given op to the given state, and returns the response for that
+// operation.
+// E.g. for a put, the state changes and the reply is nil.
+// For a get, the state is unchanged and the reply is the value of the desired key.
+func ApplyOp(state *[]byte, op OpType) []byte {
 	// no-op for now; this ought to be determined by the user
+	return nil
 }
 
 // Tries to apply the given `op` to the state machine.
@@ -39,7 +36,7 @@ func (s *Server) PrimaryApplyOp(op OpType) Error {
 	s.osn += 1
 
 	// now tell everyone else about the op
-	args := &DoOperationArgs{cn:s.cn, op:op, osn:s.osn}
+	args := &DoOperationArgs{cn: s.cn, op: op, osn: s.osn}
 	for _, ck := range s.clerks {
 		ck.DoOperation(args)
 	}
@@ -70,11 +67,11 @@ func (s *Server) DoOperation(args *DoOperationArgs) bool {
 // Invoked by a failover controller to tell this server that it's the primary
 // for configuration cn.
 // Includes the (or, "a") final state of the previous config.
-func (s *Server) BecomePrimary(args *BecomePrimaryArgs) {
+func (s *Server) BecomePrimary(args *BecomePrimaryArgs) Error {
 	s.mu.Lock()
 	if args.repArgs.cn <= s.cn { // ignore requests for old cn
 		s.mu.Unlock()
-		return
+		return EStale
 	}
 
 	// make clerks
@@ -83,16 +80,77 @@ func (s *Server) BecomePrimary(args *BecomePrimaryArgs) {
 		s.clerks[i] = MakeClerk(args.conf.replicas[i])
 	}
 
+	// tell the replicas to become replicas
+	var success = true
+	for _, ck := range s.clerks {
+		// The only way a replica will reject this is if it enters a
+		// configuration higher than args.repArgs.cn. In that case, this primary
+		// has been scooped.
+		if ck.BecomeReplica(args.repArgs) != ENone {
+			success = false
+			break
+			s.mu.Unlock()
+			return ENotPrimary
+		}
+	}
+	if !success {
+		s.mu.Unlock()
+		return ENotPrimary
+	}
+
+	// at this point, everyone is caught up.
 	s.cn = args.repArgs.cn
+	s.isPrimary = true
 	s.mu.Unlock()
+	return ENone
 }
 
-// Tell the server to become a backup in the new configuration cn, with the given state and osn
-func (s *Server) BecomeReplica(args *BecomeReplicaArgs) {
+// Tell this server to become a backup in the new configuration cn, with the
+// given state and osn
+func (s *Server) BecomeReplica(args *BecomeReplicaArgs) Error {
+	s.mu.Lock()
+	if args.cn <= s.cn { // ignore requests for old cn
+		s.mu.Unlock()
+		return EStale
+	}
+
+	s.state = &args.state
+	s.osn = args.osn
+	s.cn = args.cn
+	s.sealed = false
+
+	return ENone
 }
 
-func (s *Server) Seal(cn uint64) {
+// Guarantees that a future GetState(cn) on any server will return state that
+// is a superset of whatever will ever be committed in cn.
+func (s *Server) Seal(cn uint64) Error {
+	s.mu.Lock()
+	if cn < s.cn { // already sealed for old cn's
+		s.mu.Unlock()
+		return ENone
+	} else if cn == s.cn { // can seal, and be up-to-date
+		s.sealed = true
+		s.mu.Unlock()
+		return ENone
+	} else { // cn > s.cn
+		// we could seal ourselves here, but then we wouldn't be up-to-date, so
+		// future GetState()'s wouldn't return up-to-date stuff.
+		// XXX: We can get rid of this error case by requiring that you only
+		// call Seal() after bringing the server up-to-date in cn
+		s.mu.Unlock()
+		return EStale
+	}
+
+	return ENone
 }
 
-func (s *Server) GetState(cn uint64, state []byte, osn []byte) {
+func (s *Server) GetState() *GetStateReply {
+	s.mu.Lock()
+	reply := new(GetStateReply)
+	reply.cn = s.cn
+	reply.state = *s.state // FIXME(bug): should make a copy of this, or else prevent modification until the reply is sent
+	reply.osn = s.osn
+	s.mu.Unlock()
+	return reply
 }
