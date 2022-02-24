@@ -1,10 +1,10 @@
 package main
 
 import (
+	"flag"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/paxi/comulti"
 	"log"
-	"flag"
 	// "time"
 )
 
@@ -13,7 +13,7 @@ func main() {
 	commitf := func(e comulti.Entry) {
 		l = append(l, e)
 		log.Printf("Log is %+v\n", l)
-		if (len(l) % 100 == 0) {
+		if len(l)%100 == 0 {
 			log.Println("Another 100")
 		}
 	}

@@ -11,11 +11,11 @@ type Clerk struct {
 
 func (ck *Clerk) Get(key uint64) []byte {
 	var ret []byte
-	ck.cl.Call(memkv.KV_GET, memkv.EncodeGetRequest(&memkv.GetRequest{Key:key} ), &ret, 100/*ms*/)
+	ck.cl.Call(memkv.KV_GET, memkv.EncodeGetRequest(&memkv.GetRequest{Key: key}), &ret, 100 /*ms*/)
 	return ret
 }
 
 func (ck *Clerk) Put(key uint64, value []byte) {
 	var ret []byte
-	ck.cl.Call(memkv.KV_GET, memkv.EncodePutRequest(&memkv.PutRequest{Key:key, Value:value} ), &ret, 100/*ms*/)
+	ck.cl.Call(memkv.KV_GET, memkv.EncodePutRequest(&memkv.PutRequest{Key: key, Value: value}), &ret, 100 /*ms*/)
 }

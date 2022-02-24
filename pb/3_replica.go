@@ -1,6 +1,7 @@
 package pb
 
 import (
+	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc/rpc"
 	"github.com/tchajed/goose/machine"
 	"log"
@@ -135,7 +136,7 @@ func (s *ReplicaServer) BecomePrimaryRPC(args *BecomePrimaryArgs) {
 		return
 	}
 	// FIXME(goose): should be able to put "else if" here
-	if args.Cn > s.cn + 1 && s.cn == 0 {
+	if args.Cn > s.cn+1 && s.cn == 0 {
 		// XXX: if s.cn == 0 and e.g. I'm asked to become leader of
 		// configuration 17, it's possible that stuff was committed in old
 		// configurations, and I was added to the system but never got an
@@ -160,8 +161,8 @@ func (s *ReplicaServer) BecomePrimaryRPC(args *BecomePrimaryArgs) {
 	// s.conf = args.Conf
 	s.matchIdx = make([]uint64, len(args.Conf.Replicas))
 
-	s.replicaClerks = make([]*ReplicaClerk, len(args.Conf.Replicas) - 1)
-	for i, _ := range s.replicaClerks {
+	s.replicaClerks = make([]*ReplicaClerk, len(args.Conf.Replicas)-1)
+	for i := range s.replicaClerks {
 		s.replicaClerks[i] = MakeReplicaClerk(args.Conf.Replicas[i+1])
 	}
 	s.mu.Unlock()
@@ -174,7 +175,7 @@ func (s *ReplicaServer) GetCommitLogRPC(_ []byte, reply *[]byte) {
 	s.mu.Unlock()
 }
 
-func StartReplicaServer(me rpc.HostName) *ReplicaServer {
+func StartReplicaServer(me grove_ffi.Address) *ReplicaServer {
 	// construct the ReplicaServer object
 	s := new(ReplicaServer)
 	s.mu = new(sync.Mutex)

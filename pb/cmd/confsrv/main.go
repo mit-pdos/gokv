@@ -6,9 +6,9 @@ import (
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/pb"
 	"log"
-	"os"
 	"net/http"
 	_ "net/http/pprof"
+	"os"
 )
 
 func main() {

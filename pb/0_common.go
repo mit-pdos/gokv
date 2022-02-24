@@ -1,16 +1,16 @@
 package pb
 
 import (
-	"github.com/mit-pdos/gokv/urpc/rpc"
+	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/tchajed/marshal"
 )
 
 type Configuration struct {
-	Replicas []rpc.HostName
+	Replicas []grove_ffi.Address
 }
 
 func EncodePBConfiguration(p *Configuration) []byte {
-	enc := marshal.NewEnc(8 + 8 + 8 * uint64(len(p.Replicas)))
+	enc := marshal.NewEnc(8 + 8 + 8*uint64(len(p.Replicas)))
 	enc.PutInt(uint64(len(p.Replicas)))
 	enc.PutInts(p.Replicas)
 	return enc.Finish()

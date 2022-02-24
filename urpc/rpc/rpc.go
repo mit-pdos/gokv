@@ -1,14 +1,12 @@
 package rpc
 
 import (
+	"github.com/goose-lang/std"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/marshal"
-	"github.com/goose-lang/std"
 	"sync"
 )
-
-type HostName = uint64
 
 type RPCServer struct {
 	handlers map[uint64]func([]byte, *[]byte)
@@ -21,7 +19,7 @@ func (srv *RPCServer) rpcHandle(conn grove_ffi.Connection, rpcid uint64, seqno u
 	f(data, replyData)       // call the function
 
 	// assume no overflow (*replyData would have to be almost 2^64 bytes large...)
-	num_bytes := std.SumAssumeNoOverflow(8 + 8, uint64(len(*replyData)))
+	num_bytes := std.SumAssumeNoOverflow(8+8, uint64(len(*replyData)))
 	e := marshal.NewEnc(num_bytes)
 	e.PutInt(seqno)
 	e.PutInt(uint64(len(*replyData)))
@@ -52,11 +50,11 @@ func (srv *RPCServer) readThread(conn grove_ffi.Connection) {
 	}
 }
 
-func (srv *RPCServer) Serve(host HostName, numWorkers uint64) {
+func (srv *RPCServer) Serve(host grove_ffi.Address, numWorkers uint64) {
 	listener := grove_ffi.Listen(grove_ffi.Address(host))
 	go func() {
 		for {
-			conn := grove_ffi.Accept(listener);
+			conn := grove_ffi.Accept(listener)
 			go func() {
 				srv.readThread(conn)
 			}()
@@ -70,14 +68,14 @@ const callbackStateAborted uint64 = 2
 
 type callback struct {
 	reply *[]byte
-	state  *uint64
+	state *uint64
 	cond  *sync.Cond
 }
 
 type RPCClient struct {
 	mu   *sync.Mutex
 	conn grove_ffi.Connection // for requests
-	seq  uint64          // next fresh sequence number
+	seq  uint64               // next fresh sequence number
 
 	pending map[uint64]*callback
 }
@@ -117,7 +115,7 @@ func (cl *RPCClient) replyThread() {
 	}
 }
 
-func MakeRPCClient(host_name HostName) *RPCClient {
+func MakeRPCClient(host_name grove_ffi.Address) *RPCClient {
 	host := grove_ffi.Address(host_name)
 	a := grove_ffi.Connect(host)
 	// Assume no error
@@ -159,7 +157,7 @@ func (cl *RPCClient) Call(rpcid uint64, args []byte, reply *[]byte, timeout_ms u
 	//   our status to `callbackStateAborted` which we will notice below.
 
 	// assume no overflow (args would have to be almost 2^64 bytes large...)
-	num_bytes := std.SumAssumeNoOverflow(8 + 8 + 8, uint64(len(args)))
+	num_bytes := std.SumAssumeNoOverflow(8+8+8, uint64(len(args)))
 	e := marshal.NewEnc(num_bytes)
 	e.PutInt(rpcid)
 	e.PutInt(seqno)

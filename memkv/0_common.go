@@ -1,8 +1,8 @@
 package memkv
 
 import (
-	"github.com/tchajed/marshal"
 	"github.com/goose-lang/std"
+	"github.com/tchajed/marshal"
 )
 
 type HostName = uint64
@@ -47,7 +47,7 @@ type PutRequest struct {
 // doesn't include the operation type
 func EncodePutRequest(args *PutRequest) []byte {
 	// assume no overflow (args.Value would have to be almost 2^64 bytes large...)
-	num_bytes := std.SumAssumeNoOverflow(8 + 8 + 8 + 8, uint64(len(args.Value))) // CID + Seq + key + value-len + value
+	num_bytes := std.SumAssumeNoOverflow(8+8+8+8, uint64(len(args.Value))) // CID + Seq + key + value-len + value
 	e := marshal.NewEnc(num_bytes)
 	e.PutInt(args.CID)
 	e.PutInt(args.Seq)
@@ -116,7 +116,7 @@ func DecodeGetRequest(rawReq []byte) *GetRequest {
 
 func EncodeGetReply(rep *GetReply) []byte {
 	// assume no overflow (rep.Value would have to be almost 2^64 bytes large...)
-	num_bytes := std.SumAssumeNoOverflow(8 + 8, uint64(len(rep.Value)))        // CID + Seq + key + value-len + value
+	num_bytes := std.SumAssumeNoOverflow(8+8, uint64(len(rep.Value))) // CID + Seq + key + value-len + value
 	e := marshal.NewEnc(num_bytes)
 	e.PutInt(rep.Err)
 	e.PutInt(uint64(len(rep.Value)))
@@ -149,7 +149,7 @@ type ConditionalPutReply struct {
 func EncodeConditionalPutRequest(req *ConditionalPutRequest) []byte {
 	// assume no overflow (req.NewValue and req.ExpectedValue together would have to be almost 2^64 bytes large...)
 	// CID + Seq + key + exp-value-len + exp-value + new-value-len + new-value
-	num_bytes := std.SumAssumeNoOverflow(8 + 8 + 8 + 8 + 8, std.SumAssumeNoOverflow(uint64(len(req.ExpectedValue)), uint64(len(req.NewValue))))
+	num_bytes := std.SumAssumeNoOverflow(8+8+8+8+8, std.SumAssumeNoOverflow(uint64(len(req.ExpectedValue)), uint64(len(req.NewValue))))
 	e := marshal.NewEnc(num_bytes)
 	e.PutInt(req.CID)
 	e.PutInt(req.Seq)
@@ -199,7 +199,7 @@ func SizeOfMarshalledMap(m map[uint64][]byte) uint64 {
 	var s uint64
 	s = 8
 	for _, value := range m {
-		v := std.SumAssumeNoOverflow(uint64(len(value)), 8 + 8)
+		v := std.SumAssumeNoOverflow(uint64(len(value)), 8+8)
 		s = std.SumAssumeNoOverflow(s, v)
 	}
 	return s
@@ -228,7 +228,7 @@ func DecSliceMap(d marshal.Dec) map[uint64][]byte {
 }
 
 func encodeInstallShardRequest(req *InstallShardRequest) []byte {
-	num_bytes := std.SumAssumeNoOverflow(8 + 8 + 8, SizeOfMarshalledMap(req.Kvs))
+	num_bytes := std.SumAssumeNoOverflow(8+8+8, SizeOfMarshalledMap(req.Kvs))
 	e := marshal.NewEnc(num_bytes)
 	e.PutInt(req.CID)
 	e.PutInt(req.Seq)

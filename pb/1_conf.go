@@ -1,6 +1,7 @@
 package pb
 
 import (
+	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc/rpc"
 	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/marshal"
@@ -85,7 +86,7 @@ func (s *ConfServer) GetRPC(key uint64, v *VersionedValue) {
 	s.mu.Unlock()
 }
 
-func StartConfServer(me rpc.HostName) {
+func StartConfServer(me grove_ffi.Address) {
 	s := new(ConfServer)
 	s.mu = new(sync.Mutex)
 	s.kvs = make(map[uint64]VersionedValue)
@@ -136,6 +137,6 @@ func (c *ConfClerk) Get(key uint64) *VersionedValue {
 	return nil
 }
 
-func MakeConfClerk(confServer rpc.HostName) *ConfClerk {
+func MakeConfClerk(confServer grove_ffi.Address) *ConfClerk {
 	return &ConfClerk{cl: rpc.MakeRPCClient(confServer)}
 }

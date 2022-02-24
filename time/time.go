@@ -12,7 +12,7 @@ const Millisecond = uint64(time.Millisecond)
 const Second = uint64(time.Second)
 
 func AfterFunc(duration uint64, f func()) *Timer {
-	return &Timer{time.AfterFunc(time.Duration(duration) * time.Nanosecond, f)}
+	return &Timer{time.AfterFunc(time.Duration(duration)*time.Nanosecond, f)}
 }
 
 func (t *Timer) Reset(duration uint64) {

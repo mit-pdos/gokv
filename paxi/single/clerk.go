@@ -9,7 +9,7 @@ type Clerk struct {
 }
 
 func MakeClerk(host uint64) *Clerk {
-	return &Clerk{cl:rpc.MakeRPCClient(host)}
+	return &Clerk{cl: rpc.MakeRPCClient(host)}
 }
 
 func (ck *Clerk) Prepare(pn uint64, reply *PrepareReply) {

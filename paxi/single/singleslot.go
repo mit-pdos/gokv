@@ -9,7 +9,7 @@ type Replica struct {
 	mu         *sync.Mutex
 	promisedPN uint64 // server has promised not to accept proposals below this
 
-	acceptedPN       uint64  // proposal number of accepted val
+	acceptedPN  uint64  // proposal number of accepted val
 	acceptedVal ValType // the value itself
 
 	committedVal ValType

@@ -139,10 +139,10 @@ func (gkv *GoKVShardServer) Start() {
 
 	handlers[KV_GET] = func(rawReq []byte, rawReply *[]byte) {
 		rep := new(GetReply)
+		gkv.FastUnsafeGetRPC(decodeFastGetRequest(rawReq), rep)
 		*rawReply = encodeGetReply(rep)
 		return
-		gkv.FastUnsafeGetRPC(decodeFastGetRequest(rawReq), rep)
 	}
-	s := rpc.MakeRPCServer(handlers)
+	s := rpc.MakeRPCServer(handlers, 1)
 	go s.Serve(":12345")
 }

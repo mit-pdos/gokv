@@ -38,5 +38,5 @@ func main() {
 		time.Sleep(500 * time.Millisecond)
 		log.Printf("CommitLog[%d] :%+v\n", port, s.GetCommittedLog())
 	}
-	select {}
+	// select {}
 }

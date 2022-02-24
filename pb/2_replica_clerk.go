@@ -1,6 +1,7 @@
 package pb
 
 import (
+	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc/rpc"
 	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/marshal"
@@ -85,7 +86,7 @@ func (ck *ReplicaClerk) HeartbeatRPC() bool {
 	return ck.cl.Call(REPLICA_HEARTBEAT, make([]byte, 0), reply, 1000) == 0
 }
 
-func MakeReplicaClerk(host rpc.HostName) *ReplicaClerk {
+func MakeReplicaClerk(host grove_ffi.Address) *ReplicaClerk {
 	ck := new(ReplicaClerk)
 	ck.cl = rpc.MakeRPCClient(host)
 	return ck

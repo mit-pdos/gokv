@@ -12,18 +12,18 @@ type HostName = uint64
 type MKRouterServer struct {
 	coord HostName
 	mu    *sync.Mutex
-	cks   []*memkv.MemKVClerk // pool of clerks
+	cks   []*memkv.KVClerk // pool of clerks
 }
 
 func (s *MKRouterServer) GetRPC(args *memkv.GetRequest, val *[]byte) {
-	var ck *memkv.MemKVClerk
+	var ck *memkv.KVClerk
 	s.mu.Lock()
 	if len(s.cks) > 0 {
 		ck = s.cks[0]
 		s.mu.Unlock()
 	} else {
 		s.mu.Unlock()
-		ck = memkv.MakeMemKVClerk(s.coord)
+		ck = memkv.MakeKVClerk(s.coord, nil) // FIXME: needs a connman
 	}
 
 	*val = ck.Get(args.Key)
@@ -33,14 +33,14 @@ func (s *MKRouterServer) GetRPC(args *memkv.GetRequest, val *[]byte) {
 }
 
 func (s *MKRouterServer) PutRPC(args *memkv.PutRequest) {
-	var ck *memkv.MemKVClerk
+	var ck *memkv.KVClerk
 	s.mu.Lock()
 	if len(s.cks) > 0 {
 		ck = s.cks[0]
 		s.mu.Unlock()
 	} else {
 		s.mu.Unlock()
-		ck = memkv.MakeMemKVClerk(s.coord)
+		ck = memkv.MakeKVClerk(s.coord, nil) // FIXME: needs a connman
 	}
 
 	ck.Put(args.Key, args.Value)

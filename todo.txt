@@ -1,3 +1,5 @@
+* Tests, to check that changes to interfaces/specs don't break their users
+
 * Implement recovery for shard server
 * Add InstallShard() to goosekv
 * Make client for sharded KV store (not just for a shard server)

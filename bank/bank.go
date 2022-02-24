@@ -2,9 +2,9 @@ package bank
 
 import (
 	"github.com/goose-lang/std"
+	"github.com/mit-pdos/gokv/connman"
 	"github.com/mit-pdos/gokv/lockservice"
 	"github.com/mit-pdos/gokv/memkv"
-	"github.com/mit-pdos/gokv/connman"
 )
 
 // The maximum money supply, initially will all belong to acc1
@@ -47,7 +47,7 @@ func (bck *BankClerk) transfer_internal(acc_from uint64, acc_to uint64, amount u
 
 	if old_amount >= amount {
 		bck.kvck.Put(acc_from, memkv.EncodeUint64(old_amount-amount))
-		bck.kvck.Put(acc_to, memkv.EncodeUint64(memkv.DecodeUint64(bck.kvck.Get(acc_to)) + amount))
+		bck.kvck.Put(acc_to, memkv.EncodeUint64(memkv.DecodeUint64(bck.kvck.Get(acc_to))+amount))
 	}
 	release_two(bck.lck, acc_from, acc_to)
 }
@@ -65,7 +65,7 @@ func (bck *BankClerk) get_total() uint64 {
 
 func (bck *BankClerk) SimpleAudit() {
 	for {
-		if(bck.get_total() != BAL_TOTAL) {
+		if bck.get_total() != BAL_TOTAL {
 			panic("Balance total invariant violated")
 		}
 	}
@@ -80,7 +80,7 @@ func MakeBankClerk(lockhost memkv.HostName, kvhost memkv.HostName, cm *connman.C
 
 	bck.lck.Lock(init_flag)
 	// If init_flag has an empty value, initialize the accounts and set the flag.
-	if (std.BytesEqual(bck.kvck.Get(init_flag), make([]byte, 0))) {
+	if std.BytesEqual(bck.kvck.Get(init_flag), make([]byte, 0)) {
 		bck.kvck.Put(acc1, memkv.EncodeUint64(BAL_TOTAL))
 		bck.kvck.Put(acc2, memkv.EncodeUint64(0))
 		bck.kvck.Put(init_flag, make([]byte, 1))

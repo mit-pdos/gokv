@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/go-redis/redis/v8"
 	. "github.com/mit-pdos/gokv/bench"
+	. "github.com/mit-pdos/gokv/fastkv"
 	"io"
 	"log"
 	"math/rand"

@@ -8,8 +8,8 @@ import (
 )
 
 type CtrServer struct {
-	mu       *sync.Mutex
-	val      uint64
+	mu  *sync.Mutex
+	val uint64
 
 	filename string
 }

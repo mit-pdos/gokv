@@ -3,8 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/connman"
+	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/memkv"
 	"os"
 	"strconv"

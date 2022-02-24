@@ -1,15 +1,15 @@
 package memkv
 
 import (
-	"github.com/mit-pdos/gokv/connman"
 	"github.com/goose-lang/std"
+	"github.com/mit-pdos/gokv/connman"
 )
 
 type KVShardClerk struct {
-	seq uint64
-	cid uint64
+	seq  uint64
+	cid  uint64
 	host HostName
-	c *connman.ConnMan
+	c    *connman.ConnMan
 }
 
 func MakeFreshKVShardClerk(host HostName, c *connman.ConnMan) *KVShardClerk {
@@ -17,7 +17,7 @@ func MakeFreshKVShardClerk(host HostName, c *connman.ConnMan) *KVShardClerk {
 	ck.host = host
 	ck.c = c
 	rawRep := new([]byte)
-	ck.c.CallAtLeastOnce(host, KV_FRESHCID, make([]byte, 0), rawRep, 100/*ms*/)
+	ck.c.CallAtLeastOnce(host, KV_FRESHCID, make([]byte, 0), rawRep, 100 /*ms*/)
 	ck.cid = DecodeUint64(*rawRep)
 	ck.seq = 1
 
@@ -34,7 +34,7 @@ func (ck *KVShardClerk) Put(key uint64, value []byte) ErrorType {
 	ck.seq = std.SumAssumeNoOverflow(ck.seq, 1)
 
 	rawRep := new([]byte)
-	ck.c.CallAtLeastOnce(ck.host, KV_PUT, EncodePutRequest(args), rawRep, 100/*ms*/)
+	ck.c.CallAtLeastOnce(ck.host, KV_PUT, EncodePutRequest(args), rawRep, 100 /*ms*/)
 	rep := DecodePutReply(*rawRep)
 	return rep.Err
 }
@@ -48,7 +48,7 @@ func (ck *KVShardClerk) Get(key uint64, value *[]byte) ErrorType {
 	ck.seq = std.SumAssumeNoOverflow(ck.seq, 1)
 
 	rawRep := new([]byte)
-	ck.c.CallAtLeastOnce(ck.host, KV_GET, EncodeGetRequest(args), rawRep, 100/*ms*/)
+	ck.c.CallAtLeastOnce(ck.host, KV_GET, EncodeGetRequest(args), rawRep, 100 /*ms*/)
 	rep := DecodeGetReply(*rawRep)
 	*value = rep.Value
 	return rep.Err
@@ -65,7 +65,7 @@ func (ck *KVShardClerk) ConditionalPut(key uint64, expectedValue []byte, newValu
 	ck.seq = std.SumAssumeNoOverflow(ck.seq, 1)
 
 	rawRep := new([]byte)
-	ck.c.CallAtLeastOnce(ck.host, KV_CONDITIONAL_PUT, EncodeConditionalPutRequest(args), rawRep, 100/*ms*/)
+	ck.c.CallAtLeastOnce(ck.host, KV_CONDITIONAL_PUT, EncodeConditionalPutRequest(args), rawRep, 100 /*ms*/)
 	rep := DecodeConditionalPutReply(*rawRep)
 	*success = rep.Success
 	return rep.Err
@@ -82,7 +82,7 @@ func (ck *KVShardClerk) InstallShard(sid uint64, kvs map[uint64][]byte) {
 	ck.seq = std.SumAssumeNoOverflow(ck.seq, 1)
 
 	rawRep := new([]byte)
-	ck.c.CallAtLeastOnce(ck.host, KV_INS_SHARD, encodeInstallShardRequest(args), rawRep, 100/*ms*/)
+	ck.c.CallAtLeastOnce(ck.host, KV_INS_SHARD, encodeInstallShardRequest(args), rawRep, 100 /*ms*/)
 	// log.Printf("InstallShard %d finished", sid)
 }
 
@@ -92,13 +92,13 @@ func (ck *KVShardClerk) MoveShard(sid uint64, dst HostName) {
 	args.Dst = dst
 
 	rawRep := new([]byte)
-	ck.c.CallAtLeastOnce(ck.host, KV_MOV_SHARD, encodeMoveShardRequest(args), rawRep, 100/*ms*/)
+	ck.c.CallAtLeastOnce(ck.host, KV_MOV_SHARD, encodeMoveShardRequest(args), rawRep, 100 /*ms*/)
 }
 
 // The coordinator, and the main clerk, need to talk to a bunch of shards.
 type ShardClerkSet struct {
 	cls map[HostName]*KVShardClerk
-	c *connman.ConnMan
+	c   *connman.ConnMan
 }
 
 func MakeShardClerkSet(c *connman.ConnMan) *ShardClerkSet {

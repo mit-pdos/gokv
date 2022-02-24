@@ -1,12 +1,13 @@
 package controller
 
 import (
+	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/pb"
-	"github.com/mit-pdos/gokv/urpc/rpc"
-	"sync"
 	"github.com/mit-pdos/gokv/time"
-	"log"
+	"github.com/mit-pdos/gokv/urpc/rpc"
 	"github.com/tchajed/marshal"
+	"log"
+	"sync"
 )
 
 type ControllerServer struct {
@@ -20,7 +21,7 @@ type ControllerServer struct {
 func (s *ControllerServer) HandleFailedReplicas() {
 	log.Printf("In config %d, %+v failed", s.cn, s.failed)
 	n := uint64(len(s.conf.Replicas)) - uint64(len(s.failed))
-	var newReplicas = make([]rpc.HostName, 0, n)
+	var newReplicas = make([]grove_ffi.Address, 0, n)
 	for i, r := range s.conf.Replicas {
 		if !s.failed[uint64(i)] {
 			newReplicas = append(newReplicas, r)
@@ -52,7 +53,7 @@ func (s *ControllerServer) HeartbeatThread() {
 		}
 
 		s.failed = make(map[uint64]bool)
-		for i, _ := range clerks {
+		for i := range clerks {
 			i := i
 			hbtimers[i] = time.AfterFunc(HBTIMEOUT, func() {
 				s.mu.Lock()
@@ -94,7 +95,7 @@ func (s *ControllerServer) HeartbeatThread() {
 	}
 }
 
-func (s *ControllerServer) AddNewServerRPC(newServer rpc.HostName) {
+func (s *ControllerServer) AddNewServerRPC(newServer grove_ffi.Address) {
 	s.mu.Lock()
 	s.cn = s.cn + 1
 	s.conf = &pb.Configuration{Replicas: append(s.conf.Replicas, newServer)}
@@ -105,7 +106,7 @@ func (s *ControllerServer) AddNewServerRPC(newServer rpc.HostName) {
 
 // This should be invoked locally by services to attempt appending op to the
 // log
-func StartControllerServer(me rpc.HostName, replicas []rpc.HostName) {
+func StartControllerServer(me grove_ffi.Address, replicas []grove_ffi.Address) {
 	s := new(ControllerServer)
 	s.mu = new(sync.Mutex)
 	s.cn = 1

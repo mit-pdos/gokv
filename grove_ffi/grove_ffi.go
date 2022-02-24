@@ -10,11 +10,7 @@ import (
 	"sync"
 )
 
-type Address uint64
-
-func (a Address) String() string {
-	return AddressToStr(a)
-}
+type Address = uint64
 
 func MakeAddress(ipStr string) uint64 {
 	// XXX: manually parsing is pretty silly; couldn't figure out how to make
@@ -84,28 +80,28 @@ func Accept(l Listener) Connection {
 
 /// Connection
 type connection struct {
-	conn net.Conn
+	conn    net.Conn
 	send_mu *sync.Mutex // guarding *sending* on `conn`
 	recv_mu *sync.Mutex // guarding *receiving* on `conn`
 }
 
 func makeConnection(conn net.Conn) Connection {
-	return &connection { conn: conn, send_mu: new(sync.Mutex), recv_mu: new(sync.Mutex) }
+	return &connection{conn: conn, send_mu: new(sync.Mutex), recv_mu: new(sync.Mutex)}
 }
 
 type Connection *connection
 
 type ConnectRet struct {
-	Err      bool
-	Connection   Connection
+	Err        bool
+	Connection Connection
 }
 
 func Connect(host Address) ConnectRet {
 	conn, err := net.Dial("tcp", AddressToStr(host))
 	if err != nil {
-		return ConnectRet { Err: true }
+		return ConnectRet{Err: true}
 	}
-	return ConnectRet { Err: false, Connection: makeConnection(conn) }
+	return ConnectRet{Err: false, Connection: makeConnection(conn)}
 }
 
 func Send(c Connection, data []byte) bool {
@@ -130,8 +126,8 @@ func Send(c Connection, data []byte) bool {
 }
 
 type ReceiveRet struct {
-	Err    bool
-	Data   []byte
+	Err  bool
+	Data []byte
 }
 
 func Receive(c Connection) ReceiveRet {
@@ -148,7 +144,7 @@ func Receive(c Connection) ReceiveRet {
 		// But also, we clearly lost track here of where in the protocol we are,
 		// so close it.
 		c.conn.Close()
-		return ReceiveRet { Err: true }
+		return ReceiveRet{Err: true}
 	}
 	d := marshal.NewDec(header)
 	dataLen := d.GetInt()
@@ -158,8 +154,8 @@ func Receive(c Connection) ReceiveRet {
 	if err2 != nil {
 		// See comment above.
 		c.conn.Close()
-		return ReceiveRet { Err: true }
+		return ReceiveRet{Err: true}
 	}
 
-	return ReceiveRet { Err: false, Data: data }
+	return ReceiveRet{Err: false, Data: data}
 }

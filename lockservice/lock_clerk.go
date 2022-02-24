@@ -1,8 +1,8 @@
 package lockservice
 
 import (
-	"github.com/mit-pdos/gokv/memkv"
 	"github.com/mit-pdos/gokv/connman"
+	"github.com/mit-pdos/gokv/memkv"
 )
 
 type LockClerk struct {

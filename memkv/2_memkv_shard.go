@@ -1,9 +1,9 @@
 package memkv
 
 import (
+	"github.com/goose-lang/std"
 	"github.com/mit-pdos/gokv/connman"
 	"github.com/mit-pdos/gokv/urpc/rpc"
-	"github.com/goose-lang/std"
 	"sync"
 )
 
@@ -18,9 +18,9 @@ type KVShardServer struct {
 
 	shardMap []bool // \box(size=NSHARDS)
 	// if anything is in shardMap, then we have a map[] initialized in kvss
-	kvss  []KvMap // \box(size=NSHARDS)
+	kvss  []KvMap                    // \box(size=NSHARDS)
 	peers map[HostName]*KVShardClerk // FIXME use ShardClerkSet, maybe?
-	cm *connman.ConnMan
+	cm    *connman.ConnMan
 }
 
 type PutArgs struct {

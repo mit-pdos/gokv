@@ -6,23 +6,26 @@ import (
 
 type Server struct {
 	mu        *sync.Mutex
-	state     *[]byte
 	osn       uint64
 	cn        uint64
 	isPrimary bool
 	clerks    []*Clerk
 	sealed    bool
+
+	// Applies the given op to the given state, and returns the response for that
+	// operation.
+	// E.g. for a put, the state changes and the reply is nil.
+	// For a get, the state is unchanged and the reply is the value of the desired key.
+	apply func(OpType)
+
+	// returns a copy of the current state
+	getState func() []byte
+
+	// sets the state based on a marshalled snapshot
+	setState func([]byte)
 }
 
-// Applies the given op to the given state, and returns the response for that
-// operation.
-// E.g. for a put, the state changes and the reply is nil.
-// For a get, the state is unchanged and the reply is the value of the desired key.
-func ApplyOp(state *[]byte, op OpType) []byte {
-	// no-op for now; this ought to be determined by the user
-	return nil
-}
-
+// External function, called by users of this library.
 // Tries to apply the given `op` to the state machine.
 // If unable to apply the operation (e.g. if this server is not currently the
 // primary), returns ENotPrimary. If successful, returns ENone.
@@ -32,7 +35,7 @@ func (s *Server) PrimaryApplyOp(op OpType) Error {
 		s.mu.Unlock()
 		return ENotPrimary
 	}
-	ApplyOp(s.state, op)
+	s.apply(op)
 	s.osn += 1
 
 	// now tell everyone else about the op
@@ -57,7 +60,7 @@ func (s *Server) DoOperation(args *DoOperationArgs) bool {
 		return true // already accepted it
 	} // else, must have args.osn == s.osn+1
 
-	ApplyOp(s.state, args.op)
+	s.apply(args.op)
 	s.osn += 1
 
 	s.mu.Unlock()
@@ -76,7 +79,7 @@ func (s *Server) BecomePrimary(args *BecomePrimaryArgs) Error {
 
 	// make clerks
 	s.clerks = make([]*Clerk, len(args.conf.replicas))
-	for i, _ := range s.clerks {
+	for i := range s.clerks {
 		s.clerks[i] = MakeClerk(args.conf.replicas[i])
 	}
 
@@ -89,8 +92,8 @@ func (s *Server) BecomePrimary(args *BecomePrimaryArgs) Error {
 		if ck.BecomeReplica(args.repArgs) != ENone {
 			success = false
 			break
-			s.mu.Unlock()
-			return ENotPrimary
+			// s.mu.Unlock()
+			// return ENotPrimary
 		}
 	}
 	if !success {
@@ -114,7 +117,7 @@ func (s *Server) BecomeReplica(args *BecomeReplicaArgs) Error {
 		return EStale
 	}
 
-	s.state = &args.state
+	s.setState(args.state)
 	s.osn = args.osn
 	s.cn = args.cn
 	s.sealed = false
@@ -141,16 +144,28 @@ func (s *Server) Seal(cn uint64) Error {
 		s.mu.Unlock()
 		return EStale
 	}
-
-	return ENone
 }
 
 func (s *Server) GetState() *GetStateReply {
 	s.mu.Lock()
 	reply := new(GetStateReply)
 	reply.cn = s.cn
-	reply.state = *s.state // FIXME(bug): should make a copy of this, or else prevent modification until the reply is sent
+	reply.state = s.getState()
 	reply.osn = s.osn
 	s.mu.Unlock()
 	return reply
+}
+
+func MakeServer(apply func(OpType), getState func() []byte, setState func([]byte)) *Server {
+	s := new(Server)
+	s.mu = new(sync.Mutex)
+	s.osn = 0
+	s.cn = 0
+	s.isPrimary = false
+	s.sealed = false
+	s.apply = apply
+	s.getState = getState
+	s.setState = setState
+
+	return s
 }

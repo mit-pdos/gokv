@@ -1,10 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"github.com/mit-pdos/gokv/urpc/rpc"
 	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/marshal"
-	"fmt"
 )
 
 const (
@@ -26,7 +26,7 @@ func main() {
 		dec := marshal.NewDec(*rep)
 		v := dec.GetInt()
 
-		machine.Assert(v >= localBound);
+		machine.Assert(v >= localBound)
 		localBound = v
 		fmt.Println("One")
 	}

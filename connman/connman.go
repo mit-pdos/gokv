@@ -5,11 +5,12 @@ package connman
 // also tries reconnnecting on failures.
 
 import (
+	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc/rpc"
 	"sync"
 )
 
-type HostName = rpc.HostName
+type HostName = grove_ffi.Address
 
 type ConnMan struct {
 	mu     *sync.Mutex
@@ -41,7 +42,7 @@ func (c *ConnMan) getClient(host HostName) *rpc.RPCClient {
 		// takes a long time compared to the other critical sections of c.mu
 		// (e.g. this might establish a TCP connection, incurring some
 		// network delay)
-		cond, ok := c.making[host];
+		cond, ok := c.making[host]
 		if ok { // someone else is making the host
 			cond.Wait()
 			continue

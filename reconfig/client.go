@@ -57,6 +57,5 @@ func (ck *Clerk) BecomeReplica(args *BecomeReplicaArgs) Error {
 }
 
 func MakeClerk(host grove_ffi.Address) *Clerk {
-	// FIXME: impl
-	return nil
+	return &Clerk{cl: rpc.MakeRPCClient(host)}
 }

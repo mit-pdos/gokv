@@ -38,15 +38,15 @@ func (r *ReplicaServer) Recover() {
 func (r *ReplicaServer) Truncate(idx uint64) {
 	r.mu.Lock()
 	if idx > r.firstIdx {
-		r.log = r.log[idx - r.firstIdx:]
+		r.log = r.log[idx-r.firstIdx:]
 	}
 	r.mu.Unlock()
 }
 
 func MakeReplicaServer() *ReplicaServer {
 	return &ReplicaServer{
-		mu: new(sync.Mutex),
+		mu:       new(sync.Mutex),
 		firstIdx: uint64(0),
-		log: make([]LogEntry, 0),
+		log:      make([]LogEntry, 0),
 	}
 }
