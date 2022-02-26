@@ -16,9 +16,9 @@ type Server struct {
 	// operation.
 	// E.g. for a put, the state changes and the reply is nil.
 	// For a get, the state is unchanged and the reply is the value of the desired key.
-	apply func(OpType)
+	apply func(OpType)[]byte
 
-	// returns a copy of the current state
+	// returns a marshalled snapshot of the current state
 	getState func() []byte
 
 	// sets the state based on a marshalled snapshot
@@ -29,13 +29,13 @@ type Server struct {
 // Tries to apply the given `op` to the state machine.
 // If unable to apply the operation (e.g. if this server is not currently the
 // primary), returns ENotPrimary. If successful, returns ENone.
-func (s *Server) PrimaryApplyOp(op OpType) Error {
+func (s *Server) PrimaryApplyOp(op OpType, reply *[]byte) Error {
 	s.mu.Lock()
 	if !s.isPrimary {
 		s.mu.Unlock()
 		return ENotPrimary
 	}
-	s.apply(op)
+	*reply = s.apply(op)
 	s.osn += 1
 
 	// now tell everyone else about the op
@@ -156,7 +156,7 @@ func (s *Server) GetState() *GetStateReply {
 	return reply
 }
 
-func MakeServer(apply func(OpType), getState func() []byte, setState func([]byte)) *Server {
+func MakeServer(apply func(OpType)[]byte, getState func() []byte, setState func([]byte)) *Server {
 	s := new(Server)
 	s.mu = new(sync.Mutex)
 	s.osn = 0
