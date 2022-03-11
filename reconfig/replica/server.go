@@ -8,9 +8,10 @@ type Server struct {
 	mu        *sync.Mutex
 	osn       uint64
 	cn        uint64
+	sealed    bool
+
 	isPrimary bool
 	clerks    []*Clerk
-	sealed    bool
 
 	// Applies the given op to the given state, and returns the response for that
 	// operation.
@@ -70,6 +71,14 @@ func (s *Server) DoOperation(args *DoOperationArgs) bool {
 // Invoked by a failover controller to tell this server that it's the primary
 // for configuration cn.
 // Includes the (or, "a") final state of the previous config.
+//
+// XXX: the plan for config change is:
+// a.) reserve a config number and the membership at the config number,
+// 	   but do not activate it
+// b.) seal the old config number
+// c.) bring new config up to date with previous active config
+// d.) set config number as active
+// e.) tell primary it can start applying new operations
 func (s *Server) BecomePrimary(args *BecomePrimaryArgs) Error {
 	s.mu.Lock()
 	if args.repArgs.cn <= s.cn { // ignore requests for old cn

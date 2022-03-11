@@ -47,3 +47,11 @@
 // Will need reply-table etc. to make client ops exactly-once. So, if we use
 // oids, then erpc will be layer on top anyways. We could aim to avoid extra
 // coordination and use eoRPC directly (in the spirit of ideas like TAPIR).
+
+=
+Configuration service has some "stable" configuration. That's the *real* latest
+configuration. To move to a new configuration, first seal the old one. Also,
+write the new config as "pending".
+
+=
+Admin server has a (sequencer-enforced) lease on the "admin" key.
