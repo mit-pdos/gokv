@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	RPC_GET = uint64(0)
-	RPC_PUT = uint64(1)
+	RPC_GET      = uint64(0)
+	RPC_PUT      = uint64(1)
 	RPC_FRESHCID = uint64(2)
 )
 
@@ -33,9 +33,9 @@ func (c *Clerk) Put(v uint64) {
 
 	c.seq += 1
 	args := &PutArgs{
-		cid:c.cid,
-		seq:c.seq,
-		v: v,
+		cid: c.cid,
+		seq: c.seq,
+		v:   v,
 	}
 	err := c.cl.Call(RPC_GET, EncPutArgs(args), reply_ptr, 100 /* ms */)
 	if err != 0 {

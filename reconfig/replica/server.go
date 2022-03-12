@@ -5,10 +5,10 @@ import (
 )
 
 type Server struct {
-	mu        *sync.Mutex
-	osn       uint64
-	cn        uint64
-	sealed    bool
+	mu     *sync.Mutex
+	osn    uint64
+	cn     uint64
+	sealed bool
 
 	isPrimary bool
 	clerks    []*Clerk
@@ -17,7 +17,7 @@ type Server struct {
 	// operation.
 	// E.g. for a put, the state changes and the reply is nil.
 	// For a get, the state is unchanged and the reply is the value of the desired key.
-	apply func(OpType)[]byte
+	apply func(OpType) []byte
 
 	// returns a marshalled snapshot of the current state
 	getState func() []byte
@@ -165,7 +165,7 @@ func (s *Server) GetState() *GetStateReply {
 	return reply
 }
 
-func MakeServer(apply func(OpType)[]byte, getState func() []byte, setState func([]byte)) *Server {
+func MakeServer(apply func(OpType) []byte, getState func() []byte, setState func([]byte)) *Server {
 	s := new(Server)
 	s.mu = new(sync.Mutex)
 	s.osn = 0

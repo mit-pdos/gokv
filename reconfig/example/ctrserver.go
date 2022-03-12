@@ -1,7 +1,7 @@
 package example
 
 import (
-	rsm "github.com/mit-pdos/gokv/reconfig"
+	rsm "github.com/mit-pdos/gokv/reconfig/replica"
 	"github.com/tchajed/marshal"
 )
 

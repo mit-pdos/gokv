@@ -8,7 +8,7 @@ import (
 )
 
 type Server struct {
-	mu sync.Mutex
+	mu *sync.Mutex
 	v  uint64
 
 	lastSeq   map[uint64]uint64
@@ -48,6 +48,7 @@ func (s *Server) GetFreshCID() uint64 {
 
 func StartServer(me grove_ffi.Address) {
 	s := new(Server)
+	s.mu = new(sync.Mutex)
 	s.lastCID = 0
 	s.v = 0
 	s.lastSeq = make(map[uint64]uint64)
