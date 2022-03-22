@@ -1,0 +1,21 @@
+Setup:
+* 1 fixed (never crashing) config server
+* 2 fixed (never crashing) ctr servers
+* multiple of front-end servers, each trying to be the primary front-end that
+  clients talk to
+* a client machine (never crashing) that does fetch-and-increment forever
+
+The client machine tries doing a fetch-and-increment against a front-end server.
+If it can't, the client machine fetches the latest active front-end from the
+config server.
+
+As long as the config and the front-end can reach each other, the front-end is
+considered OK.  So, if we end up in a situation where the client can't reach the
+front-end, but the config server can reach the front-end, we consider that to be
+the "client's problem" in the same way as if the client were partitioned from
+the config server itself. Technically, it could be a problem with the current
+front-end server, and require intervention on the part of the front-end.
+
+(ncon start 1 "go run ./config")
+(ncon start 2 "go run ./config")
+(ncon start 3 "go run ./config")

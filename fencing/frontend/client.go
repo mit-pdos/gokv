@@ -14,16 +14,17 @@ type Clerk struct {
 	cl *rpc.RPCClient
 }
 
-func (ck *Clerk) FetchAndIncrement(key uint64) uint64 {
+func (ck *Clerk) FetchAndIncrement(key uint64, ret *uint64) uint64 {
 	reply_ptr := new([]byte)
 	enc := marshal.NewEnc(8)
 	enc.PutInt(key)
 	err := ck.cl.Call(RPC_FAI, enc.Finish(), reply_ptr, 100 /* ms */)
 	if err != 0 {
-		panic("disconnect")
+		return err
 	}
 	dec := marshal.NewDec(*reply_ptr)
-	return dec.GetInt()
+	*ret = dec.GetInt()
+	return 0
 }
 
 func MakeClerk(host grove_ffi.Address) *Clerk {
