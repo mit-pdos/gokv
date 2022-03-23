@@ -15,10 +15,7 @@ type Server struct {
 	epoch uint64
 
 	ck1  *ctr.Clerk
-	ctr1 uint64
-
 	ck2  *ctr.Clerk
-	ctr2 uint64
 }
 
 // pre: key == 0 or key == 1
@@ -26,14 +23,12 @@ func (s *Server) FetchAndIncrement(key uint64) uint64 {
 	s.mu.Lock()
 	var ret uint64
 	if key == 0 {
-		s.ck1.Put(s.ctr1+1, s.epoch)
-		s.ctr1 += 1
-		ret = s.ctr1
+		ret = s.ck1.Get(s.epoch)
+		s.ck1.Put(ret+1, s.epoch)
 	} else {
 		// key == 1
-		s.ck2.Put(s.ctr2+1, s.epoch)
-		s.ctr2 += 1
-		ret = s.ctr2
+		ret = s.ck1.Get(s.epoch)
+		s.ck2.Put(ret+1, s.epoch)
 	}
 	s.mu.Unlock()
 	return ret
@@ -48,9 +43,6 @@ func StartServer(me, configHost, host1, host2 grove_ffi.Address) {
 	s.mu = new(sync.Mutex)
 	s.ck1 = ctr.MakeClerk(host1)
 	s.ck2 = ctr.MakeClerk(host2)
-
-	s.ctr1 = s.ck1.Get(s.epoch)
-	s.ctr2 = s.ck2.Get(s.epoch)
 
 	handlers := make(map[uint64]func([]byte, *[]byte))
 	handlers[RPC_FAI] = func(args []byte, reply *[]byte) {

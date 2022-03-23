@@ -5,6 +5,7 @@ import (
 	"github.com/mit-pdos/gokv/fencing/client"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/tchajed/goose/machine"
+	"log"
 )
 
 func main() {
@@ -29,6 +30,10 @@ func main() {
 		for {
 			v := ck.FetchAndIncrement(key)
 			machine.Assert(v > lowerBound)
+			if v % 1000 == 0 {
+				log.Printf("reached {0} >= {1}", key, v)
+			}
+			lowerBound = v
 		}
 	}
 
