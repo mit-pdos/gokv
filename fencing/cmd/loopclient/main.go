@@ -30,8 +30,8 @@ func main() {
 		for {
 			v := ck.FetchAndIncrement(key)
 			machine.Assert(v > lowerBound)
-			if v % 1000 == 0 {
-				log.Printf("reached {0} >= {1}", key, v)
+			if v%1000 == 0 {
+				log.Printf("reached %d >= %d", key, v)
 			}
 			lowerBound = v
 		}

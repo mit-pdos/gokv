@@ -23,5 +23,5 @@ func main() {
 
 	me := grove_ffi.MakeAddress(fmt.Sprintf("0.0.0.0:%d", port))
 	config.StartServer(me)
-	select{}
+	select {}
 }

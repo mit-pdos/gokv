@@ -38,5 +38,5 @@ func main() {
 	ctr1 := grove_ffi.MakeAddress(ctr1Str)
 	ctr2 := grove_ffi.MakeAddress(ctr2Str)
 	frontend.StartServer(me, config, ctr1, ctr2)
-	select{}
+	select {}
 }

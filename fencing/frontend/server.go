@@ -14,8 +14,8 @@ type Server struct {
 
 	epoch uint64
 
-	ck1  *ctr.Clerk
-	ck2  *ctr.Clerk
+	ck1 *ctr.Clerk
+	ck2 *ctr.Clerk
 }
 
 // pre: key == 0 or key == 1

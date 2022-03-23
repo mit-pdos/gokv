@@ -38,7 +38,8 @@ func (ck *Clerk) Lock(newFrontend grove_ffi.Address) uint64 {
 	reply_ptr := new([]byte)
 	err := ck.cl.Call(RPC_LOCK, enc.Finish(), reply_ptr, 100 /* ms */)
 	if err != 0 {
-		log.Fatalf("config: client failed to run RPC on config server")
+		log.Println("config: client failed to run RPC on config server")
+		grove_ffi.Exit(1)
 	}
 	dec := marshal.NewDec(*reply_ptr)
 	return dec.GetInt()
@@ -48,7 +49,8 @@ func (ck *Clerk) Get() uint64 {
 	reply_ptr := new([]byte)
 	err := ck.cl.Call(RPC_LOCK, make([]byte, 0), reply_ptr, 100 /* ms */)
 	if err != 0 {
-		panic("config: client failed to run RPC on config server")
+		log.Println("config: client failed to run RPC on config server")
+		grove_ffi.Exit(1)
 	}
 	dec := marshal.NewDec(*reply_ptr)
 	return dec.GetInt()

@@ -9,7 +9,7 @@ import (
 
 const (
 	TIMEOUT_MS = uint64(1000)
-	MILLION = uint64(1000000)
+	MILLION    = uint64(1000000)
 )
 
 type Server struct {
@@ -105,7 +105,7 @@ func StartServer(me grove_ffi.Address) {
 	s.currHolderActive = false
 	s.currHolderActive_cond = sync.NewCond(s.mu)
 
-	go func () {
+	go func() {
 		s.HeartbeatListener()
 	}()
 

@@ -8,8 +8,9 @@ import (
 )
 
 type Server struct {
-	mu *sync.Mutex
-	v  uint64
+	mu        *sync.Mutex
+	v         uint64
+	lastEpoch uint64
 
 	lastSeq   map[uint64]uint64
 	lastReply map[uint64]uint64
@@ -18,6 +19,11 @@ type Server struct {
 
 func (s *Server) Put(args *PutArgs) {
 	s.mu.Lock()
+	if args.epoch < s.lastEpoch {
+		s.mu.Unlock()
+		return
+	}
+	s.lastEpoch = args.epoch
 
 	last, ok := s.lastSeq[args.cid]
 	seq := args.seq
@@ -31,8 +37,14 @@ func (s *Server) Put(args *PutArgs) {
 	s.mu.Unlock()
 }
 
-func (s *Server) Get() uint64 {
+func (s *Server) Get(args *GetArgs) uint64 {
 	s.mu.Lock()
+	if args.epoch < s.lastEpoch {
+		s.mu.Unlock()
+		return 0
+	}
+	s.lastEpoch = args.epoch
+
 	ret := s.v
 	s.mu.Unlock()
 	return ret
@@ -55,9 +67,10 @@ func StartServer(me grove_ffi.Address) {
 	s.lastReply = make(map[uint64]uint64)
 
 	handlers := make(map[uint64]func([]byte, *[]byte))
-	handlers[RPC_GET] = func(args []byte, reply *[]byte) {
+	handlers[RPC_GET] = func(raw_args []byte, reply *[]byte) {
+		args := DecGetArgs(raw_args)
 		enc := marshal.NewEnc(8)
-		enc.PutInt(s.Get())
+		enc.PutInt(s.Get(args))
 		*reply = enc.Finish()
 	}
 

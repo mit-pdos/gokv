@@ -52,3 +52,23 @@ func DecGetArgs(raw_args []byte) *GetArgs {
 	args.epoch = dec.GetInt()
 	return args
 }
+
+type GetReply struct {
+	epoch uint64
+	val   uint64
+}
+
+func EncGetReply(args *GetReply) []byte {
+	enc := marshal.NewEnc(uint64(16))
+	enc.PutInt(args.epoch)
+	enc.PutInt(args.val)
+	return enc.Finish()
+}
+
+func DecGetReply(raw_args []byte) *GetReply {
+	dec := marshal.NewDec(raw_args)
+	args := new(GetReply)
+	args.epoch = dec.GetInt()
+	args.val = dec.GetInt()
+	return args
+}
