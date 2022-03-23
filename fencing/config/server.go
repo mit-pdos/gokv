@@ -9,6 +9,7 @@ import (
 
 const (
 	TIMEOUT_MS = uint64(1000)
+	MILLION = uint64(1000000)
 )
 
 type Server struct {
@@ -32,7 +33,7 @@ func (s *Server) AcquireEpoch(newFrontend grove_ffi.Address) uint64 {
 	s.currentEpoch += 1
 
 	now := grove_ffi.TimeNow()
-	s.heartbeatExpiration = now + TIMEOUT_MS*(1e6)
+	s.heartbeatExpiration = now + TIMEOUT_MS*MILLION
 
 	ret := s.currentEpoch
 
@@ -104,7 +105,9 @@ func StartServer(me grove_ffi.Address) {
 	s.currHolderActive = false
 	s.currHolderActive_cond = sync.NewCond(s.mu)
 
-	go s.HeartbeatListener()
+	go func () {
+		s.HeartbeatListener()
+	}()
 
 	handlers := make(map[uint64]func([]byte, *[]byte))
 	handlers[RPC_LOCK] = func(args []byte, reply *[]byte) {

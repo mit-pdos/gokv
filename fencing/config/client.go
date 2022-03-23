@@ -24,7 +24,7 @@ func (ck *Clerk) HeartbeatThread(epoch uint64) {
 		// XXX: make this statistically rigorous (e.g. aim for at most x% chance
 		// of spurious leader failure per hour)
 		reply_ptr := new([]byte)
-		grove_ffi.Sleep(TIMEOUT_MS * 1e6 / 3)
+		grove_ffi.Sleep(TIMEOUT_MS * MILLION / 3)
 		err := ck.cl.Call(RPC_LOCK, args, reply_ptr, 100 /* ms */)
 		if err != 0 || len(*reply_ptr) != 0 {
 			break
