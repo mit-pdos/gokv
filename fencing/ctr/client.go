@@ -4,6 +4,7 @@ import (
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc/rpc"
 	"github.com/tchajed/marshal"
+	"log"
 )
 
 const (
@@ -30,10 +31,16 @@ func (c *Clerk) Get(epoch uint64) uint64 {
 	reply_ptr := new([]byte)
 	err := c.cl.Call(RPC_GET, EncGetArgs(args), reply_ptr, 100 /* ms */)
 	if err != 0 {
-		panic("ctr: urpc call failed/timed out")
+		log.Println("ctr: urpc get call failed/timed out")
+		grove_ffi.Exit(1)
 	}
-	dec := marshal.NewDec(*reply_ptr)
-	return dec.GetInt()
+	r := DecGetReply(*reply_ptr)
+
+	if r.err != ENone {
+		log.Println("ctr: get() stale epoch number")
+		grove_ffi.Exit(1)
+	}
+	return r.val
 }
 
 func (c *Clerk) Put(v uint64, epoch uint64) {
@@ -48,8 +55,18 @@ func (c *Clerk) Put(v uint64, epoch uint64) {
 	reply_ptr := new([]byte)
 	err := c.cl.Call(RPC_GET, EncPutArgs(args), reply_ptr, 100 /* ms */)
 	if err != 0 {
-		panic("ctr: urpc call failed/timed out")
+		log.Println("ctr: urpc put call failed/timed out")
+		grove_ffi.Exit(1)
 	}
+
+	dec := marshal.NewDec(*reply_ptr)
+	epochErr := dec.GetInt()
+
+	if epochErr != ENone {
+		log.Println("ctr: get() stale epoch number")
+		grove_ffi.Exit(1)
+	}
+	return
 }
 
 func MakeClerk(host grove_ffi.Address) *Clerk {
@@ -61,6 +78,8 @@ func MakeClerk(host grove_ffi.Address) *Clerk {
 	err := ck.cl.Call(RPC_GET, make([]byte, 0), reply_ptr, 100 /* ms */)
 	if err != 0 {
 		panic("ctr: urpc call failed/timed out")
+		// log.Println("ctr: urpc getcid call failed/timed out")
+		// grove_ffi.Exit(1)
 	}
 	ck.cid = marshal.NewDec(*reply_ptr).GetInt()
 	return ck
