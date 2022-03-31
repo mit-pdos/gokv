@@ -2,7 +2,7 @@ package memkv
 
 import (
 	"github.com/mit-pdos/gokv/connman"
-	"github.com/mit-pdos/gokv/urpc/rpc"
+	"github.com/mit-pdos/gokv/urpc"
 	"log"
 	"sync"
 )
@@ -88,6 +88,6 @@ func (c *KVCoord) Start(host HostName) {
 		c.AddServerRPC(s)
 	}
 	handlers[COORD_GET] = c.GetShardMapRPC
-	s := rpc.MakeRPCServer(handlers)
-	s.Serve(host, 1)
+	s := urpc.MakeServer(handlers)
+	s.Serve(host)
 }

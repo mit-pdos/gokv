@@ -2,7 +2,7 @@ package pb
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
-	"github.com/mit-pdos/gokv/urpc/rpc"
+	"github.com/mit-pdos/gokv/urpc"
 	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/marshal"
 )
@@ -61,7 +61,7 @@ func DecodeBecomePrimaryArgs(raw_args []byte) *BecomePrimaryArgs {
 }
 
 type ReplicaClerk struct {
-	cl *rpc.RPCClient
+	cl *urpc.Client
 }
 
 func (ck *ReplicaClerk) AppendRPC(args *AppendArgs) bool {
@@ -88,6 +88,6 @@ func (ck *ReplicaClerk) HeartbeatRPC() bool {
 
 func MakeReplicaClerk(host grove_ffi.Address) *ReplicaClerk {
 	ck := new(ReplicaClerk)
-	ck.cl = rpc.MakeRPCClient(host)
+	ck.cl = urpc.MakeClient(host)
 	return ck
 }

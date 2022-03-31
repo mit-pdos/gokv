@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
-	"github.com/mit-pdos/gokv/urpc/rpc"
+	"github.com/mit-pdos/gokv/urpc"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 	_ "net/http/pprof"
@@ -29,7 +29,7 @@ func benchConcurrentNullRPC(numClients int) {
 	}()
 
 	for i := 0; i < numClients; i++ {
-		cl := rpc.MakeRPCClient(grove_ffi.MakeAddress("0.0.0.0:12345"))
+		cl := urpc.MakeClient(grove_ffi.MakeAddress("0.0.0.0:12345"))
 		go func() {
 			for {
 				cl.Call(RPC_NULL, nil, reply, 100)

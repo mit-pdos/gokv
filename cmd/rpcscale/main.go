@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/felixge/fgprof"
 	"github.com/mit-pdos/gokv/grove_ffi"
-	"github.com/mit-pdos/gokv/urpc/rpc"
+	"github.com/mit-pdos/gokv/urpc"
 	"github.com/tchajed/marshal"
 	"log"
 	"net/http"
@@ -45,9 +45,9 @@ func main() {
 		*reply = e.Finish()
 	}
 
-	s := rpc.MakeRPCServer(handlers)
+	s := urpc.MakeServer(handlers)
 	me := grove_ffi.MakeAddress(fmt.Sprintf("0.0.0.0:%d", port))
 	log.Printf("Started null RPC server on port %d; id %d", port, me)
-	s.Serve(me, 1)
+	s.Serve(me)
 	select {}
 }

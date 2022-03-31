@@ -2,7 +2,7 @@ package ctr
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
-	"github.com/mit-pdos/gokv/urpc/rpc"
+	"github.com/mit-pdos/gokv/urpc"
 	"github.com/tchajed/marshal"
 	"log"
 )
@@ -14,7 +14,7 @@ const (
 )
 
 type Clerk struct {
-	cl  *rpc.RPCClient
+	cl  *urpc.Client
 	cid uint64
 	seq uint64
 }
@@ -72,7 +72,7 @@ func (c *Clerk) Put(v uint64, epoch uint64) {
 func MakeClerk(host grove_ffi.Address) *Clerk {
 	ck := new(Clerk)
 	ck.seq = 0
-	ck.cl = rpc.MakeRPCClient(host)
+	ck.cl = urpc.MakeClient(host)
 
 	reply_ptr := new([]byte)
 	err := ck.cl.Call(RPC_GET, make([]byte, 0), reply_ptr, 100 /* ms */)

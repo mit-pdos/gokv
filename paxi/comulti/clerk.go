@@ -1,15 +1,15 @@
 package comulti
 
 import (
-	"github.com/mit-pdos/gokv/urpc/rpc"
+	"github.com/mit-pdos/gokv/urpc"
 )
 
 type Clerk struct {
-	cl *rpc.RPCClient
+	cl *urpc.Client
 }
 
 func MakeClerk(host uint64) *Clerk {
-	return &Clerk{cl: rpc.MakeRPCClient(host)}
+	return &Clerk{cl: urpc.MakeClient(host)}
 }
 
 func (ck *Clerk) Prepare(pn uint64, reply *PrepareReply) {

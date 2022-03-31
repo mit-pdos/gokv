@@ -16,7 +16,7 @@ package comulti
 // without worrying about any sort of log.
 
 import (
-	"github.com/mit-pdos/gokv/urpc/rpc"
+	"github.com/mit-pdos/gokv/urpc"
 	"sync"
 	"time"
 )
@@ -273,6 +273,6 @@ func (r *Replica) StartServer(host uint64) {
 		b := r.ProposeRPC(args.Pn, args.CommitIndex, args.Log)
 		*rawRep = encodeBool(b)
 	}
-	s := rpc.MakeRPCServer(handlers)
-	s.Serve(host, 1) // 1 == num workers
+	s := urpc.MakeServer(handlers)
+	s.Serve(host) // 1 == num workers
 }

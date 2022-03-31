@@ -2,14 +2,14 @@ package main
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
-	"github.com/mit-pdos/gokv/urpc/rpc"
+	"github.com/mit-pdos/gokv/urpc"
 	"math/rand"
 	_ "net/http/pprof"
 	"testing"
 )
 
 func BenchmarkNullRPC(b *testing.B) {
-	cl := rpc.MakeRPCClient(grove_ffi.MakeAddress("0.0.0.0:12345"))
+	cl := urpc.MakeClient(grove_ffi.MakeAddress("0.0.0.0:12345"))
 	rand.Seed(int64(b.N))
 	reply := new([]byte)
 
@@ -25,7 +25,7 @@ func BenchmarkConcurrentNullRPC(b *testing.B) {
 	b.ResetTimer()
 	b.RunParallel(
 		func(pb *testing.PB) {
-			cl := rpc.MakeRPCClient(grove_ffi.MakeAddress("0.0.0.0:12345"))
+			cl := urpc.MakeClient(grove_ffi.MakeAddress("0.0.0.0:12345"))
 			reply := new([]byte)
 			for pb.Next() {
 				cl.Call(RPC_NULL, nil, reply, 100)

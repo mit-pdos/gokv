@@ -4,7 +4,7 @@ import (
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/pb"
 	"github.com/mit-pdos/gokv/time"
-	"github.com/mit-pdos/gokv/urpc/rpc"
+	"github.com/mit-pdos/gokv/urpc"
 	"github.com/tchajed/marshal"
 	"log"
 	"sync"
@@ -123,6 +123,6 @@ func StartControllerServer(me grove_ffi.Address, replicas []grove_ffi.Address) {
 		newServer := dec.GetInt()
 		s.AddNewServerRPC(newServer)
 	}
-	r := rpc.MakeRPCServer(handlers)
-	r.Serve(me, 1)
+	r := urpc.MakeServer(handlers)
+	r.Serve(me)
 }

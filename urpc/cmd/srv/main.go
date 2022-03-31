@@ -2,7 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/upamanyus/urpc/rpc"
+	"github.com/mit-pdos/gokv/grove_ffi"
+	"github.com/mit-pdos/gokv/urpc"
 	"runtime"
 )
 
@@ -18,7 +19,7 @@ func main() {
 		*reply = make([]byte, 16)
 		return
 	}
-	s := rpc.MakeRPCServer(handlers, 2)
-	s.Serve(":12345")
+	s := urpc.MakeServer(handlers)
+	s.Serve(grove_ffi.MakeAddress("127.0.0.1:12345"))
 	select {}
 }

@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
-	"github.com/mit-pdos/gokv/urpc/rpc"
+	"github.com/mit-pdos/gokv/urpc"
 	"github.com/tchajed/marshal"
 	"sync"
 )
@@ -52,7 +52,7 @@ func main() {
 		e.PutInt(v)
 		*reply = e.Finish()
 	}
-	rs := rpc.MakeRPCServer(handlers)
-	rs.Serve(me, 1)
+	rs := urpc.MakeServer(handlers)
+	rs.Serve(me)
 	// select{}
 }

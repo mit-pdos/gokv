@@ -2,11 +2,11 @@ package mkrouter
 
 import (
 	"github.com/mit-pdos/gokv/memkv"
-	"github.com/mit-pdos/gokv/urpc/rpc"
+	"github.com/mit-pdos/gokv/urpc"
 )
 
 type Clerk struct {
-	cl *rpc.RPCClient
+	cl *urpc.Client
 }
 
 func (ck *Clerk) Get(key uint64) []byte {

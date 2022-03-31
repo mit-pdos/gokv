@@ -2,14 +2,14 @@ package controller
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
-	"github.com/mit-pdos/gokv/urpc/rpc"
+	"github.com/mit-pdos/gokv/urpc"
 	"github.com/tchajed/marshal"
 )
 
 const CONTROLLER_ADD = uint64(0)
 
 type ControllerClerk struct {
-	cl *rpc.RPCClient
+	cl *urpc.Client
 }
 
 func (ck *ControllerClerk) AddNewServer(newServer grove_ffi.Address) {
@@ -22,6 +22,6 @@ func (ck *ControllerClerk) AddNewServer(newServer grove_ffi.Address) {
 
 func MakeControllerClerk(host grove_ffi.Address) *ControllerClerk {
 	ck := new(ControllerClerk)
-	ck.cl = rpc.MakeRPCClient(host)
+	ck.cl = urpc.MakeClient(host)
 	return ck
 }

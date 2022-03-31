@@ -6,7 +6,7 @@ package connman
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
-	"github.com/mit-pdos/gokv/urpc/rpc"
+	"github.com/mit-pdos/gokv/urpc"
 	"sync"
 )
 
@@ -14,20 +14,20 @@ type HostName = grove_ffi.Address
 
 type ConnMan struct {
 	mu     *sync.Mutex
-	rpcCls map[HostName]*rpc.RPCClient
+	rpcCls map[HostName]*urpc.Client
 	making map[HostName]*sync.Cond // a key exists iff someone is making the RPCClient for that host right now
 }
 
 func MakeConnMan() *ConnMan {
 	c := new(ConnMan)
 	c.mu = new(sync.Mutex)
-	c.rpcCls = make(map[HostName]*rpc.RPCClient)
+	c.rpcCls = make(map[HostName]*urpc.Client)
 	c.making = make(map[HostName]*sync.Cond)
 	return c
 }
 
-func (c *ConnMan) getClient(host HostName) *rpc.RPCClient {
-	var ret *rpc.RPCClient
+func (c *ConnMan) getClient(host HostName) *urpc.Client {
+	var ret *urpc.Client
 
 	c.mu.Lock()
 	for {
@@ -50,7 +50,7 @@ func (c *ConnMan) getClient(host HostName) *rpc.RPCClient {
 		my_cond := sync.NewCond(c.mu)
 		c.making[host] = my_cond
 		c.mu.Unlock()
-		ret = rpc.MakeRPCClient(host)
+		ret = urpc.MakeClient(host)
 		c.mu.Lock()
 		c.rpcCls[host] = ret
 		my_cond.Broadcast()
@@ -63,16 +63,16 @@ func (c *ConnMan) getClient(host HostName) *rpc.RPCClient {
 
 // This repeatedly retries the RPC after retryTimeout until it gets a response.
 func (c *ConnMan) CallAtLeastOnce(host HostName, rpcid uint64, args []byte, reply *[]byte, retryTimeout uint64) {
-	var cl *rpc.RPCClient
+	var cl *urpc.Client
 	cl = c.getClient(host)
 
 	for {
 		err := cl.Call(rpcid, args, reply, retryTimeout)
-		if err == rpc.ErrTimeout {
+		if err == urpc.ErrTimeout {
 			// just retry
 			continue
 		}
-		if err == rpc.ErrDisconnect {
+		if err == urpc.ErrDisconnect {
 			// need to try reconnecting
 			c.mu.Lock()
 			if cl == c.rpcCls[host] { // our RPCClient might already be out of date

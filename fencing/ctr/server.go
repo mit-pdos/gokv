@@ -2,7 +2,7 @@ package ctr
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
-	"github.com/mit-pdos/gokv/urpc/rpc"
+	"github.com/mit-pdos/gokv/urpc"
 	"github.com/tchajed/marshal"
 	"sync"
 )
@@ -103,6 +103,6 @@ func StartServer(me grove_ffi.Address) {
 		*reply = enc.Finish()
 	}
 
-	r := rpc.MakeRPCServer(handlers)
-	r.Serve(me, 1)
+	r := urpc.MakeServer(handlers)
+	r.Serve(me)
 }

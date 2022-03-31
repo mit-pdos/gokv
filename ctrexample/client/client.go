@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/mit-pdos/gokv/urpc/rpc"
+	"github.com/mit-pdos/gokv/urpc"
 	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/marshal"
 )
@@ -13,7 +13,7 @@ const (
 
 // the boot/main() function for the server
 func main() {
-	cl := rpc.MakeRPCClient(53021371269120) // hardcoded "127.0.0.1:12345"
+	cl := urpc.MakeClient(53021371269120) // hardcoded "127.0.0.1:12345"
 
 	// FIXME: client needs to try reconnecting; could use connman to make that so.
 	var localBound = uint64(0)

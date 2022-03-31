@@ -3,7 +3,7 @@ package memkv
 import (
 	"github.com/goose-lang/std"
 	"github.com/mit-pdos/gokv/connman"
-	"github.com/mit-pdos/gokv/urpc/rpc"
+	"github.com/mit-pdos/gokv/urpc"
 	"sync"
 )
 
@@ -231,6 +231,6 @@ func (mkv *KVShardServer) Start(host HostName) {
 		mkv.MoveShardRPC(decodeMoveShardRequest(rawReq))
 		*rawReply = make([]byte, 0)
 	}
-	s := rpc.MakeRPCServer(handlers)
-	s.Serve(host, 1)
+	s := urpc.MakeServer(handlers)
+	s.Serve(host)
 }

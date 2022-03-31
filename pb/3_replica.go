@@ -2,7 +2,7 @@ package pb
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
-	"github.com/mit-pdos/gokv/urpc/rpc"
+	"github.com/mit-pdos/gokv/urpc"
 	"github.com/tchajed/goose/machine"
 	"log"
 	"sync"
@@ -207,8 +207,8 @@ func StartReplicaServer(me grove_ffi.Address) *ReplicaServer {
 
 	handlers[REPLICA_HEARTBEAT] = func(_ []byte, _ *[]byte) {
 	}
-	r := rpc.MakeRPCServer(handlers)
-	r.Serve(me, 1)
+	r := urpc.MakeServer(handlers)
+	r.Serve(me)
 
 	return s
 }

@@ -2,7 +2,7 @@ package pb
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
-	"github.com/mit-pdos/gokv/urpc/rpc"
+	"github.com/mit-pdos/gokv/urpc"
 	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/marshal"
 	"sync"
@@ -105,12 +105,12 @@ func StartConfServer(me grove_ffi.Address) {
 		s.GetRPC(machine.UInt64Get(args), v)
 	}
 
-	r := rpc.MakeRPCServer(handlers)
-	r.Serve(me, 1)
+	r := urpc.MakeServer(handlers)
+	r.Serve(me)
 }
 
 type ConfClerk struct {
-	cl *rpc.RPCClient
+	cl *urpc.Client
 }
 
 func (c *ConfClerk) Put(key, prevVer uint64, newVal []byte) bool {
@@ -138,5 +138,5 @@ func (c *ConfClerk) Get(key uint64) *VersionedValue {
 }
 
 func MakeConfClerk(confServer grove_ffi.Address) *ConfClerk {
-	return &ConfClerk{cl: rpc.MakeRPCClient(confServer)}
+	return &ConfClerk{cl: urpc.MakeClient(confServer)}
 }

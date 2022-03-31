@@ -2,7 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/upamanyus/urpc/rpc"
+	"github.com/mit-pdos/gokv/grove_ffi"
+	"github.com/mit-pdos/gokv/urpc"
 	"sync"
 	"testing"
 	"time"
@@ -10,18 +11,18 @@ import (
 
 func TestRPC(t *testing.T) {
 	fmt.Println("==Basic urpc test")
-	client := rpc.MakeRPCClient("localhost:12345")
+	client := urpc.MakeClient(grove_ffi.MakeAddress("127.0.0.1:12345"))
 
 	var reply []byte
 	args := make([]byte, 0)
 	reply = make([]byte, 0)
-	client.Call(1, args, &reply)
+	client.Call(1, args, &reply, 1000 /* ms */)
 	fmt.Printf("%s\n", string(reply))
 }
 
 func TestBenchRPC(t *testing.T) {
 	fmt.Println("==Benchmarking urpc")
-	client := rpc.MakeRPCClient("localhost:12345")
+	client := urpc.MakeClient(grove_ffi.MakeAddress("127.0.0.1:12345"))
 
 	start := time.Now()
 	N := 200000
@@ -29,7 +30,7 @@ func TestBenchRPC(t *testing.T) {
 	args := make([]byte, 0)
 	for n := 0; n < N; n++ {
 		reply = make([]byte, 0)
-		client.Call(1, args, &reply)
+		client.Call(1, args, &reply, 1000 /* ms */)
 	}
 	d := time.Since(start)
 	fmt.Printf("%v us/op\n", d.Microseconds()/int64(N))
@@ -39,9 +40,9 @@ func TestBenchRPC(t *testing.T) {
 func TestBenchConcurrentRPC(t *testing.T) {
 	fmt.Println("==Benchmarking urpc")
 	numClients := 40
-	clients := make([]*rpc.RPCClient, numClients)
+	clients := make([]*urpc.Client, numClients)
 	for i := 0; i < numClients; i++ {
-		clients[i] = rpc.MakeRPCClient("localhost:12345")
+		clients[i] = urpc.MakeClient(grove_ffi.MakeAddress("127.0.0.1:12345"))
 	}
 
 	var wg sync.WaitGroup
@@ -54,7 +55,7 @@ func TestBenchConcurrentRPC(t *testing.T) {
 			var reply []byte
 			for n := 0; n < N; n++ {
 				reply = make([]byte, 0)
-				clients[i].Call(1, args, &reply)
+				clients[i].Call(1, args, &reply, 1000 /* ms */)
 			}
 			wg.Done()
 		}(i)

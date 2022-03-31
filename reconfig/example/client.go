@@ -2,9 +2,9 @@ package example
 
 import (
 	// "github.com/mit-pdos/gokv/grove_ffi"
-	"github.com/mit-pdos/gokv/urpc/rpc"
+	"github.com/mit-pdos/gokv/urpc"
 )
 
 type Clerk struct {
-	cl *rpc.RPCClient
+	cl *urpc.Client
 }

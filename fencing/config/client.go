@@ -2,7 +2,7 @@ package config
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
-	"github.com/mit-pdos/gokv/urpc/rpc"
+	"github.com/mit-pdos/gokv/urpc"
 	"github.com/tchajed/marshal"
 	"log"
 )
@@ -13,7 +13,7 @@ const (
 )
 
 type Clerk struct {
-	cl *rpc.RPCClient
+	cl *urpc.Client
 }
 
 func (ck *Clerk) HeartbeatThread(epoch uint64) {
@@ -58,6 +58,6 @@ func (ck *Clerk) Get() uint64 {
 
 func MakeClerk(host grove_ffi.Address) *Clerk {
 	ck := new(Clerk)
-	ck.cl = rpc.MakeRPCClient(host)
+	ck.cl = urpc.MakeClient(host)
 	return ck
 }

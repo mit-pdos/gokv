@@ -1,4 +1,4 @@
-package rpc
+package urpc
 
 import (
 	"github.com/goose-lang/std"
@@ -8,11 +8,11 @@ import (
 	"sync"
 )
 
-type RPCServer struct {
+type Server struct {
 	handlers map[uint64]func([]byte, *[]byte)
 }
 
-func (srv *RPCServer) rpcHandle(conn grove_ffi.Connection, rpcid uint64, seqno uint64, data []byte) {
+func (srv *Server) rpcHandle(conn grove_ffi.Connection, rpcid uint64, seqno uint64, data []byte) {
 	replyData := new([]byte)
 
 	f := srv.handlers[rpcid] // for Goose
@@ -28,11 +28,11 @@ func (srv *RPCServer) rpcHandle(conn grove_ffi.Connection, rpcid uint64, seqno u
 	grove_ffi.Send(conn, e.Finish()) // TODO: contention? should we buffer these in userspace too?
 }
 
-func MakeRPCServer(handlers map[uint64]func([]byte, *[]byte)) *RPCServer {
-	return &RPCServer{handlers: handlers}
+func MakeServer(handlers map[uint64]func([]byte, *[]byte)) *Server {
+	return &Server{handlers: handlers}
 }
 
-func (srv *RPCServer) readThread(conn grove_ffi.Connection) {
+func (srv *Server) readThread(conn grove_ffi.Connection) {
 	for {
 		r := grove_ffi.Receive(conn)
 		if r.Err {
@@ -50,7 +50,7 @@ func (srv *RPCServer) readThread(conn grove_ffi.Connection) {
 	}
 }
 
-func (srv *RPCServer) Serve(host grove_ffi.Address, numWorkers uint64) {
+func (srv *Server) Serve(host grove_ffi.Address) {
 	listener := grove_ffi.Listen(grove_ffi.Address(host))
 	go func() {
 		for {
@@ -72,7 +72,7 @@ type callback struct {
 	cond  *sync.Cond
 }
 
-type RPCClient struct {
+type Client struct {
 	mu   *sync.Mutex
 	conn grove_ffi.Connection // for requests
 	seq  uint64               // next fresh sequence number
@@ -80,7 +80,7 @@ type RPCClient struct {
 	pending map[uint64]*callback
 }
 
-func (cl *RPCClient) replyThread() {
+func (cl *Client) replyThread() {
 	for {
 		r := grove_ffi.Receive(cl.conn)
 		if r.Err {
@@ -115,7 +115,7 @@ func (cl *RPCClient) replyThread() {
 	}
 }
 
-func MakeRPCClient(host_name grove_ffi.Address) *RPCClient {
+func MakeClient(host_name grove_ffi.Address) *Client {
 	host := grove_ffi.Address(host_name)
 	a := grove_ffi.Connect(host)
 	// Assume no error
@@ -123,7 +123,7 @@ func MakeRPCClient(host_name grove_ffi.Address) *RPCClient {
 	// because of a temporary network failure
 	machine.Assume(!a.Err)
 
-	cl := &RPCClient{
+	cl := &Client{
 		conn:    a.Connection,
 		mu:      new(sync.Mutex),
 		seq:     1,
@@ -138,7 +138,7 @@ func MakeRPCClient(host_name grove_ffi.Address) *RPCClient {
 const ErrTimeout uint64 = 1
 const ErrDisconnect uint64 = 2
 
-func (cl *RPCClient) Call(rpcid uint64, args []byte, reply *[]byte, timeout_ms uint64) uint64 {
+func (cl *Client) Call(rpcid uint64, args []byte, reply *[]byte, timeout_ms uint64) uint64 {
 	// log.Printf("Started call %d\n", rpcid)
 	reply_buf := new([]byte)
 	cb := &callback{reply: reply_buf, state: new(uint64), cond: sync.NewCond(cl.mu)}

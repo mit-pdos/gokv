@@ -2,11 +2,11 @@ package reconfig
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
-	"github.com/mit-pdos/gokv/urpc/rpc"
+	"github.com/mit-pdos/gokv/urpc"
 )
 
 type Clerk struct {
-	cl *rpc.RPCClient
+	cl *urpc.Client
 }
 
 type OpType = []byte
@@ -57,5 +57,5 @@ func (ck *Clerk) BecomeReplica(args *BecomeReplicaArgs) Error {
 }
 
 func MakeClerk(host grove_ffi.Address) *Clerk {
-	return &Clerk{cl: rpc.MakeRPCClient(host)}
+	return &Clerk{cl: urpc.MakeClient(host)}
 }
