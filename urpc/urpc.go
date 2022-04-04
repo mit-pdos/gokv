@@ -18,14 +18,11 @@ func (srv *Server) rpcHandle(conn grove_ffi.Connection, rpcid uint64, seqno uint
 	f := srv.handlers[rpcid] // for Goose
 	f(data, replyData)       // call the function
 
-	// assume no overflow (*replyData would have to be almost 2^64 bytes large...)
-	num_bytes := std.SumAssumeNoOverflow(8+8, uint64(len(*replyData)))
-	e := marshal.NewEnc(num_bytes)
-	e.PutInt(seqno)
-	e.PutInt(uint64(len(*replyData)))
-	e.PutBytes(*replyData)
+	data1 := make([]byte, 0, 8+len(*replyData))
+	data2 := marshal.WriteInt(data1, seqno)
+	data3 := marshal.WriteBytes(data2, *replyData)
 	// Ignore errors (what would we do about them anyway -- client will inevitably time out, and then retry)
-	grove_ffi.Send(conn, e.Finish()) // TODO: contention? should we buffer these in userspace too?
+	grove_ffi.Send(conn, data3) // TODO: contention? should we buffer these in userspace too?
 }
 
 func MakeServer(handlers map[uint64]func([]byte, *[]byte)) *Server {
@@ -40,11 +37,9 @@ func (srv *Server) readThread(conn grove_ffi.Connection) {
 			break
 		}
 		data := r.Data
-		d := marshal.NewDec(data)
-		rpcid := d.GetInt()
-		seqno := d.GetInt()
-		reqLen := d.GetInt()
-		req := d.GetBytes(reqLen)
+		rpcid, data := marshal.ReadInt(data)
+		seqno, data := marshal.ReadInt(data)
+		req := data                            // remaining data
 		srv.rpcHandle(conn, rpcid, seqno, req) // XXX: this could (and probably should) be in a goroutine YYY: but readThread is already its own goroutine, so that seems redundant?
 		continue
 	}
@@ -95,11 +90,8 @@ func (cl *Client) replyThread() {
 		}
 		data := r.Data
 
-		d := marshal.NewDec(data)
-		seqno := d.GetInt()
-		// TODO: Can we just "read the rest of the bytes"?
-		replyLen := d.GetInt()
-		reply := d.GetBytes(replyLen)
+		seqno, data := marshal.ReadInt(data)
+		reply := data
 		// log.Printf("Got reply for call %d\n", seqno)
 
 		cl.mu.Lock()
@@ -156,14 +148,10 @@ func (cl *Client) Call(rpcid uint64, args []byte, reply *[]byte, timeout_ms uint
 	// - or it happens after the critical section, in which case the `replyThread` will set
 	//   our status to `callbackStateAborted` which we will notice below.
 
-	// assume no overflow (args would have to be almost 2^64 bytes large...)
-	num_bytes := std.SumAssumeNoOverflow(8+8+8, uint64(len(args)))
-	e := marshal.NewEnc(num_bytes)
-	e.PutInt(rpcid)
-	e.PutInt(seqno)
-	e.PutInt(uint64(len(args)))
-	e.PutBytes(args)
-	reqData := e.Finish()
+	data1 := make([]byte, 0, 8+8+len(args))
+	data2 := marshal.WriteInt(data1, rpcid)
+	data3 := marshal.WriteInt(data2, seqno)
+	reqData := marshal.WriteBytes(data3, args)
 	// fmt.Fprintf(os.Stderr, "%+v\n", reqData)
 
 	if grove_ffi.Send(cl.conn, reqData) {
