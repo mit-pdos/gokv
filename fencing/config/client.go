@@ -8,8 +8,9 @@ import (
 )
 
 const (
-	RPC_LOCK = uint64(0)
-	RPC_GET  = uint64(1)
+	RPC_ACQUIRE_EPOCH = uint64(0)
+	RPC_GET           = uint64(1)
+	RPC_HB            = uint64(2)
 )
 
 type Clerk struct {
@@ -25,18 +26,18 @@ func (ck *Clerk) HeartbeatThread(epoch uint64) {
 		// of spurious leader failure per hour)
 		reply_ptr := new([]byte)
 		grove_ffi.Sleep(TIMEOUT_MS * MILLION / 3)
-		err := ck.cl.Call(RPC_LOCK, args, reply_ptr, 100 /* ms */)
+		err := ck.cl.Call(RPC_HB, args, reply_ptr, 100 /* ms */)
 		if err != 0 || len(*reply_ptr) != 0 {
 			break
 		}
 	}
 }
 
-func (ck *Clerk) Lock(newFrontend grove_ffi.Address) uint64 {
+func (ck *Clerk) AcquireEpoch(newFrontend grove_ffi.Address) uint64 {
 	enc := marshal.NewEnc(8)
 	enc.PutInt(newFrontend)
 	reply_ptr := new([]byte)
-	err := ck.cl.Call(RPC_LOCK, enc.Finish(), reply_ptr, 100 /* ms */)
+	err := ck.cl.Call(RPC_ACQUIRE_EPOCH, enc.Finish(), reply_ptr, 100 /* ms */)
 	if err != 0 {
 		log.Println("config: client failed to run RPC on config server")
 		grove_ffi.Exit(1)
@@ -47,7 +48,7 @@ func (ck *Clerk) Lock(newFrontend grove_ffi.Address) uint64 {
 
 func (ck *Clerk) Get() uint64 {
 	reply_ptr := new([]byte)
-	err := ck.cl.Call(RPC_LOCK, make([]byte, 0), reply_ptr, 100 /* ms */)
+	err := ck.cl.Call(RPC_GET, make([]byte, 0), reply_ptr, 100 /* ms */)
 	if err != 0 {
 		log.Println("config: client failed to run RPC on config server")
 		grove_ffi.Exit(1)

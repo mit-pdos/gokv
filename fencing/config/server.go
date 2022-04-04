@@ -75,6 +75,7 @@ func (s *Server) HeartbeatListener() {
 	}
 }
 
+// returns true iff successful
 func (s *Server) Heartbeat(epoch uint64) bool {
 	// reset the heartbeat expiration time
 	s.mu.Lock()
@@ -110,7 +111,7 @@ func StartServer(me grove_ffi.Address) {
 	}()
 
 	handlers := make(map[uint64]func([]byte, *[]byte))
-	handlers[RPC_LOCK] = func(args []byte, reply *[]byte) {
+	handlers[RPC_ACQUIRE_EPOCH] = func(args []byte, reply *[]byte) {
 		dec := marshal.NewDec(args)
 		enc := marshal.NewEnc(8)
 		enc.PutInt(s.AcquireEpoch(dec.GetInt()))
@@ -121,6 +122,15 @@ func StartServer(me grove_ffi.Address) {
 		enc := marshal.NewEnc(8)
 		enc.PutInt(s.Get())
 		*reply = enc.Finish()
+	}
+
+	handlers[RPC_HB] = func(args []byte, reply *[]byte) {
+		dec := marshal.NewDec(args)
+		if s.Heartbeat(dec.GetInt()) {
+			*reply = make([]byte, 0)
+		} else {
+			*reply = make([]byte, 1)
+		}
 	}
 
 	r := urpc.MakeServer(handlers)

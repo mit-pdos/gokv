@@ -38,7 +38,7 @@ func StartServer(me, configHost, host1, host2 grove_ffi.Address) {
 	s := new(Server)
 
 	configCk := config.MakeClerk(configHost)
-	s.epoch = configCk.Lock(me)
+	s.epoch = configCk.AcquireEpoch(me)
 
 	s.mu = new(sync.Mutex)
 	s.ck1 = ctr.MakeClerk(host1)
