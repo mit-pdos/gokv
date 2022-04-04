@@ -15,9 +15,8 @@ type Server struct {
 
 func (t *Server) HandleRequest(handler func(raw_args []byte, reply *[]byte)) func(raw_args []byte, reply *[]byte) {
 	return func(raw_args []byte, reply *[]byte) {
-		dec := marshal.NewDec(raw_args)
-		cid := dec.GetInt()
-		seq := dec.GetInt()
+		cid, raw_args := marshal.ReadInt(raw_args)
+		seq, raw_args := marshal.ReadInt(raw_args)
 
 		t.mu.Lock()
 		// check if we've seen this request before
@@ -31,7 +30,7 @@ func (t *Server) HandleRequest(handler func(raw_args []byte, reply *[]byte)) fun
 			return
 		}
 
-		handler(dec.GetRemainingBytes(), reply)
+		handler(raw_args, reply)
 
 		t.lastSeq[cid] = seq
 		t.lastReply[cid] = *reply
@@ -64,11 +63,11 @@ type Client struct {
 func (c *Client) NewRequest(request []byte) []byte {
 	c.seq += 1
 
-	enc := marshal.NewEnc(2*8 + uint64(len(request)))
-	enc.PutInt(c.cid)
-	enc.PutInt(c.seq)
-	enc.PutBytes(request)
-	return enc.Finish()
+	data1 := make([]byte, 0, 8+8+len(request))
+	data2 := marshal.WriteInt(data1, c.cid)
+	data3 := marshal.WriteInt(data2, c.seq)
+	data4 := append(data3, request...)
+	return data4
 }
 
 func MakeClient(cid uint64) *Client {
