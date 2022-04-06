@@ -22,7 +22,7 @@ type Clerk struct {
 
 func (c *Clerk) Get(epoch uint64) uint64 {
 	enc := marshal.NewEnc(8)
-	enc.PutInt(8)
+	enc.PutInt(epoch)
 	req := enc.Finish()
 	errorProph := machine.NewProph()
 	valProph := machine.NewProph()
