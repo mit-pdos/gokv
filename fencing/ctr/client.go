@@ -5,6 +5,7 @@ import (
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc"
 	"github.com/tchajed/marshal"
+	"github.com/tchajed/goose/machine"
 	"log"
 )
 
@@ -20,11 +21,11 @@ type Clerk struct {
 }
 
 func (c *Clerk) Get(epoch uint64) uint64 {
-	// TODO: use prophecy and don't use exactly-once RPC
-	args := &GetArgs{
-		epoch: epoch,
-	}
-	req := c.e.NewRequest(EncGetArgs(args))
+	enc := marshal.NewEnc(8)
+	enc.PutInt(8)
+	req := enc.Finish()
+	errorProph := machine.NewProph()
+	valProph := machine.NewProph()
 
 	reply_ptr := new([]byte)
 	err := c.cl.Call(RPC_GET, req, reply_ptr, 100 /* ms */)
@@ -33,11 +34,13 @@ func (c *Clerk) Get(epoch uint64) uint64 {
 		grove_ffi.Exit(1)
 	}
 	r := DecGetReply(*reply_ptr)
+	errorProph.ResolveBool(r.err != ENone)
 
 	if r.err != ENone {
 		log.Println("ctr: get() stale epoch number")
 		grove_ffi.Exit(1)
 	}
+	valProph.ResolveU64(r.val)
 	return r.val
 }
 

@@ -36,19 +36,16 @@ func (s *Server) Put(args *PutArgs) uint64 {
 	return ENone
 }
 
-func (s *Server) Get(args *GetArgs, reply *GetReply) {
+func (s *Server) Get(epoch uint64, reply *GetReply) {
 	s.mu.Lock()
 	reply.err = ENone
 	// check if epoch is stale
-	if args.epoch < s.lastEpoch {
+	if epoch < s.lastEpoch {
 		s.mu.Unlock()
 		reply.err = EStale
 		return
 	}
-	s.lastEpoch = args.epoch
-
-	// XXX: for the proof, we're going to have to use the reply table here.
-	// Hopefully, prophecy variables can one day fix that.
+	s.lastEpoch = epoch
 
 	reply.val = s.v
 	s.mu.Unlock()
@@ -62,12 +59,13 @@ func StartServer(me grove_ffi.Address) {
 	s.v = 0
 
 	handlers := make(map[uint64]func([]byte, *[]byte))
-	handlers[RPC_GET] = s.e.HandleRequest(func(raw_args []byte, raw_reply *[]byte) {
-		args := DecGetArgs(raw_args)
+	handlers[RPC_GET] = func(raw_args []byte, raw_reply *[]byte) {
+		dec := marshal.NewDec(raw_args)
+		epoch := dec.GetInt()
 		reply := new(GetReply)
-		s.Get(args, reply)
+		s.Get(epoch, reply)
 		*raw_reply = EncGetReply(reply)
-	})
+	}
 
 	handlers[RPC_PUT] = s.e.HandleRequest(func(raw_args []byte, reply *[]byte) {
 		args := DecPutArgs(raw_args)
