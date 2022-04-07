@@ -20,3 +20,9 @@ goose has to be run from the directory with the `go.mod` file, instead of from
 the perennial directory.
 
 Run `export GOPRIVATE=github.com/mit-pdos` before `go get`.
+
+## Updating dependencies
+
+Use `GOPROXY=direct go get -u` to fetch very recent updates from dependencies by bypassing the Go proxy.
+You have to be in some package subfolder to do this.
+You might also have to set a tag in the dependency repo so it is considered a new published version.
