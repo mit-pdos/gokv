@@ -2,6 +2,7 @@
 package erpc
 
 import (
+	"github.com/goose-lang/std"
 	"github.com/tchajed/marshal"
 	"sync"
 )
@@ -10,7 +11,7 @@ type Server struct {
 	mu        *sync.Mutex
 	lastSeq   map[uint64]uint64
 	lastReply map[uint64][]byte
-	lastCID   uint64
+	nextCID   uint64
 }
 
 func (t *Server) HandleRequest(handler func(raw_args []byte, reply *[]byte)) func(raw_args []byte, reply *[]byte) {
@@ -40,17 +41,18 @@ func (t *Server) HandleRequest(handler func(raw_args []byte, reply *[]byte)) fun
 
 func (t *Server) GetFreshCID() uint64 {
 	t.mu.Lock()
-	t.lastCID += 1
-	ret := t.lastCID
+	r := t.nextCID
+	// Overflowing a 64bit counter will take a while, assume it dos not happen
+	t.nextCID = std.SumAssumeNoOverflow(t.nextCID, 1)
 	t.mu.Unlock()
-	return ret
+	return r
 }
 
 func MakeServer() *Server {
 	t := new(Server)
 	t.lastReply = make(map[uint64][]byte)
 	t.lastSeq = make(map[uint64]uint64)
-	t.lastCID = 0
+	t.nextCID = 0
 	t.mu = new(sync.Mutex)
 	return t
 }
