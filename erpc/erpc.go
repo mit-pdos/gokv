@@ -63,7 +63,7 @@ type Client struct {
 }
 
 func (c *Client) NewRequest(request []byte) []byte {
-	c.seq += 1
+	c.seq = std.SumAssumeNoOverflow(c.seq, 1)
 
 	data1 := make([]byte, 0, 8+8+len(request))
 	data2 := marshal.WriteInt(data1, c.cid)
