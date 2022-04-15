@@ -68,7 +68,7 @@ func (c *Client) NewRequest(request []byte) []byte {
 	data1 := make([]byte, 0, 8+8+len(request))
 	data2 := marshal.WriteInt(data1, c.cid)
 	data3 := marshal.WriteInt(data2, c.seq)
-	data4 := append(data3, request...)
+	data4 := marshal.WriteBytes(data3, request)
 	return data4
 }
 
