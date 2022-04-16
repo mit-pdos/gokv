@@ -58,16 +58,17 @@ func MakeServer() *Server {
 }
 
 type Client struct {
-	cid uint64
-	seq uint64
+	cid     uint64
+	nextSeq uint64
 }
 
 func (c *Client) NewRequest(request []byte) []byte {
-	c.seq = std.SumAssumeNoOverflow(c.seq, 1)
+	seq := c.nextSeq
+	c.nextSeq = std.SumAssumeNoOverflow(c.nextSeq, 1)
 
 	data1 := make([]byte, 0, 8+8+len(request))
 	data2 := marshal.WriteInt(data1, c.cid)
-	data3 := marshal.WriteInt(data2, c.seq)
+	data3 := marshal.WriteInt(data2, seq)
 	data4 := marshal.WriteBytes(data3, request)
 	return data4
 }
@@ -75,6 +76,6 @@ func (c *Client) NewRequest(request []byte) []byte {
 func MakeClient(cid uint64) *Client {
 	c := new(Client)
 	c.cid = cid
-	c.seq = 0
+	c.nextSeq = 1 // because reasons
 	return c
 }
