@@ -21,8 +21,9 @@ func (t *Server) HandleRequest(handler func(raw_args []byte, reply *[]byte)) fun
 
 		t.mu.Lock()
 		// check if we've seen this request before
-		last, ok := t.lastSeq[cid]
-		if ok && seq <= last {
+		// (seq is definitely not 0, so if cid is not in the map this still works)
+		last := t.lastSeq[cid]
+		if seq <= last {
 			// Old request repeated. This is either request `last`, and we send back that reply, or an
 			// even older one in which case we can send whatever since the client will already have
 			// moved on.
@@ -76,6 +77,7 @@ func (c *Client) NewRequest(request []byte) []byte {
 func MakeClient(cid uint64) *Client {
 	c := new(Client)
 	c.cid = cid
-	c.nextSeq = 1 // because reasons
+	// On the server, we rely on no request ever having seq 0.
+	c.nextSeq = 1
 	return c
 }
