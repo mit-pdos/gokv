@@ -3,6 +3,7 @@ package memkv
 import (
 	"github.com/goose-lang/std"
 	"github.com/mit-pdos/gokv/connman"
+	"github.com/mit-pdos/gokv/erpc"
 	"github.com/mit-pdos/gokv/urpc"
 	"sync"
 )
@@ -10,11 +11,9 @@ import (
 type KvMap = map[uint64][]byte
 
 type KVShardServer struct {
-	me        string //
-	mu        *sync.Mutex
-	lastReply map[uint64]ShardReply
-	lastSeq   map[uint64]uint64
-	nextCID   uint64 // next CID that can be granted to a client
+	me   string //
+	mu   *sync.Mutex
+	erpc *erpc.Server
 
 	shardMap []bool // \box(size=NSHARDS)
 	// if anything is in shardMap, then we have a map[] initialized in kvss
@@ -29,14 +28,6 @@ type PutArgs struct {
 }
 
 func (s *KVShardServer) put_inner(args *PutRequest, reply *PutReply) {
-	last, ok := s.lastSeq[args.CID]
-	seq := args.Seq
-	if ok && seq <= last {
-		reply.Err = s.lastReply[args.CID].Err
-		return
-	}
-	s.lastSeq[args.CID] = args.Seq
-
 	sid := shardOf(args.Key)
 
 	if s.shardMap[sid] == true {
@@ -45,8 +36,6 @@ func (s *KVShardServer) put_inner(args *PutRequest, reply *PutReply) {
 	} else {
 		reply.Err = EDontHaveShard
 	}
-
-	s.lastReply[args.CID] = ShardReply{Err: reply.Err}
 }
 
 func (s *KVShardServer) PutRPC(args *PutRequest, reply *PutReply) {
@@ -56,16 +45,6 @@ func (s *KVShardServer) PutRPC(args *PutRequest, reply *PutReply) {
 }
 
 func (s *KVShardServer) get_inner(args *GetRequest, reply *GetReply) {
-	last, ok := s.lastSeq[args.CID]
-	seq := args.Seq
-	if ok && seq <= last {
-		lastReply := s.lastReply[args.CID]
-		reply.Err = lastReply.Err
-		reply.Value = lastReply.Value
-		return
-	}
-	s.lastSeq[args.CID] = args.Seq
-
 	sid := shardOf(args.Key)
 
 	if s.shardMap[sid] == true {
@@ -74,7 +53,6 @@ func (s *KVShardServer) get_inner(args *GetRequest, reply *GetReply) {
 	} else {
 		reply.Err = EDontHaveShard
 	}
-	s.lastReply[args.CID] = ShardReply{Err: reply.Err, Value: reply.Value}
 }
 
 func (s *KVShardServer) GetRPC(args *GetRequest, reply *GetReply) {
@@ -84,16 +62,6 @@ func (s *KVShardServer) GetRPC(args *GetRequest, reply *GetReply) {
 }
 
 func (s *KVShardServer) conditional_put_inner(args *ConditionalPutRequest, reply *ConditionalPutReply) {
-	last, ok := s.lastSeq[args.CID]
-	seq := args.Seq
-	if ok && seq <= last {
-		lastReply := s.lastReply[args.CID]
-		reply.Err = lastReply.Err
-		reply.Success = lastReply.Success
-		return
-	}
-	s.lastSeq[args.CID] = args.Seq
-
 	sid := shardOf(args.Key)
 
 	if s.shardMap[sid] == true {
@@ -107,8 +75,6 @@ func (s *KVShardServer) conditional_put_inner(args *ConditionalPutRequest, reply
 	} else {
 		reply.Err = EDontHaveShard
 	}
-
-	s.lastReply[args.CID] = ShardReply{Err: reply.Err, Success: reply.Success}
 }
 
 func (s *KVShardServer) ConditionalPutRPC(args *ConditionalPutRequest, reply *ConditionalPutReply) {
@@ -125,16 +91,8 @@ func (s *KVShardServer) ConditionalPutRPC(args *ConditionalPutRequest, reply *Co
 // flag is updated (i.e. until RemoveShard() is run).
 func (s *KVShardServer) install_shard_inner(args *InstallShardRequest) {
 	// log.Printf("SHARD INSTALLING %d", args.Sid)
-	last, ok := s.lastSeq[args.CID]
-	seq := args.Seq
-	if ok && seq <= last {
-		return
-	}
-	s.lastSeq[args.CID] = args.Seq
-
 	s.shardMap[args.Sid] = true
 	s.kvss[args.Sid] = args.Kvs
-	s.lastReply[args.CID] = ShardReply{Err: 0, Value: nil}
 	// log.Printf("SHARD FINISHED INSTALLING %d", args.Sid)
 }
 
@@ -170,8 +128,7 @@ func (s *KVShardServer) MoveShardRPC(args *MoveShardRequest) {
 func MakeKVShardServer(is_init bool) *KVShardServer {
 	srv := new(KVShardServer)
 	srv.mu = new(sync.Mutex)
-	srv.lastReply = make(map[uint64]ShardReply)
-	srv.lastSeq = make(map[uint64]uint64)
+	srv.erpc = erpc.MakeServer()
 	srv.shardMap = make([]bool, NSHARD)
 	srv.kvss = make([]KvMap, NSHARD)
 	srv.peers = make(map[HostName]*KVShardClerk)
@@ -186,46 +143,43 @@ func MakeKVShardServer(is_init bool) *KVShardServer {
 }
 
 func (s *KVShardServer) GetCIDRPC() uint64 {
-	s.mu.Lock()
-	r := s.nextCID
-	// Overflowing a 64bit counter will take a while, assume it dos not happen
-	std.SumAssumeNoOverflow(s.nextCID, 1)
-	s.nextCID = s.nextCID + 1
-	s.mu.Unlock()
-	return r
+	return s.erpc.GetFreshCID()
 }
 
 func (mkv *KVShardServer) Start(host HostName) {
 	handlers := make(map[uint64]func([]byte, *[]byte))
+	erpc := mkv.erpc
 
 	handlers[KV_FRESHCID] = func(rawReq []byte, rawReply *[]byte) {
 		*rawReply = EncodeUint64(mkv.GetCIDRPC())
 	}
 
-	handlers[KV_PUT] = func(rawReq []byte, rawReply *[]byte) {
+	// TODO: for the proofs it'd be much cleaner if marshaling (and really as much as possible)
+	// was inside a separate function, rather than done inline here.
+	handlers[KV_PUT] = erpc.HandleRequest(func(rawReq []byte, rawReply *[]byte) {
 		rep := new(PutReply)
 		mkv.PutRPC(DecodePutRequest(rawReq), rep)
 		*rawReply = EncodePutReply(rep)
-	}
+	})
 
-	handlers[KV_GET] = func(rawReq []byte, rawReply *[]byte) {
+	handlers[KV_GET] = erpc.HandleRequest(func(rawReq []byte, rawReply *[]byte) {
 		rep := new(GetReply)
 		mkv.GetRPC(DecodeGetRequest(rawReq), rep)
 		*rawReply = EncodeGetReply(rep)
-	}
+	})
 
-	handlers[KV_CONDITIONAL_PUT] = func(rawReq []byte, rawReply *[]byte) {
+	handlers[KV_CONDITIONAL_PUT] = erpc.HandleRequest(func(rawReq []byte, rawReply *[]byte) {
 		rep := new(ConditionalPutReply)
 		mkv.ConditionalPutRPC(DecodeConditionalPutRequest(rawReq), rep)
 		*rawReply = EncodeConditionalPutReply(rep)
-	}
+	})
 
-	handlers[KV_INS_SHARD] = func(rawReq []byte, rawReply *[]byte) {
+	handlers[KV_INS_SHARD] = erpc.HandleRequest(func(rawReq []byte, rawReply *[]byte) {
 		// NOTE: decoding, i.e. construction of in-memory map, happens before we get
-		// the lock
+		// the lock (but we do hold the erpc lock already...)
 		mkv.InstallShardRPC(decodeInstallShardRequest(rawReq))
 		*rawReply = make([]byte, 0)
-	}
+	})
 
 	handlers[KV_MOV_SHARD] = func(rawReq []byte, rawReply *[]byte) {
 		mkv.MoveShardRPC(decodeMoveShardRequest(rawReq))

@@ -30,16 +30,7 @@ func shardOf(key uint64) uint64 {
 	return key % NSHARD
 }
 
-// "universal" reply type for the reply table
-type ShardReply struct {
-	Err     ErrorType
-	Value   []byte
-	Success bool
-}
-
 type PutRequest struct {
-	CID   uint64
-	Seq   uint64
 	Key   uint64
 	Value []byte
 }
@@ -47,10 +38,8 @@ type PutRequest struct {
 // doesn't include the operation type
 func EncodePutRequest(args *PutRequest) []byte {
 	// assume no overflow (args.Value would have to be almost 2^64 bytes large...)
-	num_bytes := std.SumAssumeNoOverflow(8+8+8+8, uint64(len(args.Value))) // CID + Seq + key + value-len + value
+	num_bytes := std.SumAssumeNoOverflow(8+8, uint64(len(args.Value))) // CID + Seq + key + value-len + value
 	e := marshal.NewEnc(num_bytes)
-	e.PutInt(args.CID)
-	e.PutInt(args.Seq)
 	e.PutInt(args.Key)
 	e.PutInt(uint64(len(args.Value)))
 	e.PutBytes(args.Value)
@@ -61,8 +50,6 @@ func EncodePutRequest(args *PutRequest) []byte {
 func DecodePutRequest(reqData []byte) *PutRequest {
 	req := new(PutRequest)
 	d := marshal.NewDec(reqData)
-	req.CID = d.GetInt()
-	req.Seq = d.GetInt()
 	req.Key = d.GetInt()
 	req.Value = d.GetBytes(d.GetInt())
 
@@ -87,8 +74,6 @@ func DecodePutReply(replyData []byte) *PutReply {
 }
 
 type GetRequest struct {
-	CID uint64
-	Seq uint64
 	Key uint64
 }
 
@@ -98,9 +83,7 @@ type GetReply struct {
 }
 
 func EncodeGetRequest(req *GetRequest) []byte {
-	e := marshal.NewEnc(3 * 8)
-	e.PutInt(req.CID)
-	e.PutInt(req.Seq)
+	e := marshal.NewEnc(8)
 	e.PutInt(req.Key)
 	return e.Finish()
 }
@@ -108,8 +91,6 @@ func EncodeGetRequest(req *GetRequest) []byte {
 func DecodeGetRequest(rawReq []byte) *GetRequest {
 	req := new(GetRequest)
 	d := marshal.NewDec(rawReq)
-	req.CID = d.GetInt()
-	req.Seq = d.GetInt()
 	req.Key = d.GetInt()
 	return req
 }
@@ -134,8 +115,6 @@ func DecodeGetReply(rawRep []byte) *GetReply {
 }
 
 type ConditionalPutRequest struct {
-	CID           uint64
-	Seq           uint64
 	Key           uint64
 	ExpectedValue []byte
 	NewValue      []byte
@@ -149,10 +128,8 @@ type ConditionalPutReply struct {
 func EncodeConditionalPutRequest(req *ConditionalPutRequest) []byte {
 	// assume no overflow (req.NewValue and req.ExpectedValue together would have to be almost 2^64 bytes large...)
 	// CID + Seq + key + exp-value-len + exp-value + new-value-len + new-value
-	num_bytes := std.SumAssumeNoOverflow(8+8+8+8+8, std.SumAssumeNoOverflow(uint64(len(req.ExpectedValue)), uint64(len(req.NewValue))))
+	num_bytes := std.SumAssumeNoOverflow(8+8+8, std.SumAssumeNoOverflow(uint64(len(req.ExpectedValue)), uint64(len(req.NewValue))))
 	e := marshal.NewEnc(num_bytes)
-	e.PutInt(req.CID)
-	e.PutInt(req.Seq)
 	e.PutInt(req.Key)
 	e.PutInt(uint64(len(req.ExpectedValue)))
 	e.PutBytes(req.ExpectedValue)
@@ -164,8 +141,6 @@ func EncodeConditionalPutRequest(req *ConditionalPutRequest) []byte {
 func DecodeConditionalPutRequest(rawReq []byte) *ConditionalPutRequest {
 	req := new(ConditionalPutRequest)
 	d := marshal.NewDec(rawReq)
-	req.CID = d.GetInt()
-	req.Seq = d.GetInt()
 	req.Key = d.GetInt()
 	req.ExpectedValue = d.GetBytes(d.GetInt())
 	req.NewValue = d.GetBytes(d.GetInt())
@@ -188,8 +163,6 @@ func DecodeConditionalPutReply(replyData []byte) *ConditionalPutReply {
 }
 
 type InstallShardRequest struct {
-	CID uint64
-	Seq uint64
 	Sid uint64
 	Kvs map[uint64][]byte
 }
@@ -228,10 +201,8 @@ func DecSliceMap(d marshal.Dec) map[uint64][]byte {
 }
 
 func encodeInstallShardRequest(req *InstallShardRequest) []byte {
-	num_bytes := std.SumAssumeNoOverflow(8+8+8, SizeOfMarshalledMap(req.Kvs))
+	num_bytes := std.SumAssumeNoOverflow(8, SizeOfMarshalledMap(req.Kvs))
 	e := marshal.NewEnc(num_bytes)
-	e.PutInt(req.CID)
-	e.PutInt(req.Seq)
 	e.PutInt(req.Sid)
 	EncSliceMap(e, req.Kvs)
 	return e.Finish()
@@ -240,8 +211,6 @@ func encodeInstallShardRequest(req *InstallShardRequest) []byte {
 func decodeInstallShardRequest(rawReq []byte) *InstallShardRequest {
 	d := marshal.NewDec(rawReq)
 	req := new(InstallShardRequest)
-	req.CID = d.GetInt()
-	req.Seq = d.GetInt()
 	req.Sid = d.GetInt()
 	req.Kvs = DecSliceMap(d)
 	return req

@@ -1,13 +1,12 @@
 package memkv
 
 import (
-	"github.com/goose-lang/std"
 	"github.com/mit-pdos/gokv/connman"
+	"github.com/mit-pdos/gokv/erpc"
 )
 
 type KVShardClerk struct {
-	seq  uint64
-	cid  uint64
+	erpc *erpc.Client
 	host HostName
 	c    *connman.ConnMan
 }
@@ -18,37 +17,31 @@ func MakeFreshKVShardClerk(host HostName, c *connman.ConnMan) *KVShardClerk {
 	ck.c = c
 	rawRep := new([]byte)
 	ck.c.CallAtLeastOnce(host, KV_FRESHCID, make([]byte, 0), rawRep, 100 /*ms*/)
-	ck.cid = DecodeUint64(*rawRep)
-	ck.seq = 1
+	cid := DecodeUint64(*rawRep)
+	ck.erpc = erpc.MakeClient(cid)
 
 	return ck
 }
 
 func (ck *KVShardClerk) Put(key uint64, value []byte) ErrorType {
 	args := new(PutRequest)
-	args.CID = ck.cid
-	args.Seq = ck.seq
 	args.Key = key
 	args.Value = value
-	// Overflowing a 64bit counter will take a while, assume it dos not happen
-	ck.seq = std.SumAssumeNoOverflow(ck.seq, 1)
+	req := ck.erpc.NewRequest(EncodePutRequest(args))
 
 	rawRep := new([]byte)
-	ck.c.CallAtLeastOnce(ck.host, KV_PUT, EncodePutRequest(args), rawRep, 100 /*ms*/)
+	ck.c.CallAtLeastOnce(ck.host, KV_PUT, req, rawRep, 100 /*ms*/)
 	rep := DecodePutReply(*rawRep)
 	return rep.Err
 }
 
 func (ck *KVShardClerk) Get(key uint64, value *[]byte) ErrorType {
 	args := new(GetRequest)
-	args.CID = ck.cid
-	args.Seq = ck.seq
 	args.Key = key
-	// Overflowing a 64bit counter will take a while, assume it dos not happen
-	ck.seq = std.SumAssumeNoOverflow(ck.seq, 1)
+	req := ck.erpc.NewRequest(EncodeGetRequest(args))
 
 	rawRep := new([]byte)
-	ck.c.CallAtLeastOnce(ck.host, KV_GET, EncodeGetRequest(args), rawRep, 100 /*ms*/)
+	ck.c.CallAtLeastOnce(ck.host, KV_GET, req, rawRep, 100 /*ms*/)
 	rep := DecodeGetReply(*rawRep)
 	*value = rep.Value
 	return rep.Err
@@ -56,16 +49,13 @@ func (ck *KVShardClerk) Get(key uint64, value *[]byte) ErrorType {
 
 func (ck *KVShardClerk) ConditionalPut(key uint64, expectedValue []byte, newValue []byte, success *bool) ErrorType {
 	args := new(ConditionalPutRequest)
-	args.CID = ck.cid
-	args.Seq = ck.seq
 	args.Key = key
 	args.ExpectedValue = expectedValue
 	args.NewValue = newValue
-	// Overflowing a 64bit counter will take a while, assume it dos not happen
-	ck.seq = std.SumAssumeNoOverflow(ck.seq, 1)
+	req := ck.erpc.NewRequest(EncodeConditionalPutRequest(args))
 
 	rawRep := new([]byte)
-	ck.c.CallAtLeastOnce(ck.host, KV_CONDITIONAL_PUT, EncodeConditionalPutRequest(args), rawRep, 100 /*ms*/)
+	ck.c.CallAtLeastOnce(ck.host, KV_CONDITIONAL_PUT, req, rawRep, 100 /*ms*/)
 	rep := DecodeConditionalPutReply(*rawRep)
 	*success = rep.Success
 	return rep.Err
@@ -74,15 +64,12 @@ func (ck *KVShardClerk) ConditionalPut(key uint64, expectedValue []byte, newValu
 func (ck *KVShardClerk) InstallShard(sid uint64, kvs map[uint64][]byte) {
 	// log.Printf("InstallShard %d starting", sid)
 	args := new(InstallShardRequest)
-	args.CID = ck.cid
-	args.Seq = ck.seq
 	args.Sid = sid
 	args.Kvs = kvs
-	// Overflowing a 64bit counter will take a while, assume it dos not happen
-	ck.seq = std.SumAssumeNoOverflow(ck.seq, 1)
+	req := ck.erpc.NewRequest(encodeInstallShardRequest(args))
 
 	rawRep := new([]byte)
-	ck.c.CallAtLeastOnce(ck.host, KV_INS_SHARD, encodeInstallShardRequest(args), rawRep, 100 /*ms*/)
+	ck.c.CallAtLeastOnce(ck.host, KV_INS_SHARD, req, rawRep, 100 /*ms*/)
 	// log.Printf("InstallShard %d finished", sid)
 }
 
