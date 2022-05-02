@@ -16,11 +16,6 @@ type Server struct {
 	lastEpoch uint64
 }
 
-const (
-	ENone  = uint64(0)
-	EStale = uint64(1)
-)
-
 func (s *Server) Put(args *PutArgs) uint64 {
 	s.mu.Lock()
 	// check if epoch is stale

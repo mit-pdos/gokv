@@ -4,6 +4,11 @@ import (
 	"github.com/tchajed/marshal"
 )
 
+const (
+	ENone  = uint64(0)
+	EStale = uint64(1)
+)
+
 type PutArgs struct {
 	epoch uint64
 	v     uint64
