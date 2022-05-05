@@ -1,57 +1,22 @@
-// Reconfiguration protocol:
-// Previous config has number n and quorum structure Q.
-// New config has number (n+1) and quorum structure Q'.
-//
-// Two-phase protocol, with stopping:
-// a Write (n+1, in-progress) to config service
-// b Replicate "stop config n" to read-quorum Q; this doesn't have to pass
-//   through the log.
-// c Tell any read-quorum in Q to transfer its data to write-quorum of Q'.
-// d Write (n+1, done) to config service
-// e Tell Q' to begin processing.
-// This is like the Delos "seal"-based approach.
-//
-// Question: what if another config change happens during c?
-// Well, we could disallow it because of (n+1, in-progress).
-// Better plan: keep (from n to n+1 in-progress) in config service
-// If want to do another config change because that one failed (e.g.
-// write-quorum of n+1 becomes unreachable), then write
-// (from n to n+2 in-progress) to config service.
-//
-// System invariant:
-// own_state σ ∗ (∃ cn oid, own_commit_oid oid ∗ accepted_by_cn σ oid)
-// To commit a new entry within a config, have to increase (acceped_by_cn σ' (oid+1))
-//
-// Another way of looking at it: state is (σ,oid) and has poset structure by
-// oid-ordering.
-// ∃ (σ,oid), own_state (σ,oid) ∗ (∃ cn, accepted_by_cn (σ,oid))
-// Recovery establishes "oldConfMax" i.e. "φ" proposition, which must be true of
-// any new proposals.
-// Read operations will be able to avoid increasing OID, because primary will
-// just check that its cn is still the highest.
+= Reconfiguration
 
-// Joint-consensus protocol:
-// Commit "use (Q ∪ Q')" to Q and to Q'.
-// Tell any read-quorum in Q to transfer its data to write-quorum of Q'.
-// Commit "n" to Q.
+Consider a system that works like this.
+Upon initialization, none of the replica servers think they are the primary.
+There are some old servers out there that have no
 
-// Another option: use exactly-once RPC instead of increasing oid.
-// Have only one pending exactly-once RPC at a time. When an eoRPC is accepted,
-// the state of the server advances in a determinstic way. Invariant maintains
-// that: when no pending RPCs, backups in the current config have the same state
-// as primary. Primary *owns* part of the state of the backup-servers (in that
-// config).  The exactly-once RPC sends along ownership to match up with that
-// server's fraction of its state to do the update.
 
-// Argument for integrated eoRPC approach:
-// Will need reply-table etc. to make client ops exactly-once. So, if we use
-// oids, then erpc will be layer on top anyways. We could aim to avoid extra
-// coordination and use eoRPC directly (in the spirit of ideas like TAPIR).
+Replica.
+* ReplicateOp(epoch uint64, op []byte, opindex uint64) (err {EStale, ENone})
+  Called by the primary to replicate an operation to backups.
+* EnterNewEpoch(epoch uint64)
+* GetState(epoch uint64) (state []byte)
+* Op(op []byte) (err {ENone, ENotPrimary}, ret []byte)
+  Called by the client of the system to try applying a new operation.
+  If err=ENotPrimary, the operation might still be applied/end up being applied.
+* SetState(epoch uint64)
 
-=
-Configuration service has some "stable" configuration. That's the *real* latest
-configuration. To move to a new configuration, first seal the old one. Also,
-write the new config as "pending".
+* BecomePrimary(epoch uint64, backups []grove_ffi.Address)
 
-=
-Admin server has a (sequencer-enforced) lease on the "admin" key.
+Config.
+* GetNewEpoch() uint64
+* SetConfig(epoch uint64)
