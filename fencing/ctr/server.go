@@ -5,6 +5,7 @@ import (
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc"
 	"github.com/tchajed/marshal"
+	"github.com/tchajed/goose/machine"
 	"sync"
 )
 
@@ -43,6 +44,7 @@ func (s *Server) Get(epoch uint64, reply *GetReply) {
 	s.lastEpoch = epoch
 
 	reply.val = s.v
+	machine.Linearize()
 	s.mu.Unlock()
 	return
 }
