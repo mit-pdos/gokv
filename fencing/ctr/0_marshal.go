@@ -15,7 +15,7 @@ type PutArgs struct {
 }
 
 func EncPutArgs(args *PutArgs) []byte {
-	enc := marshal.NewEnc(uint64(8))
+	enc := marshal.NewEnc(uint64(16))
 	enc.PutInt(args.v)
 	enc.PutInt(args.epoch)
 	return enc.Finish()

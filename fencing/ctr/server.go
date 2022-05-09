@@ -4,8 +4,8 @@ import (
 	"github.com/mit-pdos/gokv/erpc"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc"
-	"github.com/tchajed/marshal"
 	"github.com/tchajed/goose/machine"
+	"github.com/tchajed/marshal"
 	"sync"
 )
 
