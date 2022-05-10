@@ -2,10 +2,8 @@ package main
 
 import (
 	"flag"
-	"github.com/mit-pdos/gokv/fencing/client"
+	"github.com/mit-pdos/gokv/fencing/loopclient"
 	"github.com/mit-pdos/gokv/grove_ffi"
-	"github.com/tchajed/goose/machine"
-	"log"
 )
 
 func main() {
@@ -23,21 +21,7 @@ func main() {
 
 	config := grove_ffi.MakeAddress(configStr)
 
-	ck := client.MakeClerk(config)
-
-	x := func(key uint64) {
-		var lowerBound uint64 = ck.FetchAndIncrement(key)
-		for {
-			v := ck.FetchAndIncrement(key)
-			machine.Assert(v > lowerBound)
-			if v%1000 == 0 {
-				log.Printf("reached %d >= %d", key, v)
-			}
-			lowerBound = v
-		}
-	}
-
-	go x(0)
-	go x(1)
+	go loopclient.LoopOnKey(0, config)
+	go loopclient.LoopOnKey(1, config)
 	select {}
 }

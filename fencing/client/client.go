@@ -28,5 +28,8 @@ func (ck *Clerk) FetchAndIncrement(key uint64) uint64 {
 func MakeClerk(configHost grove_ffi.Address) *Clerk {
 	ck := new(Clerk)
 	ck.configCk = config.MakeClerk(configHost)
+
+	currentFrontend := ck.configCk.Get()
+	ck.frontendCk = frontend.MakeClerk(currentFrontend)
 	return ck
 }
