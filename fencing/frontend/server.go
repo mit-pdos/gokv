@@ -27,7 +27,7 @@ func (s *Server) FetchAndIncrement(key uint64) uint64 {
 		s.ck1.Put(ret+1, s.epoch)
 	} else {
 		// key == 1
-		ret = s.ck1.Get(s.epoch)
+		ret = s.ck2.Get(s.epoch)
 		s.ck2.Put(ret+1, s.epoch)
 	}
 	s.mu.Unlock()
