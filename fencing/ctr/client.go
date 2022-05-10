@@ -73,9 +73,9 @@ func MakeClerk(host grove_ffi.Address) *Clerk {
 	reply_ptr := new([]byte)
 	err := ck.cl.Call(RPC_FRESHCID, make([]byte, 0), reply_ptr, 100 /* ms */)
 	if err != 0 {
-		panic("ctr: urpc call failed/timed out")
-		// log.Println("ctr: urpc getcid call failed/timed out")
-		// grove_ffi.Exit(1)
+		// panic("ctr: urpc call failed/timed out")
+		log.Println("ctr: urpc getcid call failed/timed out")
+		grove_ffi.Exit(1)
 	}
 	ck.e = erpc.MakeClient(marshal.NewDec(*reply_ptr).GetInt())
 
