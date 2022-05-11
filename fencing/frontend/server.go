@@ -1,6 +1,7 @@
 package frontend
 
 import (
+	"github.com/goose-lang/std"
 	"github.com/mit-pdos/gokv/fencing/config"
 	"github.com/mit-pdos/gokv/fencing/ctr"
 	"github.com/mit-pdos/gokv/grove_ffi"
@@ -24,10 +25,12 @@ func (s *Server) FetchAndIncrement(key uint64) uint64 {
 	var ret uint64
 	if key == 0 {
 		ret = s.ck1.Get(s.epoch)
+		std.SumAssumeNoOverflow(ret, 1)
 		s.ck1.Put(ret+1, s.epoch)
 	} else {
 		// key == 1
 		ret = s.ck2.Get(s.epoch)
+		std.SumAssumeNoOverflow(ret, 1)
 		s.ck2.Put(ret+1, s.epoch)
 	}
 	s.mu.Unlock()
