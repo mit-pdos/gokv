@@ -2,14 +2,10 @@ package reconf
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
+	"github.com/mit-pdos/gokv/urpc"
+	"log"
 	"sync"
 )
-
-type MonotonicValue struct {
-	version uint64
-	val     []byte
-	conf    *Config
-}
 
 func (lhs *MonotonicValue) GreaterThan(rhs *MonotonicValue) bool {
 	return lhs.version > rhs.version
@@ -22,19 +18,11 @@ type Replica struct {
 	acceptedTerm uint64
 	acceptedMVal *MonotonicValue
 
-	me grove_ffi.Address
-
 	clerkPool *ClerkPool
 
 	isLeader bool
 	// Leader state
 	// acceptedVersions map[grove_ffi.Address]uint64
-}
-
-type PrepareReply struct {
-	Success bool
-	Term    uint64
-	Val     *MonotonicValue
 }
 
 func (r *Replica) PrepareRPC(term uint64, reply *PrepareReply) {
@@ -49,11 +37,6 @@ func (r *Replica) PrepareRPC(term uint64, reply *PrepareReply) {
 		reply.Term = r.promisedTerm
 	}
 	r.mu.Unlock()
-}
-
-type ProposeArgs struct {
-	Term uint64
-	Val  MonotonicValue
 }
 
 func (r *Replica) ProposeRPC(term uint64, v *MonotonicValue) bool {
@@ -87,7 +70,6 @@ func (r *Replica) TryBecomeLeader() bool {
 	mu := new(sync.Mutex)
 
 	prepared := make(map[grove_ffi.Address]bool)
-	prepared[r.me] = true
 
 	conf.ForEachMember(func(addr grove_ffi.Address) {
 		go func() {
@@ -162,8 +144,17 @@ func (r *Replica) tryCommit(mvalModifier func(*MonotonicValue), reply *TryCommit
 		reply.err = ENotLeader
 		return
 	}
-
 	mvalModifier(r.acceptedMVal)
+	// if !r.acceptedMVal.conf.Contains(r.me) {
+	// I don't think we need to do this; even if the new configuration we're
+	// going to doesn't contain us, we're still the leader of this term. In
+	// fact, I think we can even commit new entries even if we're not
+	// actually in the config!
+	// r.isLeader = false
+	// }
+
+	log.Printf("Trying to commit value; node state: %+v\n", r)
+
 	r.acceptedMVal.version += 1
 	term := r.promisedTerm
 	mval := r.acceptedMVal
@@ -171,7 +162,6 @@ func (r *Replica) tryCommit(mvalModifier func(*MonotonicValue), reply *TryCommit
 
 	mu := new(sync.Mutex)
 	accepted := make(map[grove_ffi.Address]bool)
-	accepted[r.me] = true
 
 	mval.conf.ForEachMember(func(addr grove_ffi.Address) {
 		go func() {
@@ -188,8 +178,10 @@ func (r *Replica) tryCommit(mvalModifier func(*MonotonicValue), reply *TryCommit
 	if IsQuorum(mval.conf, accepted) {
 		reply.err = ENone
 		reply.version = mval.version
+	} else {
+		reply.err = EQuorumFailed
 	}
-	reply.err = EQuorumFailed
+	log.Printf("Result of trying to commit: %+v\n", reply)
 }
 
 func (r *Replica) TryCommitVal(v []byte, reply *TryCommitReply) {
@@ -213,4 +205,13 @@ func (r *Replica) TryEnterNewConfig(newMembers []grove_ffi.Address) {
 			mval.conf.nextMembers = make([]grove_ffi.Address, 0)
 		}
 	}, reply)
+}
+
+func StartReplicaServer(me grove_ffi.Address, initConfig *Config) {
+	handlers := make(map[uint64]func([]byte, *[]byte))
+	handlers[RPC_PREPARE] = func(args []byte, reply *[]byte) {
+	}
+
+	r := urpc.MakeServer(handlers)
+	r.Serve(me)
 }
