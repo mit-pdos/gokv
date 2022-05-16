@@ -3,8 +3,10 @@ package reconf
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc"
+	"github.com/tchajed/marshal"
 	"log"
 	"sync"
+	// "github.com/davecgh/go-spew/spew"
 )
 
 func (lhs *MonotonicValue) GreaterThan(rhs *MonotonicValue) bool {
@@ -25,21 +27,30 @@ type Replica struct {
 	// acceptedVersions map[grove_ffi.Address]uint64
 }
 
+const (
+	ENone         = uint64(0)
+	ETermStale    = uint64(1)
+	ENotLeader    = uint64(2)
+	EQuorumFailed = uint64(3)
+)
+
 func (r *Replica) PrepareRPC(term uint64, reply *PrepareReply) {
 	r.mu.Lock()
 	if term > r.promisedTerm {
 		r.promisedTerm = term
 		reply.Term = r.acceptedTerm
 		reply.Val = r.acceptedMVal
-		reply.Success = true
+		reply.Err = ENone
 	} else {
-		reply.Success = false
+		reply.Err = ETermStale
+		reply.Val = new(MonotonicValue)
+		reply.Val.conf = new(Config)
 		reply.Term = r.promisedTerm
 	}
 	r.mu.Unlock()
 }
 
-func (r *Replica) ProposeRPC(term uint64, v *MonotonicValue) bool {
+func (r *Replica) ProposeRPC(term uint64, v *MonotonicValue) uint64 {
 	r.mu.Lock()
 	if term >= r.promisedTerm {
 		r.promisedTerm = term
@@ -48,10 +59,10 @@ func (r *Replica) ProposeRPC(term uint64, v *MonotonicValue) bool {
 			r.acceptedMVal = v
 		}
 		r.mu.Unlock()
-		return true
+		return ENone
 	} else {
 		r.mu.Unlock()
-		return false
+		return ETermStale
 	}
 }
 
@@ -74,9 +85,9 @@ func (r *Replica) TryBecomeLeader() bool {
 	conf.ForEachMember(func(addr grove_ffi.Address) {
 		go func() {
 			reply_ptr := new(PrepareReply)
-			r.clerkPool.PrepareRPC(addr, newTerm, reply_ptr) // TODO: replace with real RPC
+			r.clerkPool.PrepareRPC(addr, newTerm, reply_ptr)
 
-			if reply_ptr.Success {
+			if reply_ptr.Err == ENone {
 				mu.Lock()
 				prepared[addr] = true
 
@@ -101,9 +112,8 @@ func (r *Replica) TryBecomeLeader() bool {
 		}()
 	})
 
-	grove_ffi.Sleep(50 * 1_000_000) // 50 ms
-
 	// FIXME: put this in a condvar loop with timeout
+	grove_ffi.Sleep(50 * 1_000_000) // 50 ms
 	mu.Lock()
 	if IsQuorum(highestVal.conf, prepared) {
 		// We successfully became the leader
@@ -120,17 +130,6 @@ func (r *Replica) TryBecomeLeader() bool {
 	mu.Unlock()
 	return false
 }
-
-type TryCommitReply struct {
-	err     uint64
-	version uint64
-}
-
-const (
-	ENone         = uint64(0)
-	ENotLeader    = uint64(1)
-	EQuorumFailed = uint64(2)
-)
 
 // Returns true iff there was an error;
 // The error is either that r is not currently a primary, or that r was unable
@@ -154,6 +153,7 @@ func (r *Replica) tryCommit(mvalModifier func(*MonotonicValue), reply *TryCommit
 	// }
 
 	log.Printf("Trying to commit value; node state: %+v\n", r)
+	// spew.Printf("MVal state: %+v\n", r.acceptedMVal)
 
 	r.acceptedMVal.version += 1
 	term := r.promisedTerm
@@ -173,6 +173,7 @@ func (r *Replica) tryCommit(mvalModifier func(*MonotonicValue), reply *TryCommit
 		}()
 	})
 
+	// FIXME: put this in a condvar loop with timeout
 	grove_ffi.Sleep(100 * 1_000_000) // 100ms
 	mu.Lock()
 	if IsQuorum(mval.conf, accepted) {
@@ -185,6 +186,14 @@ func (r *Replica) tryCommit(mvalModifier func(*MonotonicValue), reply *TryCommit
 }
 
 func (r *Replica) TryCommitVal(v []byte, reply *TryCommitReply) {
+	r.mu.Lock()
+	if !r.isLeader {
+		r.mu.Unlock()
+		r.TryBecomeLeader()
+	} else {
+		r.mu.Unlock()
+	}
+
 	r.tryCommit(func(mval *MonotonicValue) {
 		mval.val = v
 	}, reply)
@@ -194,22 +203,58 @@ func (r *Replica) TryCommitVal(v []byte, reply *TryCommitReply) {
 func (r *Replica) TryEnterNewConfig(newMembers []grove_ffi.Address) {
 	reply := new(TryCommitReply)
 	r.tryCommit(func(mval *MonotonicValue) {
-		if len(mval.conf.nextMembers) == 0 {
-			mval.conf.nextMembers = newMembers
+		if len(mval.conf.NextMembers) == 0 {
+			mval.conf.NextMembers = newMembers
 		}
 	}, reply)
 
 	r.tryCommit(func(mval *MonotonicValue) {
-		if len(mval.conf.nextMembers) != 0 {
-			mval.conf.members = mval.conf.nextMembers
-			mval.conf.nextMembers = make([]grove_ffi.Address, 0)
+		if len(mval.conf.NextMembers) != 0 {
+			mval.conf.Members = mval.conf.NextMembers
+			mval.conf.NextMembers = make([]grove_ffi.Address, 0)
 		}
 	}, reply)
 }
 
 func StartReplicaServer(me grove_ffi.Address, initConfig *Config) {
+	s := new(Replica)
+
+	s.mu = new(sync.Mutex)
+	s.promisedTerm = 0
+	s.acceptedTerm = 0
+	s.acceptedMVal = new(MonotonicValue)
+	s.acceptedMVal.conf = initConfig
+
+	s.clerkPool = MakeClerkPool()
+	s.isLeader = false
+
 	handlers := make(map[uint64]func([]byte, *[]byte))
-	handlers[RPC_PREPARE] = func(args []byte, reply *[]byte) {
+	handlers[RPC_PREPARE] = func(args []byte, raw_reply *[]byte) {
+		term, _ := marshal.ReadInt(args)
+		reply := new(PrepareReply)
+		s.PrepareRPC(term, reply)
+		*raw_reply = EncPrepareReply(make([]byte, 0), reply)
+		DecPrepareReply(*raw_reply)
+	}
+
+	handlers[RPC_PROPOSE] = func(raw_args []byte, raw_reply *[]byte) {
+		args, _ := DecProposeArgs(raw_args)
+		reply := s.ProposeRPC(args.Term, args.Val)
+		*raw_reply = marshal.WriteInt(make([]byte, 0, 8), reply)
+	}
+
+	handlers[RPC_TRY_COMMIT_VAL] = func(raw_args []byte, raw_reply *[]byte) {
+		log.Println("RPC_TRY_COMMIT_VAL")
+		val := raw_args
+		reply := new(TryCommitReply)
+		s.TryCommitVal(val, reply)
+		*raw_reply = marshal.WriteInt(make([]byte, 0, 8), reply.err)
+	}
+
+	handlers[RPC_TRY_CONFIG_CHANGE] = func(raw_args []byte, raw_reply *[]byte) {
+		args, _ := DecMembers(raw_args)
+		s.TryEnterNewConfig(args)
+		*raw_reply = make([]byte, 0)
 	}
 
 	r := urpc.MakeServer(handlers)
