@@ -75,15 +75,16 @@ func (c *Config) ForEachMember(f func(grove_ffi.Address)) {
 }
 
 func (c *Config) Contains(m grove_ffi.Address) bool {
+	var ret bool = false
 	for _, member := range c.Members {
 		if member == m {
-			return true
+			ret = true
 		}
 	}
 	for _, member := range c.NextMembers {
 		if member == m {
-			return true
+			ret = true
 		}
 	}
-	return false
+	return ret
 }

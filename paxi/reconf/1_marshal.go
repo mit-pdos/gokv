@@ -22,7 +22,9 @@ func EncConfig(pre []byte, conf *Config) []byte {
 
 func DecConfig(encoded []byte) (*Config, []byte) {
 	var dec []byte = encoded
+
 	conf := new(Config)
+
 	numMembers, dec := marshal.ReadInt(dec)
 	numNextMembers, dec := marshal.ReadInt(dec)
 
@@ -32,6 +34,7 @@ func DecConfig(encoded []byte) (*Config, []byte) {
 	for i := range conf.Members {
 		conf.Members[i], dec = marshal.ReadInt(dec)
 	}
+
 	for i := range conf.NextMembers {
 		conf.Members[i], dec = marshal.ReadInt(dec)
 	}
@@ -58,7 +61,8 @@ func DecMonotonicValue(encoded []byte) (*MonotonicValue, []byte) {
 	var dec []byte = encoded
 	mval.version, dec = marshal.ReadInt(dec)
 	valLen, dec := marshal.ReadInt(dec)
-	mval.val, dec = dec[:valLen], dec[valLen:]
+	mval.val = dec[:valLen]
+	dec = dec[valLen:]
 	mval.conf, dec = DecConfig(dec)
 	return mval, dec
 }
