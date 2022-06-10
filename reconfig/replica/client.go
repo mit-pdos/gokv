@@ -14,15 +14,16 @@ type OpType = []byte
 type Error = uint64
 
 const (
-	ENone       = uint64(0)
-	ENotPrimary = uint64(1)
-	EStale      = uint64(2)
+	ENone             = uint64(0)
+	ENotPrimary       = uint64(1)
+	EStale            = uint64(2)
+	EAppendOutOfOrder = uint64(3)
 )
 
-type DoOperationArgs struct {
-	cn  uint64
-	op  []byte
-	osn uint64
+type AppendArgs struct {
+	cn    uint64
+	entry LogEntry
+	index uint64
 }
 
 type Configuration struct {
@@ -46,7 +47,7 @@ type GetStateReply struct {
 	osn   uint64
 }
 
-func (ck *Clerk) DoOperation(args *DoOperationArgs) Error {
+func (ck *Clerk) DoOperation(args *AppendArgs) Error {
 	// FIXME: impl
 	return EStale
 }

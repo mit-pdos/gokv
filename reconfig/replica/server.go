@@ -4,43 +4,63 @@ import (
 	"sync"
 )
 
-type Server struct {
-	mu     *sync.Mutex
-	osn    uint64
-	cn     uint64
-	sealed bool
-
-	isPrimary bool
-	clerks    []*Clerk
-
-	// Applies the given op to the given state, and returns the response for that
+// This is the type of thing that can be replicated
+type StateMachine struct {
+	// Applies the given op to the current state, and returns the response for that
 	// operation.
 	// E.g. for a put, the state changes and the reply is nil.
 	// For a get, the state is unchanged and the reply is the value of the desired key.
-	apply func(OpType) []byte
+	Apply func([]byte) []byte
 
 	// returns a marshalled snapshot of the current state
-	getState func() []byte
+	GetState func() []byte
 
 	// sets the state based on a marshalled snapshot
-	setState func([]byte)
+	SetState func([]byte)
+}
+
+type DurableLog struct {
+	// Appends the given entry to the log and makes it durable before returning.
+	Append func(entry []byte)
+
+	// Allows for the log to be truncated up through (and including) the given index
+	Truncate func(index uint64)
+
+	InstallLog func(startIndex uint64, newLog []LogEntry)
+
+	NextIndex func() uint64
+}
+
+type LogEntry = []byte
+
+type Server struct {
+	mu *sync.Mutex
+
+	clerks    []*Clerk
+	isPrimary bool
+
+	// These two are the protocol state that is separate from the durable log
+	cn     uint64
+	sealed bool
+
+	commitIndex uint64
+	dlog DurableLog
 }
 
 // External function, called by users of this library.
 // Tries to apply the given `op` to the state machine.
 // If unable to apply the operation (e.g. if this server is not currently the
 // primary), returns ENotPrimary. If successful, returns ENone.
-func (s *Server) PrimaryApplyOp(op OpType, reply *[]byte) Error {
+func (s *Server) TryCommitOp(op OpType, reply *[]byte) Error {
 	s.mu.Lock()
 	if !s.isPrimary {
 		s.mu.Unlock()
 		return ENotPrimary
 	}
-	*reply = s.apply(op)
-	s.osn += 1
 
 	// now tell everyone else about the op
-	args := &DoOperationArgs{cn: s.cn, op: op, osn: s.osn}
+	args := &AppendArgs{cn: s.cn, entry: op, index: uint64(s.dlog.NextIndex())}
+
 	for _, ck := range s.clerks {
 		ck.DoOperation(args)
 	}
@@ -49,23 +69,28 @@ func (s *Server) PrimaryApplyOp(op OpType, reply *[]byte) Error {
 }
 
 // Internal RPC. Applies a single operation to a replica.
-func (s *Server) DoOperation(args *DoOperationArgs) bool {
+func (s *Server) AppendRPC(args *AppendArgs) Error {
 	s.mu.Lock()
 	if args.cn < s.cn { // ignore old requests
 		s.mu.Unlock()
-		return false
+		return EStale
 	} // else, we must have args.cn == s.cn
 
-	if args.osn <= s.osn {
+	if args.index < s.dlog.NextIndex() {
 		s.mu.Unlock()
-		return true // already accepted it
-	} // else, must have args.osn == s.osn+1
+		return ENone // already accepted it
+	} else if args.index > s.dlog.NextIndex() {
+		s.mu.Unlock()
+		return EAppendOutOfOrder
+	}
+	// else, must have args.index == s.startIndex + uint64(len(s.log))
 
-	s.apply(args.op)
-	s.osn += 1
+	s.dlog.Append(args.entry)
+	// TODO: trigger some sort of condition variable
 
+	// make stuff durable
 	s.mu.Unlock()
-	return true
+	return ENone
 }
 
 // Invoked by a failover controller to tell this server that it's the primary
@@ -126,7 +151,7 @@ func (s *Server) BecomeReplica(args *BecomeReplicaArgs) Error {
 		return EStale
 	}
 
-	s.setState(args.state)
+	// s.sm.SetState(args.state)
 	s.osn = args.osn
 	s.cn = args.cn
 	s.sealed = false
@@ -159,7 +184,7 @@ func (s *Server) GetState() *GetStateReply {
 	s.mu.Lock()
 	reply := new(GetStateReply)
 	reply.cn = s.cn
-	reply.state = s.getState()
+	reply.state = s.sm.GetState()
 	reply.osn = s.osn
 	s.mu.Unlock()
 	return reply
@@ -172,9 +197,11 @@ func MakeServer(apply func(OpType) []byte, getState func() []byte, setState func
 	s.cn = 0
 	s.isPrimary = false
 	s.sealed = false
-	s.apply = apply
-	s.getState = getState
-	s.setState = setState
+	s.sm = &StateMachine{
+		Apply:    apply,
+		GetState: getState,
+		SetState: setState,
+	}
 
 	return s
 }
