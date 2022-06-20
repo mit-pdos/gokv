@@ -18,7 +18,7 @@ const (
 )
 
 func MakeClerkPool() *ClerkPool {
-	return &ClerkPool{ cl:connman.MakeConnMan() }
+	return &ClerkPool{cl: connman.MakeConnMan()}
 }
 
 func (ck *ClerkPool) PrepareRPC(srv grove_ffi.Address, newTerm uint64, reply_ptr *PrepareReply) {
@@ -30,7 +30,7 @@ func (ck *ClerkPool) PrepareRPC(srv grove_ffi.Address, newTerm uint64, reply_ptr
 }
 
 func (ck *ClerkPool) ProposeRPC(srv grove_ffi.Address, term uint64, val *MonotonicValue) bool {
-	args := &ProposeArgs{Term:term, Val:val}
+	args := &ProposeArgs{Term: term, Val: val}
 	raw_reply := new([]byte)
 
 	// FIXME: this should be allowed to give up, rather than loop forever

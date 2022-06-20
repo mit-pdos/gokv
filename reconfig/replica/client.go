@@ -20,34 +20,7 @@ const (
 	EAppendOutOfOrder = uint64(3)
 )
 
-type AppendArgs struct {
-	cn    uint64
-	entry LogEntry
-	index uint64
-}
-
-type Configuration struct {
-	replicas []grove_ffi.Address
-}
-
-type BecomeReplicaArgs struct {
-	cn    uint64
-	state []byte
-	osn   uint64
-}
-
-type BecomePrimaryArgs struct {
-	conf    Configuration
-	repArgs *BecomeReplicaArgs
-}
-
-type GetStateReply struct {
-	cn    uint64
-	state []byte
-	osn   uint64
-}
-
-func (ck *Clerk) DoOperation(args *AppendArgs) Error {
+func (ck *Clerk) appendRPC(args *AppendArgs) Error {
 	// FIXME: impl
 	return EStale
 }

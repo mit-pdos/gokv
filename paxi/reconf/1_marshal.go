@@ -129,7 +129,7 @@ func DecMembers(encoded []byte) ([]grove_ffi.Address, []byte) {
 	var dec []byte = encoded
 	numMembers, dec := marshal.ReadInt(dec)
 	members := make([]grove_ffi.Address, numMembers)
-	for i, _ := range members {
+	for i := range members {
 		members[i], dec = marshal.ReadInt(dec)
 	}
 	return members, dec

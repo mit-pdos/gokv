@@ -1,11 +1,41 @@
 package reconfig
 
-func EncodeDoOperationArgs(args *DoOperationArgs) []byte {
+import "github.com/mit-pdos/gokv/grove_ffi"
+
+type AppendArgs struct {
+	epoch uint64
+	entry LogEntry
+	index uint64
+}
+
+func EncodeAppendArgs(args *AppendArgs) []byte {
 	// TODO:impl
 	return nil
 }
 
-func DecodeDoOperationArgs(args []byte) *DoOperationArgs {
+func DecodeAppendArgs(args []byte) *AppendArgs {
 	// TODO:impl
 	return nil
+}
+
+type Configuration struct {
+	replicas []grove_ffi.Address
+}
+
+type BecomeReplicaArgs struct {
+	epoch      uint64
+	startIndex uint64
+	log        []LogEntry
+}
+
+type BecomePrimaryArgs struct {
+	epoch   uint64
+	conf    Configuration
+	repArgs *BecomeReplicaArgs
+}
+
+type GetLogReply struct {
+	epoch      uint64
+	log        []LogEntry
+	startIndex uint64
 }

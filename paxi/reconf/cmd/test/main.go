@@ -16,7 +16,7 @@ func main() {
 	}
 	srvs := make([]grove_ffi.Address, len(srvStrings))
 
-	for i, _ := range srvs {
+	for i := range srvs {
 		srvs[i] = grove_ffi.MakeAddress(srvStrings[i])
 		log.Println(srvs[i])
 	}

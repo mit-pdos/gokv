@@ -4,31 +4,21 @@ import (
 	"sync"
 )
 
-// This is the type of thing that can be replicated
-type StateMachine struct {
-	// Applies the given op to the current state, and returns the response for that
-	// operation.
-	// E.g. for a put, the state changes and the reply is nil.
-	// For a get, the state is unchanged and the reply is the value of the desired key.
-	Apply func([]byte) []byte
+type DurableState struct {
+	// Atomically append the entry to the end of the log and set acceptedEpoch
+	// to the given epoch.
+	Append func(acceptedEpoch uint64, entry []byte)
 
-	// returns a marshalled snapshot of the current state
-	GetState func() []byte
+	// Update the given three pieces of state atomically
+	SetLog func(acceptedEpoch uint64, startIndex uint64, log []LogEntry)
 
-	// sets the state based on a marshalled snapshot
-	SetState func([]byte)
-}
-
-type DurableLog struct {
-	// Appends the given entry to the log and makes it durable before returning.
-	Append func(entry []byte)
-
-	// Allows for the log to be truncated up through (and including) the given index
+	// Allow for the prefix of the log up to and including the given `index` to be truncated
 	Truncate func(index uint64)
 
-	InstallLog func(startIndex uint64, newLog []LogEntry)
+	SetEpoch func(epoch uint64)
 
-	NextIndex func() uint64
+	// Loads state from durable state
+	Load func(name string) (uint64, uint64, uint64, []LogEntry, uint64)
 }
 
 type LogEntry = []byte
@@ -39,19 +29,27 @@ type Server struct {
 	clerks    []*Clerk
 	isPrimary bool
 
-	// These two are the protocol state that is separate from the durable log
-	cn     uint64
-	sealed bool
+	// The in-memory state is here in place of "Getters".
+	// We still need setters because we need to update durable state atomically
+	// in various ways.
 
+	epoch         uint64
+	acceptedEpoch uint64
+	startIndex    uint64
+	log           []LogEntry
+
+	dstate *DurableState
+
+	// the commitIndex is not made durable (no need to)
 	commitIndex uint64
-	dlog DurableLog
 }
 
 // External function, called by users of this library.
 // Tries to apply the given `op` to the state machine.
 // If unable to apply the operation (e.g. if this server is not currently the
 // primary), returns ENotPrimary. If successful, returns ENone.
-func (s *Server) TryCommitOp(op OpType, reply *[]byte) Error {
+// FIXME: also return index
+func (s *Server) AppendOp(op LogEntry) Error {
 	s.mu.Lock()
 	if !s.isPrimary {
 		s.mu.Unlock()
@@ -59,54 +57,67 @@ func (s *Server) TryCommitOp(op OpType, reply *[]byte) Error {
 	}
 
 	// now tell everyone else about the op
-	args := &AppendArgs{cn: s.cn, entry: op, index: uint64(s.dlog.NextIndex())}
+	args := &AppendArgs{epoch: s.epoch, entry: op, index: s.startIndex + uint64(len(s.log))}
 
+	// TODO: pipelining; need to be able to send out a second AppendArgs RPC
+	// even after the first one. Ideally, we only send the second one after the
+	// first one has definitely been sent.
+
+	// TODO: don't hold lock around this
 	for _, ck := range s.clerks {
-		ck.DoOperation(args)
+		ck.appendRPC(args)
 	}
 	s.mu.Unlock()
 	return ENone
 }
 
+func (s *Server) isEpochStale(epoch uint64) bool {
+	if epoch < s.epoch { // ignore old requests
+		return true
+	}
+	return false
+}
+
 // Internal RPC. Applies a single operation to a replica.
-func (s *Server) AppendRPC(args *AppendArgs) Error {
+func (s *Server) appendRPC(args *AppendArgs) Error {
 	s.mu.Lock()
-	if args.cn < s.cn { // ignore old requests
+
+	if s.isEpochStale(args.epoch) {
 		s.mu.Unlock()
 		return EStale
-	} // else, we must have args.cn == s.cn
+	}
+	// else, the epoch is up-to-date
 
-	if args.index < s.dlog.NextIndex() {
+	if args.index < s.startIndex+uint64(len(s.log)) {
 		s.mu.Unlock()
 		return ENone // already accepted it
-	} else if args.index > s.dlog.NextIndex() {
+	} else if args.index > s.startIndex+uint64(len(s.log)) {
 		s.mu.Unlock()
 		return EAppendOutOfOrder
 	}
 	// else, must have args.index == s.startIndex + uint64(len(s.log))
 
-	s.dlog.Append(args.entry)
-	// TODO: trigger some sort of condition variable
+	s.dstate.Append(args.epoch, args.entry)
 
 	// make stuff durable
 	s.mu.Unlock()
 	return ENone
 }
 
-// Invoked by a failover controller to tell this server that it's the primary
-// for configuration cn.
-// Includes the (or, "a") final state of the previous config.
-//
-// XXX: the plan for config change is:
-// a.) reserve a config number and the membership at the config number,
-// 	   but do not activate it
-// b.) seal the old config number
-// c.) bring new config up to date with previous active config
-// d.) set config number as active
-// e.) tell primary it can start applying new operations
+func (s *Server) EnterNewEpochRPC(epoch uint64) {
+	s.mu.Lock()
+	if s.epoch > epoch {
+		s.mu.Unlock()
+	}
+	s.epoch = epoch
+	s.mu.Unlock()
+}
+
 func (s *Server) BecomePrimary(args *BecomePrimaryArgs) Error {
 	s.mu.Lock()
-	if args.repArgs.cn <= s.cn { // ignore requests for old cn
+	s.isPrimary = true
+
+	if s.isEpochStale(args.epoch) {
 		s.mu.Unlock()
 		return EStale
 	}
@@ -120,14 +131,11 @@ func (s *Server) BecomePrimary(args *BecomePrimaryArgs) Error {
 	// tell the replicas to become replicas
 	var success = true
 	for _, ck := range s.clerks {
-		// The only way a replica will reject this is if it enters a
-		// configuration higher than args.repArgs.cn. In that case, this primary
-		// has been scooped.
+		// The only way a replica will reject this is if it knows about a higher
+		// epoch number. In that case, this primary has been scooped.
 		if ck.BecomeReplica(args.repArgs) != ENone {
 			success = false
 			break
-			// s.mu.Unlock()
-			// return ENotPrimary
 		}
 	}
 	if !success {
@@ -136,72 +144,75 @@ func (s *Server) BecomePrimary(args *BecomePrimaryArgs) Error {
 	}
 
 	// at this point, everyone is caught up.
-	s.cn = args.repArgs.cn
-	s.isPrimary = true
 	s.mu.Unlock()
 	return ENone
 }
 
 // Tell this server to become a backup in the new configuration cn, with the
-// given state and osn
-func (s *Server) BecomeReplica(args *BecomeReplicaArgs) Error {
+// given log and epoch.
+func (s *Server) BecomeReplicaRPC(args *BecomeReplicaArgs) Error {
 	s.mu.Lock()
-	if args.cn <= s.cn { // ignore requests for old cn
+	if s.isEpochStale(args.epoch) {
 		s.mu.Unlock()
 		return EStale
 	}
 
-	// s.sm.SetState(args.state)
-	s.osn = args.osn
-	s.cn = args.cn
-	s.sealed = false
+	if args.epoch <= s.acceptedEpoch {
+		s.mu.Unlock()
+		return ENone // XXX: this can return ENone, because if
+		// s.acceptedEpoch = args.epoch, then this server will already have
+		// accepted a "safe" proposal from the leader, and that's all that the
+		// leader needs to know. I.e. the post-condition of BecomeReplicaRPC is
+		// that this replica has accepted some safe proposal from the given
+		// epoch.
+	}
+
+	s.epoch = args.epoch
+	s.acceptedEpoch = args.epoch
+	s.startIndex = args.startIndex
+	s.log = args.log
+	s.dstate.SetLog(args.epoch, args.startIndex, args.log)
 
 	return ENone
 }
 
-// Guarantees that a future GetState(cn) on any server will return state that
-// is a superset of whatever will ever be committed in cn.
-func (s *Server) Seal(cn uint64) Error {
+func (s *Server) GetUncommittedLog() *GetLogReply {
 	s.mu.Lock()
-	if cn < s.cn { // already sealed for old cn's
-		s.mu.Unlock()
-		return ENone
-	} else if cn == s.cn { // can seal, and be up-to-date
-		s.sealed = true
-		s.mu.Unlock()
-		return ENone
-	} else { // cn > s.cn
-		// we could seal ourselves here, but then we wouldn't be up-to-date, so
-		// future GetState()'s wouldn't return up-to-date stuff.
-		// XXX: We can get rid of this error case by requiring that you only
-		// call Seal() after bringing the server up-to-date in cn
-		s.mu.Unlock()
-		return EStale
-	}
-}
+	reply := new(GetLogReply)
 
-func (s *Server) GetState() *GetStateReply {
-	s.mu.Lock()
-	reply := new(GetStateReply)
-	reply.cn = s.cn
-	reply.state = s.sm.GetState()
-	reply.osn = s.osn
+	reply.epoch = s.acceptedEpoch
+
+	reply.log = s.log[(s.commitIndex - s.startIndex):]
+	reply.startIndex = s.commitIndex
+
 	s.mu.Unlock()
 	return reply
 }
 
-func MakeServer(apply func(OpType) []byte, getState func() []byte, setState func([]byte)) *Server {
+type ProtocolState struct {
+	epoch         uint64
+	acceptedEpoch uint64
+	startIndex    uint64
+	log           []LogEntry
+}
+
+func MakeServer(dstate *DurableState, pstate *ProtocolState) *Server {
 	s := new(Server)
 	s.mu = new(sync.Mutex)
-	s.osn = 0
-	s.cn = 0
+	s.dstate = dstate
+
+	s.epoch = pstate.epoch
+	s.acceptedEpoch = pstate.acceptedEpoch
+	s.startIndex = pstate.startIndex
+	s.log = pstate.log
+
+	// We know that things are only truncated are being committed. Other than
+	// that, we don't bother remembering anything about commitIndex
+	s.commitIndex = s.startIndex
+
+	// Even if we were the primary before crash+recovery, we'll forget about it
+	// now and force a config change to happen.
 	s.isPrimary = false
-	s.sealed = false
-	s.sm = &StateMachine{
-		Apply:    apply,
-		GetState: getState,
-		SetState: setState,
-	}
 
 	return s
 }

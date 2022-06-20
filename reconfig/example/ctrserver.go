@@ -13,7 +13,8 @@ type CtrServer struct {
 // Returns the fetched value if successful, replies with an empty response if
 // unsuccessful.
 func (cs *CtrServer) FetchAndIncrement(args []byte, reply *[]byte) {
-	err := cs.s.PrimaryApplyOp(args, reply)
+	// FIXME: the underlying interface has changed, so this needs to change too
+	err := cs.s.AppendOp(args)
 	if err != rsm.ENone {
 		*reply = make([]byte, 0)
 	}
@@ -41,5 +42,5 @@ func (cs *CtrServer) setState(enc_state []byte) {
 func StartCtrServer() {
 	cs := new(CtrServer)
 	cs.ctr = 0
-	cs.s = rsm.MakeServer(cs.apply, cs.getState, cs.setState)
+	// cs.s = rsm.MakeServer(cs.apply, cs.getState)
 }
