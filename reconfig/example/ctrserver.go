@@ -1,23 +1,26 @@
 package example
 
 import (
-	rsm "github.com/mit-pdos/gokv/reconfig/replica"
+	pb "github.com/mit-pdos/gokv/reconfig/replica"
 	"github.com/tchajed/marshal"
 )
 
 type CtrServer struct {
-	s   *rsm.Server
-	ctr uint64
+	s *pb.Server
+
+	lastAppliedIndex uint64
+	ctr              uint64
 }
 
 // Returns the fetched value if successful, replies with an empty response if
 // unsuccessful.
 func (cs *CtrServer) FetchAndIncrement(args []byte, reply *[]byte) {
-	// FIXME: the underlying interface has changed, so this needs to change too
-	err := cs.s.AppendOp(args)
-	if err != rsm.ENone {
-		*reply = make([]byte, 0)
+	err, idx := cs.s.Propose(args)
+	if err != pb.ENone {
+		// tell client to try elsewhere
 	}
+
+	cs.s.GetEntry(idx)
 }
 
 func (cs *CtrServer) apply(op []byte) []byte {

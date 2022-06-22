@@ -9,8 +9,6 @@ type Clerk struct {
 	cl *urpc.Client
 }
 
-type OpType = []byte
-
 type Error = uint64
 
 const (
@@ -18,6 +16,7 @@ const (
 	ENotPrimary       = uint64(1)
 	EStale            = uint64(2)
 	EAppendOutOfOrder = uint64(3)
+	ETruncated        = uint64(4)
 )
 
 func (ck *Clerk) appendRPC(args *AppendArgs) Error {
@@ -25,7 +24,12 @@ func (ck *Clerk) appendRPC(args *AppendArgs) Error {
 	return EStale
 }
 
-func (ck *Clerk) BecomeReplica(args *BecomeReplicaArgs) Error {
+func (ck *Clerk) BecomePrimary(args *BecomePrimaryArgs) Error {
+	// FIXME: impl
+	return EStale
+}
+
+func (ck *Clerk) BecomeReplicaRPC(args *BecomeReplicaArgs) Error {
 	// FIXME: impl
 	return EStale
 }
