@@ -40,8 +40,33 @@ type Server struct {
 	matchIndex       []uint64   // the primary remembers how much of the log all the replicas have accepted
 }
 
-func (s *Server) postSuccessfulAppendRPC(args *AppendArgs) {
-	// TODO: possibly update commit index
+func min(l []uint64) uint64 {
+	m := ^uint64(0) // max uint64
+	for _, x := range l {
+		if x < m {
+			m = x
+		}
+	}
+	return m
+}
+
+func (s *Server) postSuccessfulAppendRPC(idx uint64, args *AppendArgs) {
+	s.mu.Lock()
+	// Check if this node has moved on to a future epoch, in which case this
+	// reply to AppendRPC should be ignored.
+	if s.epoch != args.epoch {
+		s.mu.Unlock()
+		return
+	}
+
+	// increase matchIndex
+	if args.index > s.matchIndex[idx] {
+		s.matchIndex[idx] = args.index
+	}
+
+	// TODO: can this min be lower than commitIndex across a config change?
+	s.commitIndex = min(s.matchIndex)
+	s.mu.Unlock()
 }
 
 // External function, called by users of this library.
@@ -72,8 +97,9 @@ func (s *Server) Propose(op LogEntry) (Error, uint64) {
 	clerks := s.clerks
 	s.mu.Unlock()
 
-	for _, ck := range clerks {
+	for i, ck := range clerks {
 		ck := ck
+		idx := i
 		go func() {
 			// keep trying to get entry accepted until it succeeds, or until
 			// we're no longer leader.
@@ -81,7 +107,7 @@ func (s *Server) Propose(op LogEntry) (Error, uint64) {
 				err := ck.appendRPC(args)
 
 				if err == ENone {
-					s.postSuccessfulAppendRPC(args)
+					s.postSuccessfulAppendRPC(uint64(idx), args)
 					break
 				} else if err == EStale {
 					// we are no longer the leader in this epoch
@@ -197,6 +223,8 @@ func (s *Server) BecomePrimary(args *BecomePrimaryArgs) Error {
 		s.mu.Unlock()
 		return EStale
 	}
+
+	s.matchIndex = make([]uint64, len(args.conf.replicas))
 
 	// make clerks
 	s.clerks = make([]*Clerk, len(args.conf.replicas))
