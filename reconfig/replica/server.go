@@ -287,22 +287,97 @@ func (s *Server[ExtraT]) TryBecomeReplicaRPC(args *BecomeReplicaArgs) Error {
 
 	s.acceptedEpoch = args.epoch
 
-	if args.startIndex > s.startIndex+uint64(len(s.log)) {
-		// server can't accept
+	// XXX: We could do the following, but it's easier to only accept the log if
+	// s.startIndex >= args.startIndex, since that should be the case most of
+	// the time if doing a good reconfiguration.
+	/*
+		if args.startIndex > s.commitIndex {
+			// server can't accept
+			s.mu.Unlock()
+			return EIncompleteLog
+		}
+	*/
+
+	if args.startIndex > s.startIndex {
+		// server won't accept; technically it could if args.startIndex <=
+		// s.commitIndex, see above comment.
 		s.mu.Unlock()
 		return EIncompleteLog
 	}
 
-	s.startIndex = args.startIndex // FIXME: don't change truncation point
 	// FIXME: cancel overwritten ops
-	s.log = FmapList(args.log, func(e LogEntry) LogEntryAndExtra[ExtraT] {
-		return LogEntryAndExtra[ExtraT]{Op: e}
-	})
+	prevLog := s.log
+	s.log = FmapList(args.log[s.startIndex-args.startIndex:],
+		func(e LogEntry) LogEntryAndExtra[ExtraT] {
+			return LogEntryAndExtra[ExtraT]{Op: e}
+		})
 
 	s.dstate.SetLog(args.epoch, args.startIndex, args.log)
 	s.mu.Unlock()
 
+	for _, le := range prevLog {
+		if le.haveCancel {
+			le.cancelFn()
+		}
+	}
 	return ENone
+}
+
+func (s *Server[ExtraT]) RemainReplica(args *BecomeReplicaArgs) Error {
+	s.mu.Lock()
+	if s.isEpochStale(args.epoch) {
+		s.mu.Unlock()
+		return EStale
+	}
+
+	if args.epoch <= s.acceptedEpoch {
+		s.mu.Unlock()
+		return ENone // XXX: this can return ENone, because if
+		// s.acceptedEpoch = args.epoch, then this server will already have
+		// accepted a "safe" proposal from the leader, and that's all that the
+		// leader needs to know. I.e. the post-condition of BecomeReplicaRPC is
+		// that this replica has accepted some safe proposal from the given
+		// epoch.
+	}
+
+	s.isPrimary = false
+
+	s.epoch = args.epoch
+	s.dstate.SetEpoch(args.epoch)
+
+	s.acceptedEpoch = args.epoch
+
+	machine.Assert(args.startIndex < s.startIndex+uint64(len(s.log)))
+
+	if args.startIndex+uint64(len(args.log)) < s.startIndex+uint64(len(s.log)) {
+		// trim log
+		s.log = s.log[:uint64(len(s.log))+args.startIndex-s.startIndex]
+		// FIXME: cancel overwritten ops
+	} else if args.startIndex+uint64(len(args.log)) > s.startIndex+uint64(len(s.log)) {
+		// grow log
+		s.log = append(s.log,
+			FmapList(args.log[s.startIndex+uint64(len(s.log))-args.startIndex:], addDefaultExtra[ExtraT])...)
+	}
+
+	if args.startIndex > s.commitIndex {
+		s.commitIndex = args.startIndex
+		s.commitIndex_cond.Broadcast()
+	}
+
+	s.log = FmapList(args.log, addDefaultExtra[ExtraT])
+
+	s.dstate.SetLog(s.acceptedEpoch, s.startIndex, FmapList(s.log, forgetExtra[ExtraT]))
+	s.mu.Unlock()
+
+	return ENone
+}
+
+func forgetExtra[ExtraT any](l LogEntryAndExtra[ExtraT]) LogEntry {
+	return l.Op
+}
+
+func addDefaultExtra[ExtraT any](l LogEntry) LogEntryAndExtra[ExtraT] {
+	return LogEntryAndExtra[ExtraT]{Op: l}
 }
 
 func (s *Server[ExtraT]) GetUncommittedLog() *GetLogReply {
@@ -311,9 +386,7 @@ func (s *Server[ExtraT]) GetUncommittedLog() *GetLogReply {
 
 	reply.epoch = s.acceptedEpoch
 
-	reply.log = FmapList(s.log[(s.commitIndex-s.startIndex):], func(e LogEntryAndExtra[ExtraT]) LogEntry {
-		return e.Op
-	})
+	reply.log = FmapList(s.log[(s.commitIndex-s.startIndex):], forgetExtra[ExtraT])
 	reply.startIndex = s.commitIndex
 
 	s.mu.Unlock()
