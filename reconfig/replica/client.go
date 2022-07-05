@@ -17,6 +17,7 @@ const (
 	EStale            = uint64(2)
 	EAppendOutOfOrder = uint64(3)
 	ETruncated        = uint64(4)
+	EIncompleteLog    = uint64(5)
 )
 
 func (ck *Clerk) appendRPC(args *AppendArgs) Error {

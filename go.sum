@@ -12,7 +12,6 @@ github.com/felixge/fgprof v0.9.1 h1:E6FUJ2Mlv043ipLOCFqo8+cHo9MhQ203E2cdEK/isEs=
 github.com/felixge/fgprof v0.9.1/go.mod h1:7/HK6JFtFaARhIljgP2IV8rJLIoHDoOYoUphsnGvqxE=
 github.com/google/pprof v0.0.0-20200615235658-03e1cf38a040 h1:i7RUpu0EybzQyQvPT7J3MmODs4+gPcHsD/pqW0uIYVo=
 github.com/google/pprof v0.0.0-20200615235658-03e1cf38a040/go.mod h1:ZgVRPoUq/hfqzAqh7sHMqb3I9Rq5C59dIz2SbBwJ4eM=
-github.com/goose-lang/std v0.0.0-20210910024443-21c4593d3dec h1:RPpr81rPdqG1OW7cFx+e0Wb5o4gDavB7D31eXENbKQU=
 github.com/goose-lang/std v0.0.0-20210910024443-21c4593d3dec/go.mod h1:eBTA88cbxhdegtDJayt+ns0Y9jjXsAwxv3CbH+62cKE=
 github.com/goose-lang/std v0.0.0-20220414201102-c41554454045 h1:2djI+j4CTlxbg4FcWT2n4rvnBqccNVCOvLm6oaHaUDc=
 github.com/goose-lang/std v0.0.0-20220414201102-c41554454045/go.mod h1:eBTA88cbxhdegtDJayt+ns0Y9jjXsAwxv3CbH+62cKE=
@@ -21,7 +20,6 @@ github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORN
 github.com/kr/pretty v0.2.0/go.mod h1:ipq/a2n7PKx3OHsz4KJII5eveXtPO4qwEXGdVfWzfnI=
 github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
 github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
-github.com/kr/text v0.2.0 h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY=
 github.com/kr/text v0.2.0/go.mod h1:eLer722TekiGuMkidMxC/pM04lWEeraHUUmBw8l2grE=
 github.com/mattn/go-colorable v0.1.4/go.mod h1:U0ppj6V5qS13XJ6of8GYAs25YV2eR4EVcfRqFIhoBtE=
 github.com/mattn/go-colorable v0.1.7/go.mod h1:u6P/XSegPjTcexA+o6vUJrdnUu04hMope9wVRipJSqc=
@@ -35,7 +33,6 @@ github.com/mattn/go-isatty v0.0.14/go.mod h1:7GGIvUiUoEMVVmxf/4nioHXj79iQHKdU27k
 github.com/mit-pdos/goose-nfsd v0.0.0-20210314175046-2ab6d49307fb/go.mod h1:twTpJ5VWh2M6W9i00jgxuTqMwL+uAoMEpDChT05RMtk=
 github.com/mit-pdos/lockservice v0.0.0-20210503234304-8c6a5346c04f h1:F9UeKkQo+jNnTU4zoIm74gxaXmTfm1o2YYYQxCWfeck=
 github.com/mit-pdos/lockservice v0.0.0-20210503234304-8c6a5346c04f/go.mod h1:dDhQ55VvlWB2IUW84QMXnvtDNqKgWek2VKpsiRO9w1k=
-github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e h1:fD57ERR4JtEqsWbfPhv4DMiApHyliiK5xCTNVSPiaAs=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
 github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
@@ -59,8 +56,6 @@ github.com/tchajed/mailboat v0.2.0/go.mod h1:aKa/T1YCMVZFM2xbXnMNyp9r4k0pPni4+sJ
 github.com/tchajed/marshal v0.0.0-20200707011626-0d2aa09818a9/go.mod h1:TPo3bTYJkH87/4rXlxe0bpVWLnN+b5kjJnoXHLBfdaA=
 github.com/tchajed/marshal v0.0.0-20210312145633-4d998c90d194/go.mod h1:TPo3bTYJkH87/4rXlxe0bpVWLnN+b5kjJnoXHLBfdaA=
 github.com/tchajed/marshal v0.2.0/go.mod h1:jq2B5uP+QvY51sZB57Td/OsareaZEzm3HVuvVKhC22I=
-github.com/tchajed/marshal v0.4.0 h1:SQF2OBGmi/0XhHC4QatcXTDzrv1hHHbXt1261MVdnF8=
-github.com/tchajed/marshal v0.4.0/go.mod h1:tdiYzC42jUHdvBWrJYa7LytEbHEV2zA+nI3TLLb/nvU=
 github.com/tchajed/marshal v0.4.2 h1:y4dWV+IABXtdIYJzchs3vjnBHzeuVof4P56NvnFbg78=
 github.com/tchajed/marshal v0.4.2/go.mod h1:tdiYzC42jUHdvBWrJYa7LytEbHEV2zA+nI3TLLb/nvU=
 github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
@@ -114,7 +109,6 @@ golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898/go.mod h1:I/5z698sn9Ka8T
 golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
-gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f h1:BLraFXnmrev5lT+xlilqcH8XK9/i0At2xKjWk4p6zsU=
 gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/yaml.v2 v2.2.2/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=
 gopkg.in/yaml.v2 v2.2.5/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=
