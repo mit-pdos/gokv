@@ -22,6 +22,14 @@ type Configuration struct {
 	Replicas []grove_ffi.Address
 }
 
+func EncodeConfiguration(conf *Configuration) []byte {
+	panic("impl")
+}
+
+func DecodeConfiguration(conf_enc []byte) *Configuration {
+	panic("impl")
+}
+
 type BecomeReplicaArgs struct {
 	Epoch      uint64
 	StartIndex uint64
