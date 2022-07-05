@@ -263,7 +263,7 @@ func FmapList[T, S any](la []T, f func(T) S) []S {
 // Might return EStale.
 // Also, even if the epoch is not stale, the server might not have all the log
 // entries it's supposed to keep around, in which case it returns
-// EIncompleteLog and does promise to have accepted args.log.
+// EIncompleteLog and doesn't promise to have accepted args.log.
 func (s *Server[ExtraT]) TryBecomeReplicaRPC(args *BecomeReplicaArgs) Error {
 	s.mu.Lock()
 	// if this is not a BRAND NEW epoch number, ignore it
@@ -296,7 +296,6 @@ func (s *Server[ExtraT]) TryBecomeReplicaRPC(args *BecomeReplicaArgs) Error {
 		return EIncompleteLog
 	}
 
-	// FIXME: cancel overwritten ops
 	prevLog := s.log
 	s.log = FmapList(args.log[s.startIndex-args.startIndex:],
 		func(e LogEntry) LogEntryAndExtra[ExtraT] {
@@ -306,6 +305,7 @@ func (s *Server[ExtraT]) TryBecomeReplicaRPC(args *BecomeReplicaArgs) Error {
 	s.dstate.SetLog(args.startIndex, args.log)
 	s.mu.Unlock()
 
+	// conservatively cancel all old ops
 	for _, le := range prevLog {
 		if le.haveCancel {
 			le.cancelFn()
@@ -331,8 +331,15 @@ func (s *Server[ExtraT]) RemainReplica(args *BecomeReplicaArgs) Error {
 
 	if args.startIndex+uint64(len(args.log)) < s.startIndex+uint64(len(s.log)) {
 		// trim log
+		prevLog := s.log
 		s.log = s.log[:uint64(len(s.log))+args.startIndex-s.startIndex]
-		// FIXME: cancel overwritten ops
+
+		// cancel overwritten ops
+		for _, le := range prevLog[uint64(len(s.log))+args.startIndex-s.startIndex:] {
+			if le.haveCancel {
+				le.cancelFn()
+			}
+		}
 	} else if args.startIndex+uint64(len(args.log)) > s.startIndex+uint64(len(s.log)) {
 		// grow log
 		s.log = append(s.log,
