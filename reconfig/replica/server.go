@@ -367,13 +367,18 @@ func addDefaultExtra[ExtraT any](l LogEntry) LogEntryAndExtra[ExtraT] {
 	return LogEntryAndExtra[ExtraT]{Op: l}
 }
 
-func (s *Server[ExtraT]) GetUncommittedLog() *GetLogReply {
+func (s *Server[ExtraT]) GetUncommittedLog(epoch uint64) *GetLogReply {
 	s.mu.Lock()
 	reply := new(GetLogReply)
-	// FIXME: fence with epoch
+	if s.isEpochStale(epoch) {
+		s.mu.Unlock()
+		reply.err = EStale
+		return reply
+	}
 
 	reply.log = FmapList(s.log[(s.commitIndex-s.startIndex):], forgetExtra[ExtraT])
 	reply.startIndex = s.commitIndex
+	reply.err = ENone
 
 	s.mu.Unlock()
 	return reply

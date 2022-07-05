@@ -35,7 +35,7 @@ type BecomePrimaryArgs struct {
 }
 
 type GetLogReply struct {
-	epoch      uint64
+	err        Error
 	log        []LogEntry
 	startIndex uint64
 }
