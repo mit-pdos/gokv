@@ -1,4 +1,4 @@
-package reconfig
+package replica
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
@@ -22,17 +22,26 @@ const (
 
 func (ck *Clerk) appendRPC(args *AppendArgs) Error {
 	// FIXME: impl
-	return EStale
+	panic("replica: impl")
 }
 
 func (ck *Clerk) BecomePrimary(args *BecomePrimaryArgs) Error {
 	// FIXME: impl
-	return EStale
+	panic("replica: impl")
 }
 
-func (ck *Clerk) BecomeReplicaRPC(args *BecomeReplicaArgs) Error {
+func (ck *Clerk) TryBecomeReplica(args *BecomeReplicaArgs) Error {
 	// FIXME: impl
-	return EStale
+	panic("replica: impl")
+}
+
+func (ck *Clerk) RemainReplica(args *BecomeReplicaArgs) Error {
+	// FIXME: impl
+	panic("replica: impl")
+}
+
+func (ck *Clerk) GetUncommittedLog(epoch uint64) (Error, uint64, []LogEntry) {
+	panic("replica: impl")
 }
 
 func MakeClerk(host grove_ffi.Address) *Clerk {

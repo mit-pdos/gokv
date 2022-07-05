@@ -1,4 +1,4 @@
-package reconfig
+package replica
 
 import "github.com/mit-pdos/gokv/grove_ffi"
 
@@ -19,19 +19,18 @@ func DecodeAppendArgs(args []byte) *AppendArgs {
 }
 
 type Configuration struct {
-	replicas []grove_ffi.Address
+	Replicas []grove_ffi.Address
 }
 
 type BecomeReplicaArgs struct {
-	epoch      uint64
-	startIndex uint64
-	log        []LogEntry
+	Epoch      uint64
+	StartIndex uint64
+	Log        []LogEntry
 }
 
 type BecomePrimaryArgs struct {
-	epoch   uint64
-	conf    Configuration
-	repArgs *BecomeReplicaArgs
+	Epoch uint64
+	Conf  Configuration
 }
 
 type GetLogReply struct {

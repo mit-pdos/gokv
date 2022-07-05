@@ -1,4 +1,4 @@
-package reconfig
+package replica
 
 import (
 	"sync"
@@ -225,7 +225,7 @@ func (s *Server[ExtraT]) isEpochStale(epoch uint64) bool {
 // Must only be invoked after the primary has already entered the new epoch.
 func (s *Server[ExtraT]) BecomePrimary(args *BecomePrimaryArgs) Error {
 	s.mu.Lock()
-	if s.isEpochStale(args.epoch) {
+	if s.isEpochStale(args.Epoch) {
 		s.mu.Unlock()
 		return EStale
 	}
@@ -234,12 +234,12 @@ func (s *Server[ExtraT]) BecomePrimary(args *BecomePrimaryArgs) Error {
 		return ENone
 	}
 
-	s.matchIndex = make([]uint64, len(args.conf.replicas))
+	s.matchIndex = make([]uint64, len(args.Conf.Replicas))
 
 	// make clerks
-	s.clerks = make([]*Clerk, len(args.conf.replicas))
+	s.clerks = make([]*Clerk, len(args.Conf.Replicas))
 	for i := range s.clerks {
-		s.clerks[i] = MakeClerk(args.conf.replicas[i])
+		s.clerks[i] = MakeClerk(args.Conf.Replicas[i])
 	}
 
 	s.isPrimary = true
@@ -267,16 +267,16 @@ func FmapList[T, S any](la []T, f func(T) S) []S {
 func (s *Server[ExtraT]) TryBecomeReplicaRPC(args *BecomeReplicaArgs) Error {
 	s.mu.Lock()
 	// if this is not a BRAND NEW epoch number, ignore it
-	if args.epoch <= s.epoch {
+	if args.Epoch <= s.epoch {
 		s.mu.Unlock()
 		return EStale
 	}
-	s.epoch = args.epoch
+	s.epoch = args.Epoch
 
 	s.isPrimary = false
 
-	s.epoch = args.epoch
-	s.dstate.SetEpoch(args.epoch)
+	s.epoch = args.Epoch
+	s.dstate.SetEpoch(args.Epoch)
 
 	// XXX: We could do the following, but it's easier to only accept the log if
 	// s.startIndex >= args.startIndex, since that should be the case most of
@@ -289,7 +289,7 @@ func (s *Server[ExtraT]) TryBecomeReplicaRPC(args *BecomeReplicaArgs) Error {
 		}
 	*/
 
-	if args.startIndex > s.startIndex {
+	if args.StartIndex > s.startIndex {
 		// server won't accept; technically it could if args.startIndex <=
 		// s.commitIndex, see above comment.
 		s.mu.Unlock()
@@ -297,12 +297,12 @@ func (s *Server[ExtraT]) TryBecomeReplicaRPC(args *BecomeReplicaArgs) Error {
 	}
 
 	prevLog := s.log
-	s.log = FmapList(args.log[s.startIndex-args.startIndex:],
+	s.log = FmapList(args.Log[s.startIndex-args.StartIndex:],
 		func(e LogEntry) LogEntryAndExtra[ExtraT] {
 			return LogEntryAndExtra[ExtraT]{Op: e}
 		})
 
-	s.dstate.SetLog(args.startIndex, args.log)
+	s.dstate.SetLog(args.StartIndex, args.Log)
 	s.mu.Unlock()
 
 	// conservatively cancel all old ops
@@ -318,40 +318,40 @@ func (s *Server[ExtraT]) TryBecomeReplicaRPC(args *BecomeReplicaArgs) Error {
 func (s *Server[ExtraT]) RemainReplica(args *BecomeReplicaArgs) Error {
 	s.mu.Lock()
 	// if this is not a BRAND NEW epoch number, ignore it
-	if args.epoch <= s.epoch {
+	if args.Epoch <= s.epoch {
 		s.mu.Unlock()
 		return EStale
 	}
-	s.epoch = args.epoch
-	s.dstate.SetEpoch(args.epoch)
+	s.epoch = args.Epoch
+	s.dstate.SetEpoch(args.Epoch)
 
 	s.isPrimary = false
 
-	machine.Assert(args.startIndex < s.startIndex+uint64(len(s.log)))
+	machine.Assert(args.StartIndex < s.startIndex+uint64(len(s.log)))
 
-	if args.startIndex+uint64(len(args.log)) < s.startIndex+uint64(len(s.log)) {
+	if args.StartIndex+uint64(len(args.Log)) < s.startIndex+uint64(len(s.log)) {
 		// trim log
 		prevLog := s.log
-		s.log = s.log[:uint64(len(s.log))+args.startIndex-s.startIndex]
+		s.log = s.log[:uint64(len(s.log))+args.StartIndex-s.startIndex]
 
 		// cancel overwritten ops
-		for _, le := range prevLog[uint64(len(s.log))+args.startIndex-s.startIndex:] {
+		for _, le := range prevLog[uint64(len(s.log))+args.StartIndex-s.startIndex:] {
 			if le.haveCancel {
 				le.cancelFn()
 			}
 		}
-	} else if args.startIndex+uint64(len(args.log)) > s.startIndex+uint64(len(s.log)) {
+	} else if args.StartIndex+uint64(len(args.Log)) > s.startIndex+uint64(len(s.log)) {
 		// grow log
 		s.log = append(s.log,
-			FmapList(args.log[s.startIndex+uint64(len(s.log))-args.startIndex:], addDefaultExtra[ExtraT])...)
+			FmapList(args.Log[s.startIndex+uint64(len(s.log))-args.StartIndex:], addDefaultExtra[ExtraT])...)
 	}
 
-	if args.startIndex > s.commitIndex {
-		s.commitIndex = args.startIndex
+	if args.StartIndex > s.commitIndex {
+		s.commitIndex = args.StartIndex
 		s.commitIndex_cond.Broadcast()
 	}
 
-	s.log = FmapList(args.log, addDefaultExtra[ExtraT])
+	s.log = FmapList(args.Log, addDefaultExtra[ExtraT])
 
 	s.dstate.SetLog(s.startIndex, FmapList(s.log, forgetExtra[ExtraT]))
 	s.mu.Unlock()

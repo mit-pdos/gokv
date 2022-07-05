@@ -13,6 +13,24 @@ type FetchAndAppendReply struct {
 	val []byte
 }
 
+type LogEntryExtra struct {
+	completed *bool
+	reply     *FetchAndAppendReply
+	cond      *sync.Cond
+}
+
+type ValServer struct {
+	s *pb.Server[LogEntryExtra]
+
+	sid    uint64
+	nextID uint64
+
+	mu              *sync.Mutex
+	appliedIndex    uint64
+	val             []byte
+	truncationLimit uint64
+}
+
 func (s *ValServer) applyThread() {
 	var appliedIndex uint64 = 0
 	for {
@@ -22,6 +40,7 @@ func (s *ValServer) applyThread() {
 
 		s.mu.Lock()
 		if le.HaveExtra {
+			// send the reply to the RPC goroutine
 			e := le.Extra
 			*e.completed = true
 			e.reply.val = s.val
@@ -41,24 +60,6 @@ func (s *ValServer) applyThread() {
 
 		s.mu.Unlock()
 	}
-}
-
-type LogEntryExtra struct {
-	completed *bool
-	reply     *FetchAndAppendReply
-	cond      *sync.Cond
-}
-
-type ValServer struct {
-	s *pb.Server[LogEntryExtra]
-
-	sid    uint64
-	nextID uint64
-
-	mu              *sync.Mutex
-	appliedIndex    uint64
-	val             []byte
-	truncationLimit uint64
 }
 
 // Returns an error and a value. If the error is ENone, then the  FetchAndAppend
@@ -100,17 +101,18 @@ func (cs *ValServer) FetchAndAppend(args []byte, reply *FetchAndAppendReply) {
 	cs.mu.Unlock()
 }
 
-// FIXME: return appliedIndex as well
-func (cs *ValServer) getState() []byte {
+func (cs *ValServer) getState() (uint64, []byte) {
 	cs.mu.Lock()
-	ret := cs.val
+	v := cs.val
+	i := cs.appliedIndex
 	cs.mu.Unlock()
-	return ret
+	return i, v
 }
 
-func (cs *ValServer) setState(enc_state []byte) {
+func (cs *ValServer) setState(index uint64, val []byte) {
 	cs.mu.Lock()
-	// ret := cs.val
+	cs.val = val
+	cs.appliedIndex = index
 	cs.mu.Unlock()
 }
 
