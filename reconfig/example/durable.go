@@ -6,10 +6,10 @@ import (
 
 // No durability.
 
-func Append(acceptedEpoch uint64, entry []byte) {
+func Append(entry []byte) {
 }
 
-func SetLog(acceptedEpoch uint64, startIndex uint64, log []pb.LogEntry) {
+func SetLog(startIndex uint64, log []pb.LogEntry) {
 }
 
 func Truncate(index uint64) {

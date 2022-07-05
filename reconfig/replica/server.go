@@ -17,12 +17,11 @@ type LogEntryAndExtra[ExtraT any] struct {
 }
 
 type DurableState struct {
-	// Atomically append the entry to the end of the log and set acceptedEpoch
-	// to the given epoch.
-	Append func(acceptedEpoch uint64, entry LogEntry)
+	// Append the entry to the end of the log
+	Append func(entry LogEntry)
 
 	// Update the given three pieces of state atomically
-	SetLog func(acceptedEpoch uint64, startIndex uint64, log []LogEntry)
+	SetLog func(startIndex uint64, log []LogEntry)
 
 	// Allow for the prefix of the log up to and including the given `index` to be truncated
 	Truncate func(index uint64)
@@ -38,10 +37,9 @@ type Server[ExtraT any] struct {
 	dstate *DurableState
 
 	// This state matches the durable state in dstate
-	epoch         uint64
-	acceptedEpoch uint64
-	startIndex    uint64
-	log           []LogEntryAndExtra[ExtraT]
+	epoch      uint64
+	startIndex uint64
+	log        []LogEntryAndExtra[ExtraT]
 
 	// This state is not made durable
 	isPrimary  bool
@@ -201,7 +199,7 @@ func (s *Server[ExtraT]) appendRPC(args *AppendArgs) Error {
 	// else, must have args.index == s.startIndex + uint64(len(s.log))
 
 	s.log = append(s.log, LogEntryAndExtra[ExtraT]{Op: args.entry})
-	s.dstate.Append(args.epoch, args.entry) // make stuff durable
+	s.dstate.Append(args.entry) // make stuff durable
 
 	s.mu.Unlock()
 	return ENone
@@ -262,30 +260,23 @@ func FmapList[T, S any](la []T, f func(T) S) []S {
 // Tell this server to become a backup in the new configuration cn, with the
 // given log and epoch.
 //
-// The server might be unable to become a replica server.
+// Might return EStale.
+// Also, even if the epoch is not stale, the server might not have all the log
+// entries it's supposed to keep around, in which case it returns
+// EIncompleteLog and does promise to have accepted args.log.
 func (s *Server[ExtraT]) TryBecomeReplicaRPC(args *BecomeReplicaArgs) Error {
 	s.mu.Lock()
-	if s.isEpochStale(args.epoch) {
+	// if this is not a BRAND NEW epoch number, ignore it
+	if args.epoch <= s.epoch {
 		s.mu.Unlock()
 		return EStale
 	}
-
-	if args.epoch <= s.acceptedEpoch {
-		s.mu.Unlock()
-		return ENone // XXX: this can return ENone, because if
-		// s.acceptedEpoch = args.epoch, then this server will already have
-		// accepted a "safe" proposal from the leader, and that's all that the
-		// leader needs to know. I.e. the post-condition of BecomeReplicaRPC is
-		// that this replica has accepted some safe proposal from the given
-		// epoch.
-	}
+	s.epoch = args.epoch
 
 	s.isPrimary = false
 
 	s.epoch = args.epoch
 	s.dstate.SetEpoch(args.epoch)
-
-	s.acceptedEpoch = args.epoch
 
 	// XXX: We could do the following, but it's easier to only accept the log if
 	// s.startIndex >= args.startIndex, since that should be the case most of
@@ -312,7 +303,7 @@ func (s *Server[ExtraT]) TryBecomeReplicaRPC(args *BecomeReplicaArgs) Error {
 			return LogEntryAndExtra[ExtraT]{Op: e}
 		})
 
-	s.dstate.SetLog(args.epoch, args.startIndex, args.log)
+	s.dstate.SetLog(args.startIndex, args.log)
 	s.mu.Unlock()
 
 	for _, le := range prevLog {
@@ -323,29 +314,18 @@ func (s *Server[ExtraT]) TryBecomeReplicaRPC(args *BecomeReplicaArgs) Error {
 	return ENone
 }
 
+// Only possible error is EStale
 func (s *Server[ExtraT]) RemainReplica(args *BecomeReplicaArgs) Error {
 	s.mu.Lock()
-	if s.isEpochStale(args.epoch) {
+	// if this is not a BRAND NEW epoch number, ignore it
+	if args.epoch <= s.epoch {
 		s.mu.Unlock()
 		return EStale
 	}
-
-	if args.epoch <= s.acceptedEpoch {
-		s.mu.Unlock()
-		return ENone // XXX: this can return ENone, because if
-		// s.acceptedEpoch = args.epoch, then this server will already have
-		// accepted a "safe" proposal from the leader, and that's all that the
-		// leader needs to know. I.e. the post-condition of BecomeReplicaRPC is
-		// that this replica has accepted some safe proposal from the given
-		// epoch.
-	}
-
-	s.isPrimary = false
-
 	s.epoch = args.epoch
 	s.dstate.SetEpoch(args.epoch)
 
-	s.acceptedEpoch = args.epoch
+	s.isPrimary = false
 
 	machine.Assert(args.startIndex < s.startIndex+uint64(len(s.log)))
 
@@ -366,7 +346,7 @@ func (s *Server[ExtraT]) RemainReplica(args *BecomeReplicaArgs) Error {
 
 	s.log = FmapList(args.log, addDefaultExtra[ExtraT])
 
-	s.dstate.SetLog(s.acceptedEpoch, s.startIndex, FmapList(s.log, forgetExtra[ExtraT]))
+	s.dstate.SetLog(s.startIndex, FmapList(s.log, forgetExtra[ExtraT]))
 	s.mu.Unlock()
 
 	return ENone
@@ -383,8 +363,7 @@ func addDefaultExtra[ExtraT any](l LogEntry) LogEntryAndExtra[ExtraT] {
 func (s *Server[ExtraT]) GetUncommittedLog() *GetLogReply {
 	s.mu.Lock()
 	reply := new(GetLogReply)
-
-	reply.epoch = s.acceptedEpoch
+	// FIXME: fence with epoch
 
 	reply.log = FmapList(s.log[(s.commitIndex-s.startIndex):], forgetExtra[ExtraT])
 	reply.startIndex = s.commitIndex
@@ -394,10 +373,9 @@ func (s *Server[ExtraT]) GetUncommittedLog() *GetLogReply {
 }
 
 type ProtocolState struct {
-	epoch         uint64
-	acceptedEpoch uint64
-	startIndex    uint64
-	log           []LogEntry
+	epoch      uint64
+	startIndex uint64
+	log        []LogEntry
 }
 
 func MakeServer[ExtraT any](dstate *DurableState, pstate *ProtocolState) *Server[ExtraT] {
@@ -406,7 +384,6 @@ func MakeServer[ExtraT any](dstate *DurableState, pstate *ProtocolState) *Server
 	s.dstate = dstate
 
 	s.epoch = pstate.epoch
-	s.acceptedEpoch = pstate.acceptedEpoch
 	s.startIndex = pstate.startIndex
 	s.log = FmapList(pstate.log,
 		func(op LogEntry) LogEntryAndExtra[ExtraT] {
