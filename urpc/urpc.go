@@ -61,7 +61,7 @@ const callbackStateWaiting uint64 = 0
 const callbackStateDone uint64 = 1
 const callbackStateAborted uint64 = 2
 
-type callback struct {
+type Callback struct {
 	reply *[]byte
 	state *uint64
 	cond  *sync.Cond
@@ -72,7 +72,7 @@ type Client struct {
 	conn grove_ffi.Connection // for requests
 	seq  uint64               // next fresh sequence number
 
-	pending map[uint64]*callback
+	pending map[uint64]*Callback
 }
 
 func (cl *Client) replyThread() {
@@ -119,7 +119,7 @@ func MakeClient(host_name grove_ffi.Address) *Client {
 		conn:    a.Connection,
 		mu:      new(sync.Mutex),
 		seq:     1,
-		pending: make(map[uint64]*callback)}
+		pending: make(map[uint64]*Callback)}
 
 	go func() {
 		cl.replyThread() // Goose doesn't support parameters in a go statement
@@ -130,10 +130,10 @@ func MakeClient(host_name grove_ffi.Address) *Client {
 const ErrTimeout uint64 = 1
 const ErrDisconnect uint64 = 2
 
-func (cl *Client) Call(rpcid uint64, args []byte, reply *[]byte, timeout_ms uint64) uint64 {
+func (cl *Client) CallStart(rpcid uint64, args []byte) (uint64, *Callback) {
 	// log.Printf("Started call %d\n", rpcid)
 	reply_buf := new([]byte)
-	cb := &callback{reply: reply_buf, state: new(uint64), cond: sync.NewCond(cl.mu)}
+	cb := &Callback{reply: reply_buf, state: new(uint64), cond: sync.NewCond(cl.mu)}
 	*cb.state = callbackStateWaiting
 	cl.mu.Lock()
 	seqno := cl.seq
@@ -156,8 +156,14 @@ func (cl *Client) Call(rpcid uint64, args []byte, reply *[]byte, timeout_ms uint
 
 	if grove_ffi.Send(cl.conn, reqData) {
 		// An error occured; this client is dead.
-		return ErrDisconnect
+		// (&Callback works around goose not translating "nil" properly.)
+		return ErrDisconnect, &Callback{}
 	}
+
+	return 0, cb
+}
+
+func (cl *Client) CallComplete(cb *Callback, reply *[]byte, timeout_ms uint64) uint64 {
 
 	// wait for reply
 	cl.mu.Lock()
@@ -169,7 +175,7 @@ func (cl *Client) Call(rpcid uint64, args []byte, reply *[]byte, timeout_ms uint
 	}
 	state := *cb.state
 	if state == callbackStateDone {
-		*reply = *reply_buf
+		*reply = *cb.reply
 		cl.mu.Unlock()
 		return 0 // no error
 	} else {
@@ -182,4 +188,12 @@ func (cl *Client) Call(rpcid uint64, args []byte, reply *[]byte, timeout_ms uint
 			return ErrTimeout
 		}
 	}
+}
+
+func (cl *Client) Call(rpcid uint64, args []byte, reply *[]byte, timeout_ms uint64) uint64 {
+	err, cb := cl.CallStart(rpcid, args)
+	if err != 0 {
+		return err
+	}
+	return cl.CallComplete(cb, reply, timeout_ms)
 }
