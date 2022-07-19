@@ -6,7 +6,7 @@ import (
 )
 
 func EncodeConfig(config []grove_ffi.Address) []byte {
-	var enc = make([]byte, 0, 8*uint64(len(config)))
+	var enc = make([]byte, 0, 8 + 8*uint64(len(config)))
 	enc = marshal.WriteInt(enc, uint64(len(config)))
 	for _, h := range config {
 		enc = marshal.WriteInt(enc, h)

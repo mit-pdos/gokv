@@ -35,13 +35,13 @@ func main() {
 			servers = append(servers, grove_ffi.MakeAddress(srvStr))
 		}
 		admin.InitializeSystem(confHost, servers)
-		fmt.Printf("Initialized system")
+		fmt.Printf("Initialized system\n")
 	} else if a[0] == "reconfig" {
 		servers := make([]grove_ffi.Address, 0)
 		for _, srvStr := range a[1:] {
 			servers = append(servers, grove_ffi.MakeAddress(srvStr))
 		}
 		admin.EnterNewConfig(confHost, servers)
-		fmt.Printf("Finished switching configuration")
+		fmt.Printf("Finished switching configuration\n")
 	}
 }

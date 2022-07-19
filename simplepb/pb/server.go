@@ -1,10 +1,13 @@
 package pb
 
 import (
+	"log"
+	"sync"
+
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/simplepb/e"
 	"github.com/mit-pdos/gokv/urpc"
-	"sync"
+	"github.com/tchajed/marshal"
 )
 
 type StateMachine struct {
@@ -29,6 +32,7 @@ type Server struct {
 func (s *Server) Apply(op Op) (e.Error, []byte) {
 	s.mu.Lock()
 	if !s.isPrimary {
+		log.Println("Got request while not being primary")
 		s.mu.Unlock()
 		return e.Stale, nil
 	}
@@ -65,6 +69,7 @@ func (s *Server) Apply(op Op) (e.Error, []byte) {
 		}
 	}
 
+	log.Println("Apply() returned ", err)
 	return err, ret
 }
 
@@ -128,14 +133,16 @@ func (s *Server) epochFence(epoch uint64) bool {
 func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {
 	s.mu.Lock()
 	if s.epochFence(args.Epoch) {
+		log.Println("Stale BecomePrimary request")
 		s.mu.Unlock()
 		return e.Stale
 	}
+	log.Println("Became Primary")
 	s.isPrimary = true
 
-	s.clerks = make([]*Clerk, len(args.Replicas))
+	s.clerks = make([]*Clerk, len(args.Replicas)-1)
 	for i := range s.clerks {
-		s.clerks[i] = MakeClerk(args.Replicas[i])
+		s.clerks[i] = MakeClerk(args.Replicas[i+1])
 	}
 
 	s.mu.Unlock()
@@ -165,6 +172,22 @@ func (s *Server) Serve(me grove_ffi.Address) {
 
 	handlers[RPC_GETSTATE] = func(args []byte, reply *[]byte) {
 		*reply = EncodeGetStateReply(s.GetState(DecodeGetStateArgs(args)))
+	}
+
+	handlers[RPC_BECOMEPRIMARY] = func(args []byte, reply *[]byte) {
+		*reply = e.EncodeError(s.BecomePrimary(DecodeBecomePrimaryArgs(args)))
+	}
+
+	handlers[RPC_PRIMARYAPPLY] = func(args []byte, reply *[]byte) {
+		err, ret := s.Apply(args)
+		if err == e.None {
+			*reply = make([]byte, 0, 8+len(ret))
+			*reply = marshal.WriteInt(*reply, err)
+			*reply = marshal.WriteBytes(*reply, ret)
+		} else {
+			*reply = make([]byte, 0, 8)
+			*reply = marshal.WriteInt(*reply, err)
+		}
 	}
 
 	rs := urpc.MakeServer(handlers)

@@ -2,8 +2,10 @@ package config
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
+	"github.com/mit-pdos/gokv/simplepb/e"
 	"github.com/mit-pdos/gokv/urpc"
 	"github.com/tchajed/marshal"
+	"log"
 	"sync"
 )
 
@@ -32,10 +34,14 @@ func (s *Server) WriteConfig(args []byte, reply *[]byte) {
 	s.mu.Lock()
 	epoch, enc := marshal.ReadInt(args)
 	if epoch < s.epoch {
+		*reply = marshal.WriteInt(*reply, e.Stale)
 		s.mu.Unlock()
+		log.Println("Stale write", s.config)
 		return
 	}
 	s.config = DecodeConfig(enc)
+	log.Println("New config is:", s.config)
+	*reply = marshal.WriteInt(*reply, e.None)
 	s.mu.Unlock()
 }
 
@@ -50,6 +56,7 @@ func MakeServer() *Server {
 func (s *Server) Serve(me grove_ffi.Address) {
 	handlers := make(map[uint64]func([]byte, *[]byte))
 	handlers[RPC_GETEPOCH] = s.GetEpochAndConfig
+	handlers[RPC_GETCONFIG] = s.GetConfig
 	handlers[RPC_WRITECONFIG] = s.WriteConfig
 	rs := urpc.MakeServer(handlers)
 	rs.Serve(me)

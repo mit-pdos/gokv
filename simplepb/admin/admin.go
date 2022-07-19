@@ -48,6 +48,7 @@ func EnterNewConfig(configHost grove_ffi.Address, servers []grove_ffi.Address) e
 		clerk := clerk
 		go func() {
 			clerk.SetState(&pb.SetStateArgs{Epoch: epoch, State: reply.State})
+			wg.Done()
 		}()
 	}
 	wg.Wait()

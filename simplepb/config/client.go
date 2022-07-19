@@ -40,7 +40,7 @@ func (ck *Clerk) GetEpochAndConfig() (uint64, []grove_ffi.Address) {
 func (ck *Clerk) GetConfig() []grove_ffi.Address {
 	reply := new([]byte)
 	for {
-		err := ck.cl.Call(RPC_GETEPOCH, make([]byte, 0), reply, 100 /* ms */)
+		err := ck.cl.Call(RPC_GETCONFIG, make([]byte, 0), reply, 100 /* ms */)
 		if err == 0 {
 			break
 		} else {
@@ -53,7 +53,10 @@ func (ck *Clerk) GetConfig() []grove_ffi.Address {
 
 func (ck *Clerk) WriteConfig(epoch uint64, config []grove_ffi.Address) e.Error {
 	reply := new([]byte)
-	err := ck.cl.Call(RPC_GETEPOCH, make([]byte, 0), reply, 100 /* ms */)
+	var args = make([]byte, 0, 8 + 8 * len(config))
+	args = marshal.WriteInt(args, epoch)
+	args = marshal.WriteBytes(args, EncodeConfig(config))
+	err := ck.cl.Call(RPC_WRITECONFIG, args, reply, 100 /* ms */)
 	if err == 0 {
 		e, _ := marshal.ReadInt(*reply)
 		return e
