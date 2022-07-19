@@ -1,9 +1,9 @@
 package pb
 
 import (
-	"sync"
-
 	"github.com/mit-pdos/gokv/grove_ffi"
+	"github.com/mit-pdos/gokv/urpc"
+	"sync"
 )
 
 type Op = []byte
@@ -52,12 +52,17 @@ func (s *ReplicaServer) Apply(op Op) (Error, []byte) {
 	// tell backups to apply it
 	wg := new(sync.WaitGroup)
 	errs := make([]Error, len(clerks))
+	args := &ApplyArgs{
+		epoch: epoch,
+		index: nextIndex,
+		op:    op,
+	}
 	for i, clerk := range clerks {
 		clerk := clerk
 		i := i
 		wg.Add(1)
 		go func() {
-			errs[i] = clerk.Apply(epoch, nextIndex, op)
+			errs[i] = clerk.Apply(args)
 		}()
 	}
 	wg.Wait()
@@ -73,53 +78,53 @@ func (s *ReplicaServer) Apply(op Op) (Error, []byte) {
 
 // called on backup servers to apply an operation so it is replicated and
 // can be considered committed by primary.
-func (s *ReplicaServer) ApplyAsBackup(epoch uint64, index uint64, op Op) Error {
+func (s *ReplicaServer) ApplyAsBackup(args *ApplyArgs) Error {
 	s.mu.Lock()
-	if s.EpochFence(epoch) {
+	if s.epochFence(args.epoch) {
 		s.mu.Unlock()
 		return EStale
 	}
 
-	if index != s.nextIndex {
+	if args.index != s.nextIndex {
 		s.mu.Unlock()
 		return EOutOfOrder
 	}
 
 	// apply it locally
-	s.sm.Apply(op)
+	s.sm.Apply(args.op)
 	s.nextIndex += 1
 
 	s.mu.Unlock()
 	return ENone
 }
 
-func (s *ReplicaServer) SetState(epoch uint64, state []byte) Error {
+func (s *ReplicaServer) SetState(args *SetStateArgs) Error {
 	s.mu.Lock()
-	if s.epoch >= epoch {
+	if s.epoch >= args.epoch {
 		return EStale
 	}
 
-	s.sm.SetState(state)
+	s.sm.SetState(args.state)
 
 	s.mu.Unlock()
 	return ENone
 }
 
-func (s *ReplicaServer) GetState(epoch uint64) (Error, []byte) {
+func (s *ReplicaServer) GetState(args *GetStateArgs) *GetStateReply {
 	s.mu.Lock()
-	if s.EpochFence(epoch) {
+	if s.epochFence(args.epoch) {
 		s.mu.Unlock()
-		return EStale, nil
+		return &GetStateReply{EStale, nil}
 	}
 
 	ret := s.sm.GetState()
 	s.mu.Unlock()
 
-	return ENone, ret
+	return &GetStateReply{ENone, ret}
 }
 
 // returns true iff stale
-func (s *ReplicaServer) EpochFence(epoch uint64) bool {
+func (s *ReplicaServer) epochFence(epoch uint64) bool {
 	if s.epoch < epoch {
 		s.epoch = epoch
 		s.isPrimary = false
@@ -128,19 +133,32 @@ func (s *ReplicaServer) EpochFence(epoch uint64) bool {
 	return s.epoch > epoch
 }
 
-func (s *ReplicaServer) BecomePrimary(epoch uint64, replicas []grove_ffi.Address) Error {
+func (s *ReplicaServer) BecomePrimary(args *BecomePrimaryArgs) Error {
 	s.mu.Lock()
-	if s.EpochFence(epoch) {
+	if s.epochFence(args.epoch) {
 		s.mu.Unlock()
 		return EStale
 	}
 	s.isPrimary = true
 
-	s.clerks = make([]*Clerk, len(replicas))
+	s.clerks = make([]*Clerk, len(args.replicas))
 	for i := range s.clerks {
-		s.clerks[i] = MakeClerk(replicas[i])
+		s.clerks[i] = MakeClerk(args.replicas[i])
 	}
 
 	s.mu.Unlock()
 	return ENone
+}
+
+func StartReplicaServer(me grove_ffi.Address, sm *StateMachine) {
+	s := new(ReplicaServer)
+	s.mu = new(sync.Mutex)
+	s.epoch = 0
+	s.sm = sm
+	s.nextIndex = 0
+	s.isPrimary = false
+
+	handlers := make(map[uint64]func([]byte, *[]byte))
+	rs := urpc.MakeServer(handlers)
+	rs.Serve(me)
 }
