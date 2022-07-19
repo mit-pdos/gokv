@@ -5,12 +5,13 @@ import (
 	"github.com/tchajed/marshal"
 )
 
-func EncodeConfig(config []grove_ffi.Address) {
+func EncodeConfig(config []grove_ffi.Address) []byte {
 	var enc = make([]byte, 0, 8*uint64(len(config)))
 	enc = marshal.WriteInt(enc, uint64(len(config)))
 	for _, h := range config {
 		enc = marshal.WriteInt(enc, h)
 	}
+	return enc
 }
 
 func DecodeConfig(enc_config []byte) []grove_ffi.Address {
