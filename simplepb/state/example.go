@@ -16,8 +16,8 @@ func (s *KVState) Apply(op Op) {
 }
 
 type KVServer struct {
-	mu    *sync.Mutex
-	r     *pb.ReplicaServer
+	mu *sync.Mutex
+	r  *pb.ReplicaServer
 }
 
 func (s *KVServer) FetchAndAppend(key uint64, val []byte) {
@@ -26,9 +26,9 @@ func (s *KVServer) FetchAndAppend(key uint64, val []byte) {
 
 func (s *KVServer) SetState(epoch uint64, state []byte) pb.Error {
 	s.mu.Lock()
-	if s.epoch >= epoch {
-		return pb.EStale
-	}
+	// if s.epoch >= epoch {
+	// return pb.EStale
+	// }
 	// FIXME: set state by unmarshalling
 	s.mu.Unlock()
 	return pb.ENone

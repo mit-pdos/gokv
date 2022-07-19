@@ -10,7 +10,7 @@ type Clerk struct {
 }
 
 func MakeClerk(host grove_ffi.Address) *Clerk {
-	ck := &Clerk{cl:urpc.MakeClient(host)}
+	ck := &Clerk{cl: urpc.MakeClient(host)}
 	return ck
 }
 

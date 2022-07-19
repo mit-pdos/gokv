@@ -1,8 +1,5 @@
 package admin
 
-import (
-)
-
 func EnterNewConfig() {
 	// Get new epoch number from config service.
 	// Read from config service, fenced with that epoch.

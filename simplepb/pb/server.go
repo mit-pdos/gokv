@@ -58,7 +58,7 @@ func (s *ReplicaServer) Apply(op Op) (Error, []byte) {
 		wg.Add(1)
 		go func() {
 			errs[i] = clerk.Apply(epoch, nextIndex, op)
-		} ()
+		}()
 	}
 	wg.Wait()
 	var err = ENone
