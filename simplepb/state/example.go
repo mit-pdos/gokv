@@ -87,7 +87,7 @@ func (s *KVServer) FetchAndAppend(op []byte) []byte {
 	}
 }
 
-func MakeKVServer(fname string) *KVServer {
+func MakeServer(fname string) *KVServer {
 	s := new(KVServer)
 	var encState = grove_ffi.Read(fname)
 	var epoch uint64
