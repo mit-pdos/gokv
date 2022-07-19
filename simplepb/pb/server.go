@@ -6,15 +6,14 @@ import (
 	"sync"
 )
 
-type Op = []byte
-
 type StateMachine struct {
-	Apply    func(op Op) []byte
-	SetState func(snap []byte)
-	GetState func() []byte
+	Apply      func(op Op) []byte
+	SetState   func(snap []byte)
+	GetState   func() []byte
+	EnterEpoch func(epoch uint64)
 }
 
-type ReplicaServer struct {
+type Server struct {
 	mu        *sync.Mutex
 	epoch     uint64
 	sm        *StateMachine
@@ -25,16 +24,8 @@ type ReplicaServer struct {
 	clerks    []*Clerk
 }
 
-type Error = uint64
-
-const (
-	ENone       = uint64(0)
-	EStale      = uint64(1)
-	EOutOfOrder = uint64(2)
-)
-
 // called on the primary server to apply a new operation.
-func (s *ReplicaServer) Apply(op Op) (Error, []byte) {
+func (s *Server) Apply(op Op) (Error, []byte) {
 	s.mu.Lock()
 	if !s.isPrimary {
 		s.mu.Unlock()
@@ -78,7 +69,7 @@ func (s *ReplicaServer) Apply(op Op) (Error, []byte) {
 
 // called on backup servers to apply an operation so it is replicated and
 // can be considered committed by primary.
-func (s *ReplicaServer) ApplyAsBackup(args *ApplyArgs) Error {
+func (s *Server) ApplyAsBackup(args *ApplyArgs) Error {
 	s.mu.Lock()
 	if s.epochFence(args.epoch) {
 		s.mu.Unlock()
@@ -98,7 +89,7 @@ func (s *ReplicaServer) ApplyAsBackup(args *ApplyArgs) Error {
 	return ENone
 }
 
-func (s *ReplicaServer) SetState(args *SetStateArgs) Error {
+func (s *Server) SetState(args *SetStateArgs) Error {
 	s.mu.Lock()
 	if s.epoch >= args.epoch {
 		return EStale
@@ -110,7 +101,7 @@ func (s *ReplicaServer) SetState(args *SetStateArgs) Error {
 	return ENone
 }
 
-func (s *ReplicaServer) GetState(args *GetStateArgs) *GetStateReply {
+func (s *Server) GetState(args *GetStateArgs) *GetStateReply {
 	s.mu.Lock()
 	if s.epochFence(args.epoch) {
 		s.mu.Unlock()
@@ -124,7 +115,7 @@ func (s *ReplicaServer) GetState(args *GetStateArgs) *GetStateReply {
 }
 
 // returns true iff stale
-func (s *ReplicaServer) epochFence(epoch uint64) bool {
+func (s *Server) epochFence(epoch uint64) bool {
 	if s.epoch < epoch {
 		s.epoch = epoch
 		s.isPrimary = false
@@ -133,7 +124,7 @@ func (s *ReplicaServer) epochFence(epoch uint64) bool {
 	return s.epoch > epoch
 }
 
-func (s *ReplicaServer) BecomePrimary(args *BecomePrimaryArgs) Error {
+func (s *Server) BecomePrimary(args *BecomePrimaryArgs) Error {
 	s.mu.Lock()
 	if s.epochFence(args.epoch) {
 		s.mu.Unlock()
@@ -150,15 +141,31 @@ func (s *ReplicaServer) BecomePrimary(args *BecomePrimaryArgs) Error {
 	return ENone
 }
 
-func StartReplicaServer(me grove_ffi.Address, sm *StateMachine) {
-	s := new(ReplicaServer)
+func MakeServer(sm *StateMachine, nextIndex uint64, epoch uint64) *Server {
+	s := new(Server)
 	s.mu = new(sync.Mutex)
-	s.epoch = 0
+	s.epoch = epoch
 	s.sm = sm
-	s.nextIndex = 0
+	s.nextIndex = nextIndex
 	s.isPrimary = false
+	return s
+}
 
+func (s *Server) Serve(me grove_ffi.Address) {
 	handlers := make(map[uint64]func([]byte, *[]byte))
+
+	handlers[RPC_APPLY] = func(args []byte, reply *[]byte) {
+		*reply = EncodeError(s.ApplyAsBackup(DecodeApplyArgs(args)))
+	}
+
+	handlers[RPC_SETSTATE] = func(args []byte, reply *[]byte) {
+		*reply = EncodeError(s.SetState(DecodeSetStateArgs(args)))
+	}
+
+	handlers[RPC_GETSTATE] = func(args []byte, reply *[]byte) {
+		*reply = EncodeGetStateReply(s.GetState(DecodeGetStateArgs(args)))
+	}
+
 	rs := urpc.MakeServer(handlers)
 	rs.Serve(me)
 }

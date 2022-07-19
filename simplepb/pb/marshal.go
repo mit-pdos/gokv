@@ -5,6 +5,17 @@ import (
 	"github.com/tchajed/marshal"
 )
 
+type Error = uint64
+
+const (
+	ENone       = uint64(0)
+	EStale      = uint64(1)
+	EOutOfOrder = uint64(2)
+	ETimeout    = uint64(3)
+)
+
+type Op = []byte
+
 type ApplyArgs struct {
 	epoch uint64
 	index uint64
@@ -12,7 +23,7 @@ type ApplyArgs struct {
 }
 
 func EncodeApplyArgs(args *ApplyArgs) []byte {
-	var enc = make([]byte, 0, 8 + 8 + uint64(len(args.op)))
+	var enc = make([]byte, 0, 8+8+uint64(len(args.op)))
 	enc = marshal.WriteInt(enc, args.epoch)
 	enc = marshal.WriteInt(enc, args.index)
 	enc = marshal.WriteBytes(enc, args.op)
@@ -33,7 +44,7 @@ type SetStateArgs struct {
 }
 
 func EncodeSetStateArgs(args *SetStateArgs) []byte {
-	var enc = make([]byte, 0, 8 + uint64(len(args.state)))
+	var enc = make([]byte, 0, 8+uint64(len(args.state)))
 	enc = marshal.WriteInt(enc, args.epoch)
 	enc = marshal.WriteBytes(enc, args.state)
 	return enc
@@ -74,13 +85,20 @@ func EncodeGetStateReply(reply *GetStateReply) []byte {
 	return enc
 }
 
+func DecodeGetStateReply(enc []byte) *GetStateReply {
+	reply := new(GetStateReply)
+	reply.err, enc = marshal.ReadInt(enc)
+	reply.state = enc
+	return reply
+}
+
 type BecomePrimaryArgs struct {
-	epoch   uint64
+	epoch    uint64
 	replicas []grove_ffi.Address
 }
 
 func EncodeBecomePrimaryArgs(args *BecomePrimaryArgs) []byte {
-	var enc = make([]byte, 0, 8 + 8 + 8 * uint64(len(args.replicas)))
+	var enc = make([]byte, 0, 8+8+8*uint64(len(args.replicas)))
 	enc = marshal.WriteInt(enc, args.epoch)
 	enc = marshal.WriteInt(enc, uint64(len(args.replicas)))
 	for _, h := range args.replicas {
@@ -94,7 +112,7 @@ func DecodeBecomePrimaryArgs(enc []byte) *BecomePrimaryArgs {
 	args.epoch, enc = marshal.ReadInt(enc)
 	replicasLen, enc := marshal.ReadInt(enc)
 	args.replicas = make([]grove_ffi.Address, replicasLen)
-	for i, _ := range args.replicas {
+	for i := range args.replicas {
 		args.replicas[i], enc = marshal.ReadInt(enc)
 	}
 	return args
