@@ -91,11 +91,11 @@ func (s *Server) ApplyAsBackup(args *ApplyArgs) Error {
 
 func (s *Server) SetState(args *SetStateArgs) Error {
 	s.mu.Lock()
-	if s.epoch >= args.epoch {
+	if s.epoch >= args.Epoch {
 		return EStale
 	}
 
-	s.sm.SetState(args.state)
+	s.sm.SetState(args.State)
 
 	s.mu.Unlock()
 	return ENone
@@ -103,7 +103,7 @@ func (s *Server) SetState(args *SetStateArgs) Error {
 
 func (s *Server) GetState(args *GetStateArgs) *GetStateReply {
 	s.mu.Lock()
-	if s.epochFence(args.epoch) {
+	if s.epochFence(args.Epoch) {
 		s.mu.Unlock()
 		return &GetStateReply{EStale, nil}
 	}
@@ -126,15 +126,15 @@ func (s *Server) epochFence(epoch uint64) bool {
 
 func (s *Server) BecomePrimary(args *BecomePrimaryArgs) Error {
 	s.mu.Lock()
-	if s.epochFence(args.epoch) {
+	if s.epochFence(args.Epoch) {
 		s.mu.Unlock()
 		return EStale
 	}
 	s.isPrimary = true
 
-	s.clerks = make([]*Clerk, len(args.replicas))
+	s.clerks = make([]*Clerk, len(args.Replicas))
 	for i := range s.clerks {
-		s.clerks[i] = MakeClerk(args.replicas[i])
+		s.clerks[i] = MakeClerk(args.Replicas[i])
 	}
 
 	s.mu.Unlock()

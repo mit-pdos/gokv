@@ -43,7 +43,7 @@ func (ck *Clerk) GetState(args *GetStateArgs) *GetStateReply {
 	reply := new([]byte)
 	err := ck.cl.Call(RPC_APPLY, EncodeGetStateArgs(args), reply, 1000 /* ms */)
 	if err != 0 {
-		return &GetStateReply{err: ETimeout}
+		return &GetStateReply{Err: ETimeout}
 	} else {
 		return DecodeGetStateReply(*reply)
 	}
