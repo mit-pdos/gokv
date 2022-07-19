@@ -32,13 +32,23 @@ type ValServer struct {
 }
 
 func (s *ValServer) applyThread() {
-	var appliedIndex uint64 = 0
+	s.mu.Lock()
 	for {
 		// TODO: add no overflow assumption
+		appliedIndex := s.appliedIndex
+		s.mu.Unlock()
+
 		err, le := s.s.GetEntry(appliedIndex + 1)
-		machine.Assert(err == pb.ENone)
+		if err == pb.ETruncated { // this is supposed to only happen when a snapshot is installed
+			continue
+		}
 
 		s.mu.Lock()
+		if s.appliedIndex != appliedIndex {
+			// this means entries have been skipped
+			continue
+		}
+
 		if le.HaveExtra {
 			// send the reply to the RPC goroutine
 			e := le.Extra
@@ -54,11 +64,7 @@ func (s *ValServer) applyThread() {
 		if s.appliedIndex <= s.truncationLimit {
 			s.mu.Unlock()
 			s.s.Truncate(s.appliedIndex)
-		} else {
-			s.mu.Unlock()
 		}
-
-		s.mu.Unlock()
 	}
 }
 
@@ -116,8 +122,22 @@ func (cs *ValServer) setState(index uint64, val []byte) {
 	cs.mu.Unlock()
 }
 
-func StartValServer() {
-	// cs := new(ValServer)
-	// cs.ctr = 0
-	// cs.s = rsm.MakeServer(cs.apply, cs.getState)
+func (cs *ValServer) truncateAndBecomeReplica(args *pb.BecomeReplicaArgs) pb.Error {
+	// FIXME: what if this request is from an old reconf attempt that failed?
+	// If this replica is in the latest config, then this truncation might trim
+	// off entries that this node has not yet applied, resulting in this node
+	// not having the latest state, a violation of the informal invariant we
+	// hope to maintain about the latest config.
+	cs.mu.Lock()
+	cs.appliedIndex = args.StartIndex
+	cs.mu.Unlock()
+	cs.s.Truncate(args.StartIndex)
+
+	return cs.s.TryBecomeReplicaRPC(args)
+}
+
+func NewValServer() *ValServer {
+	s := new(ValServer)
+	// FIXME: init
+	return s
 }

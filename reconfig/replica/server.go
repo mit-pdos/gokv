@@ -173,7 +173,9 @@ func (s *Server[ExtraT]) Truncate(index uint64) {
 		s.log = s.log[index-s.startIndex:]
 	}
 	s.startIndex = index
-
+	if s.commitIndex < s.startIndex {
+		s.commitIndex = s.startIndex
+	}
 	s.dstate.Truncate(index)
 	s.mu.Unlock()
 }

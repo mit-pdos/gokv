@@ -1,0 +1,6 @@
+* Pipelining
+* Batching
+* Keep operations in logs, instead of making full state durable on every single
+  op.
+* Allow "extra" stuff with ops, so don't need to marshal and unmarshal on the
+  primary.

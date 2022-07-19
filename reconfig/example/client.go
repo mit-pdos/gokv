@@ -17,6 +17,10 @@ func (ck *Clerk) GetStateAndStopTruncation() (uint64, []byte) {
 	panic("example: impl")
 }
 
+func (ck *Clerk) GetState() (uint64, []byte) {
+	panic("example: impl")
+}
+
 func (ck *Clerk) SetState(index uint64, state []byte) {
 	panic("example: impl")
 }
