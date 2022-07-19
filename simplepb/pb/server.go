@@ -41,6 +41,7 @@ func (s *Server) Apply(op Op) (e.Error, []byte) {
 	ret := s.sm.Apply(op)
 
 	nextIndex := s.nextIndex
+	s.nextIndex += 1
 	epoch := s.epoch
 	clerks := s.clerks
 	s.mu.Unlock()
@@ -59,6 +60,7 @@ func (s *Server) Apply(op Op) (e.Error, []byte) {
 		wg.Add(1)
 		go func() {
 			errs[i] = clerk.Apply(args)
+			wg.Done()
 		}()
 	}
 	wg.Wait()
@@ -97,8 +99,12 @@ func (s *Server) ApplyAsBackup(args *ApplyArgs) e.Error {
 
 func (s *Server) SetState(args *SetStateArgs) e.Error {
 	s.mu.Lock()
-	if s.epoch >= args.Epoch {
+	if s.epoch > args.Epoch {
+		s.mu.Unlock()
 		return e.Stale
+	} else if s.epoch == args.Epoch {
+		s.mu.Unlock()
+		return e.None
 	}
 
 	s.sm.SetState(args.State)
@@ -124,6 +130,7 @@ func (s *Server) GetState(args *GetStateArgs) *GetStateReply {
 func (s *Server) epochFence(epoch uint64) bool {
 	if s.epoch < epoch {
 		s.epoch = epoch
+		s.sm.EnterEpoch(s.epoch)
 		s.isPrimary = false
 		s.nextIndex = 0
 	}

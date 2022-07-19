@@ -41,7 +41,11 @@ func main() {
 		for _, srvStr := range a[1:] {
 			servers = append(servers, grove_ffi.MakeAddress(srvStr))
 		}
-		admin.EnterNewConfig(confHost, servers)
-		fmt.Printf("Finished switching configuration\n")
+		err := admin.EnterNewConfig(confHost, servers)
+		if err != 0 {
+			fmt.Printf("Failed to switch config: %d\n", err)
+		} else {
+			fmt.Printf("Finished switching configuration\n")
+		}
 	}
 }

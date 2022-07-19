@@ -31,7 +31,11 @@ func EnterNewConfig(configHost grove_ffi.Address, servers []grove_ffi.Address) e
 
 	// Enter new epoch on one of the old servers.
 	// Get a copy of the state from that old server.
-	oldClerk := pb.MakeClerk(oldServers[machine.RandomUint64()%uint64(len(oldServers))])
+
+	// FIXME: this +1 is a terrible hack; liveness bug.
+	// Should try all of the servers, starting from some random offset.
+	id := (machine.RandomUint64() + 1) % uint64(len(oldServers))
+	oldClerk := pb.MakeClerk(oldServers[id])
 	reply := oldClerk.GetState(&pb.GetStateArgs{Epoch: epoch})
 	if reply.Err != e.None {
 		return reply.Err
@@ -43,18 +47,32 @@ func EnterNewConfig(configHost grove_ffi.Address, servers []grove_ffi.Address) e
 		clerks[i] = pb.MakeClerk(servers[i])
 	}
 	wg := new(sync.WaitGroup)
-	for _, clerk := range clerks {
+	errs := make([]e.Error, len(clerks))
+	for i, clerk := range clerks {
 		wg.Add(1)
 		clerk := clerk
+		i := i
 		go func() {
-			clerk.SetState(&pb.SetStateArgs{Epoch: epoch, State: reply.State})
+			errs[i] = clerk.SetState(&pb.SetStateArgs{Epoch: epoch, State: reply.State})
 			wg.Done()
 		}()
 	}
 	wg.Wait()
 
+	var err = e.None
+	for _, err2 := range errs {
+		if err2 != e.None {
+			err = err2
+		}
+	}
+	if err != e.None {
+		return err
+	}
+
 	// Write to config service saying the new servers have up-to-date state.
-	configCk.WriteConfig(epoch, servers)
+	if configCk.WriteConfig(epoch, servers) != e.None {
+		return e.Stale
+	}
 
 	// Tell one of the servers to become primary.
 	clerks[0].BecomePrimary(&pb.BecomePrimaryArgs{Epoch: epoch, Replicas: servers})
