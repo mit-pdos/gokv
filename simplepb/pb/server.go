@@ -106,13 +106,13 @@ func (s *Server) GetState(args *GetStateArgs) *GetStateReply {
 	s.mu.Lock()
 	if s.epochFence(args.Epoch) {
 		s.mu.Unlock()
-		return &GetStateReply{Err:e.Stale, State:nil}
+		return &GetStateReply{Err: e.Stale, State: nil}
 	}
 
 	ret := s.sm.GetState()
 	s.mu.Unlock()
 
-	return &GetStateReply{Err:e.None, State:ret}
+	return &GetStateReply{Err: e.None, State: ret}
 }
 
 // returns true iff stale

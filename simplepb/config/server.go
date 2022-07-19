@@ -2,7 +2,7 @@ package config
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
-	// "github.com/tchajed/marshal"
+	"github.com/tchajed/marshal"
 	"sync"
 )
 
@@ -18,10 +18,20 @@ func (s *Server) GetEpochAndConfig(args []byte, reply *[]byte) {
 
 func (s *Server) WriteConfig(args []byte, reply *[]byte) {
 	s.mu.Lock()
-	// epoch, enc := marshal.ReadInt(args)
-	// if epoch < s.epoch {
-	// s.mu.Unlock()
-	// return
-	// }
+	epoch, enc := marshal.ReadInt(args)
+	if epoch < s.epoch {
+		s.mu.Unlock()
+		return
+	}
+	s.config = DecodeConfig(enc)
+	s.mu.Unlock()
+}
 
+func MakeServer() *Server {
+	s := new(Server)
+	s.mu = new(sync.Mutex)
+	return s
+}
+
+func (s *Server) Serve() {
 }
