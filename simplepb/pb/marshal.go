@@ -22,7 +22,8 @@ func EncodeApplyArgs(args *ApplyArgs) []byte {
 	return enc
 }
 
-func DecodeApplyArgs(enc []byte) *ApplyArgs {
+func DecodeApplyArgs(enc_args []byte) *ApplyArgs {
+	var enc = enc_args
 	args := new(ApplyArgs)
 	args.epoch, enc = marshal.ReadInt(enc)
 	args.index, enc = marshal.ReadInt(enc)
@@ -42,7 +43,8 @@ func EncodeSetStateArgs(args *SetStateArgs) []byte {
 	return enc
 }
 
-func DecodeSetStateArgs(enc []byte) *SetStateArgs {
+func DecodeSetStateArgs(enc_args []byte) *SetStateArgs {
+	var enc = enc_args
 	args := new(SetStateArgs)
 	args.Epoch, enc = marshal.ReadInt(enc)
 	args.State = enc
@@ -61,7 +63,7 @@ func EncodeGetStateArgs(args *GetStateArgs) []byte {
 
 func DecodeGetStateArgs(enc []byte) *GetStateArgs {
 	args := new(GetStateArgs)
-	args.Epoch, enc = marshal.ReadInt(enc)
+	args.Epoch, _ = marshal.ReadInt(enc)
 	return args
 }
 
@@ -77,7 +79,8 @@ func EncodeGetStateReply(reply *GetStateReply) []byte {
 	return enc
 }
 
-func DecodeGetStateReply(enc []byte) *GetStateReply {
+func DecodeGetStateReply(enc_reply []byte) *GetStateReply {
+	var enc = enc_reply
 	reply := new(GetStateReply)
 	reply.Err, enc = marshal.ReadInt(enc)
 	reply.State = enc
@@ -99,7 +102,8 @@ func EncodeBecomePrimaryArgs(args *BecomePrimaryArgs) []byte {
 	return enc
 }
 
-func DecodeBecomePrimaryArgs(enc []byte) *BecomePrimaryArgs {
+func DecodeBecomePrimaryArgs(enc_args []byte) *BecomePrimaryArgs {
+	var enc = enc_args
 	args := new(BecomePrimaryArgs)
 	args.Epoch, enc = marshal.ReadInt(enc)
 	replicasLen, enc := marshal.ReadInt(enc)

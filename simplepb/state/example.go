@@ -35,7 +35,7 @@ func (s *KVState) Apply(op Op) []byte {
 }
 
 func (s *KVState) GetState() []byte {
-	enc := make([]byte, 0)
+	var enc = make([]byte, 0)
 	enc = marshal.WriteInt(enc, uint64(len(s.kvs)))
 	for k, v := range s.kvs {
 		enc = marshal.WriteInt(enc, k)
@@ -45,7 +45,8 @@ func (s *KVState) GetState() []byte {
 	return enc
 }
 
-func (s *KVState) SetState(snap []byte) {
+func (s *KVState) SetState(snap_in []byte) {
+	var snap = snap_in
 	s.kvs = make(map[uint64][]byte, 0)
 	numEntries, snap := marshal.ReadInt(snap)
 	for i := uint64(0); i < numEntries; i++ {
@@ -54,7 +55,8 @@ func (s *KVState) SetState(snap []byte) {
 		var val []byte
 		key, snap = marshal.ReadInt(snap)
 		valLen, snap = marshal.ReadInt(snap)
-		val, snap = snap[:valLen], snap[valLen:]
+		val = snap[:valLen]
+		snap = snap[valLen:]
 		s.kvs[key] = val
 	}
 }
@@ -87,7 +89,7 @@ func (s *KVServer) FetchAndAppend(op []byte) []byte {
 
 func MakeKVServer(fname string) *KVServer {
 	s := new(KVServer)
-	encState := grove_ffi.Read(fname)
+	var encState = grove_ffi.Read(fname)
 	var epoch uint64
 	var nextIndex uint64
 	var state *KVState
