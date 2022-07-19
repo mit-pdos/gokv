@@ -105,12 +105,12 @@ func (s *Server) SetState(args *SetStateArgs) e.Error {
 	} else if s.epoch == args.Epoch {
 		s.mu.Unlock()
 		return e.None
+	} else {
+		s.sm.SetState(args.State)
+
+		s.mu.Unlock()
+		return e.None
 	}
-
-	s.sm.SetState(args.State)
-
-	s.mu.Unlock()
-	return e.None
 }
 
 func (s *Server) GetState(args *GetStateArgs) *GetStateReply {
