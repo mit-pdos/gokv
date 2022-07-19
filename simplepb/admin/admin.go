@@ -3,12 +3,13 @@ package admin
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/simplepb/config"
+	"github.com/mit-pdos/gokv/simplepb/e"
 	"github.com/mit-pdos/gokv/simplepb/pb"
 	"github.com/tchajed/goose/machine"
 	"sync"
 )
 
-func EnterNewConfig(configHost grove_ffi.Address, servers []grove_ffi.Address) pb.Error {
+func EnterNewConfig(configHost grove_ffi.Address, servers []grove_ffi.Address) e.Error {
 	configCk := config.MakeClerk(configHost)
 	// Get new epoch number from config service.
 	// Read from config service, fenced with that epoch.
@@ -18,7 +19,7 @@ func EnterNewConfig(configHost grove_ffi.Address, servers []grove_ffi.Address) p
 	// Get a copy of the state from that old server.
 	oldClerk := pb.MakeClerk(oldServers[machine.RandomUint64()%uint64(len(oldServers))])
 	reply := oldClerk.GetState(&pb.GetStateArgs{Epoch: epoch})
-	if reply.Err != pb.ENone {
+	if reply.Err != e.None {
 		return reply.Err
 	}
 
@@ -42,5 +43,5 @@ func EnterNewConfig(configHost grove_ffi.Address, servers []grove_ffi.Address) p
 
 	// Tell one of the servers to become primary.
 	clerks[0].BecomePrimary(&pb.BecomePrimaryArgs{Epoch: epoch, Replicas: servers})
-	return pb.ENone
+	return e.None
 }

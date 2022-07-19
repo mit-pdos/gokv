@@ -2,7 +2,7 @@ package state
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
-	"github.com/mit-pdos/gokv/simplepb/pb"
+	"github.com/mit-pdos/gokv/simplepb/e"
 	"github.com/mit-pdos/gokv/urpc"
 	"github.com/tchajed/marshal"
 )
@@ -19,7 +19,7 @@ func MakeClerk(host grove_ffi.Address) *Clerk {
 	return &Clerk{cl: urpc.MakeClient(host)}
 }
 
-func (ck *Clerk) FetchAndAppend(key uint64, val []byte) (pb.Error, []byte) {
+func (ck *Clerk) FetchAndAppend(key uint64, val []byte) (e.Error, []byte) {
 	var args = make([]byte, 0, 8+len(val))
 	args = marshal.WriteInt(args, key)
 	args = marshal.WriteBytes(args, val)

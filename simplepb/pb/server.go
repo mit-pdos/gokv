@@ -2,6 +2,7 @@ package pb
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
+	"github.com/mit-pdos/gokv/simplepb/e"
 	"github.com/mit-pdos/gokv/urpc"
 	"sync"
 )
@@ -25,11 +26,11 @@ type Server struct {
 }
 
 // called on the primary server to apply a new operation.
-func (s *Server) Apply(op Op) (Error, []byte) {
+func (s *Server) Apply(op Op) (e.Error, []byte) {
 	s.mu.Lock()
 	if !s.isPrimary {
 		s.mu.Unlock()
-		return EStale, nil
+		return e.Stale, nil
 	}
 
 	// apply it locally
@@ -42,7 +43,7 @@ func (s *Server) Apply(op Op) (Error, []byte) {
 
 	// tell backups to apply it
 	wg := new(sync.WaitGroup)
-	errs := make([]Error, len(clerks))
+	errs := make([]e.Error, len(clerks))
 	args := &ApplyArgs{
 		epoch: epoch,
 		index: nextIndex,
@@ -57,10 +58,10 @@ func (s *Server) Apply(op Op) (Error, []byte) {
 		}()
 	}
 	wg.Wait()
-	var err = ENone
-	for _, e := range errs {
-		if e != ENone {
-			err = e
+	var err = e.None
+	for _, err2 := range errs {
+		if err2 != e.None {
+			err = err2
 		}
 	}
 
@@ -69,16 +70,16 @@ func (s *Server) Apply(op Op) (Error, []byte) {
 
 // called on backup servers to apply an operation so it is replicated and
 // can be considered committed by primary.
-func (s *Server) ApplyAsBackup(args *ApplyArgs) Error {
+func (s *Server) ApplyAsBackup(args *ApplyArgs) e.Error {
 	s.mu.Lock()
 	if s.epochFence(args.epoch) {
 		s.mu.Unlock()
-		return EStale
+		return e.Stale
 	}
 
 	if args.index != s.nextIndex {
 		s.mu.Unlock()
-		return EOutOfOrder
+		return e.OutOfOrder
 	}
 
 	// apply it locally
@@ -86,32 +87,32 @@ func (s *Server) ApplyAsBackup(args *ApplyArgs) Error {
 	s.nextIndex += 1
 
 	s.mu.Unlock()
-	return ENone
+	return e.None
 }
 
-func (s *Server) SetState(args *SetStateArgs) Error {
+func (s *Server) SetState(args *SetStateArgs) e.Error {
 	s.mu.Lock()
 	if s.epoch >= args.Epoch {
-		return EStale
+		return e.Stale
 	}
 
 	s.sm.SetState(args.State)
 
 	s.mu.Unlock()
-	return ENone
+	return e.None
 }
 
 func (s *Server) GetState(args *GetStateArgs) *GetStateReply {
 	s.mu.Lock()
 	if s.epochFence(args.Epoch) {
 		s.mu.Unlock()
-		return &GetStateReply{EStale, nil}
+		return &GetStateReply{e.Stale, nil}
 	}
 
 	ret := s.sm.GetState()
 	s.mu.Unlock()
 
-	return &GetStateReply{ENone, ret}
+	return &GetStateReply{e.None, ret}
 }
 
 // returns true iff stale
@@ -124,11 +125,11 @@ func (s *Server) epochFence(epoch uint64) bool {
 	return s.epoch > epoch
 }
 
-func (s *Server) BecomePrimary(args *BecomePrimaryArgs) Error {
+func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {
 	s.mu.Lock()
 	if s.epochFence(args.Epoch) {
 		s.mu.Unlock()
-		return EStale
+		return e.Stale
 	}
 	s.isPrimary = true
 
@@ -138,7 +139,7 @@ func (s *Server) BecomePrimary(args *BecomePrimaryArgs) Error {
 	}
 
 	s.mu.Unlock()
-	return ENone
+	return e.None
 }
 
 func MakeServer(sm *StateMachine, nextIndex uint64, epoch uint64) *Server {
@@ -155,11 +156,11 @@ func (s *Server) Serve(me grove_ffi.Address) {
 	handlers := make(map[uint64]func([]byte, *[]byte))
 
 	handlers[RPC_APPLY] = func(args []byte, reply *[]byte) {
-		*reply = EncodeError(s.ApplyAsBackup(DecodeApplyArgs(args)))
+		*reply = e.EncodeError(s.ApplyAsBackup(DecodeApplyArgs(args)))
 	}
 
 	handlers[RPC_SETSTATE] = func(args []byte, reply *[]byte) {
-		*reply = EncodeError(s.SetState(DecodeSetStateArgs(args)))
+		*reply = e.EncodeError(s.SetState(DecodeSetStateArgs(args)))
 	}
 
 	handlers[RPC_GETSTATE] = func(args []byte, reply *[]byte) {

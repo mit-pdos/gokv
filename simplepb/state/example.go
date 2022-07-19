@@ -2,6 +2,7 @@ package state
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
+	"github.com/mit-pdos/gokv/simplepb/e"
 	"github.com/mit-pdos/gokv/simplepb/pb"
 	"github.com/mit-pdos/gokv/urpc"
 	"github.com/tchajed/marshal"
@@ -72,7 +73,7 @@ type KVServer struct {
 
 func (s *KVServer) FetchAndAppend(op []byte) []byte {
 	err, ret := s.r.Apply(op)
-	if err == pb.ENone {
+	if err == e.None {
 		var reply = make([]byte, 0, 8+len(ret))
 		reply = marshal.WriteInt(reply, err)
 		reply = marshal.WriteBytes(reply, ret)

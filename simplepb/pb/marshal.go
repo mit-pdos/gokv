@@ -2,16 +2,8 @@ package pb
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
+	"github.com/mit-pdos/gokv/simplepb/e"
 	"github.com/tchajed/marshal"
-)
-
-type Error = uint64
-
-const (
-	ENone       = uint64(0)
-	EStale      = uint64(1)
-	EOutOfOrder = uint64(2)
-	ETimeout    = uint64(3)
 )
 
 type Op = []byte
@@ -74,7 +66,7 @@ func DecodeGetStateArgs(enc []byte) *GetStateArgs {
 }
 
 type GetStateReply struct {
-	Err   Error
+	Err   e.Error
 	State []byte
 }
 
@@ -116,13 +108,4 @@ func DecodeBecomePrimaryArgs(enc []byte) *BecomePrimaryArgs {
 		args.Replicas[i], enc = marshal.ReadInt(enc)
 	}
 	return args
-}
-
-func EncodeError(err Error) []byte {
-	return marshal.WriteInt(make([]byte, 0, 8), err)
-}
-
-func DecodeError(enc []byte) Error {
-	err, _ := marshal.ReadInt(enc)
-	return err
 }
