@@ -13,7 +13,8 @@ type Clerk struct {
 
 const (
 	RPC_GETEPOCH    = uint64(0)
-	RPC_WRITECONFIG = uint64(1)
+	RPC_GETCONFIG   = uint64(1)
+	RPC_WRITECONFIG = uint64(2)
 )
 
 func MakeClerk(host grove_ffi.Address) *Clerk {
@@ -34,6 +35,20 @@ func (ck *Clerk) GetEpochAndConfig() (uint64, []grove_ffi.Address) {
 	epoch, *reply = marshal.ReadInt(*reply)
 	config := DecodeConfig(*reply)
 	return epoch, config
+}
+
+func (ck *Clerk) GetConfig() []grove_ffi.Address {
+	reply := new([]byte)
+	for {
+		err := ck.cl.Call(RPC_GETEPOCH, make([]byte, 0), reply, 100 /* ms */)
+		if err == 0 {
+			break
+		} else {
+			continue
+		}
+	}
+	config := DecodeConfig(*reply)
+	return config
 }
 
 func (ck *Clerk) WriteConfig(epoch uint64, config []grove_ffi.Address) e.Error {

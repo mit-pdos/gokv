@@ -22,6 +22,12 @@ func (s *Server) GetEpochAndConfig(args []byte, reply *[]byte) {
 	s.mu.Unlock()
 }
 
+func (s *Server) GetConfig(args []byte, reply *[]byte) {
+	s.mu.Lock()
+	*reply = EncodeConfig(s.config)
+	s.mu.Unlock()
+}
+
 func (s *Server) WriteConfig(args []byte, reply *[]byte) {
 	s.mu.Lock()
 	epoch, enc := marshal.ReadInt(args)
