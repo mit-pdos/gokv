@@ -53,7 +53,7 @@ func (ck *Clerk) GetConfig() []grove_ffi.Address {
 
 func (ck *Clerk) WriteConfig(epoch uint64, config []grove_ffi.Address) e.Error {
 	reply := new([]byte)
-	var args = make([]byte, 0, 8 + 8 * len(config))
+	var args = make([]byte, 0, 8+8*len(config))
 	args = marshal.WriteInt(args, epoch)
 	args = marshal.WriteBytes(args, EncodeConfig(config))
 	err := ck.cl.Call(RPC_WRITECONFIG, args, reply, 100 /* ms */)

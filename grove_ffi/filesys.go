@@ -44,7 +44,7 @@ func AtomicAppend(filename string, data []byte) {
 		panic(err)
 	}
 	f.Write(data)
-    f.Sync()
+	f.Sync()
 	err = f.Close()
 	if err != nil {
 		panic(err)
