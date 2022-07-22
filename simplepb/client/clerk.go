@@ -6,7 +6,6 @@ import (
 	"github.com/mit-pdos/gokv/simplepb/e"
 	"github.com/mit-pdos/gokv/simplepb/state"
 	"log"
-	"time"
 )
 
 type Clerk struct {
@@ -35,13 +34,15 @@ func (ck *Clerk) FetchAndAppend(key uint64, val []byte) []byte {
 		var err e.Error
 		err, ret = ck.primaryCk.FetchAndAppend(key, val)
 		if err == e.None {
+			grove_ffi.Sleep(uint64(100_000_000))
 			break
 		} else {
 			log.Println("Error: ", err)
 			config := ck.confCk.GetConfig()
 			ck.primaryCk = state.MakeClerk(config[0])
+			grove_ffi.Sleep(uint64(100_000_000))
+			continue
 		}
-		time.Sleep(time.Millisecond * 100)
 	}
 	return ret
 }
