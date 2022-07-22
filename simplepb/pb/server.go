@@ -75,6 +75,17 @@ func (s *Server) Apply(op Op) (e.Error, []byte) {
 	return err, ret
 }
 
+// returns true iff stale
+func (s *Server) epochFence(epoch uint64) bool {
+	if s.epoch < epoch {
+		s.epoch = epoch
+		s.sm.EnterEpoch(s.epoch)
+		s.isPrimary = false
+		s.nextIndex = 0
+	}
+	return s.epoch > epoch
+}
+
 // called on backup servers to apply an operation so it is replicated and
 // can be considered committed by primary.
 func (s *Server) ApplyAsBackup(args *ApplyArgs) e.Error {
@@ -124,17 +135,6 @@ func (s *Server) GetState(args *GetStateArgs) *GetStateReply {
 	s.mu.Unlock()
 
 	return &GetStateReply{Err: e.None, State: ret}
-}
-
-// returns true iff stale
-func (s *Server) epochFence(epoch uint64) bool {
-	if s.epoch < epoch {
-		s.epoch = epoch
-		s.sm.EnterEpoch(s.epoch)
-		s.isPrimary = false
-		s.nextIndex = 0
-	}
-	return s.epoch > epoch
 }
 
 func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {
