@@ -65,8 +65,8 @@ func (s *Server) Apply(op Op) (e.Error, []byte) {
 	}
 	wg.Wait()
 	var err = e.None
-	i := 0
-	for i < len(errs) {
+	var i = uint64(0)
+	for i < uint64(len(errs)) {
 		err2 := errs[i]
 		if err2 != e.None {
 			err = err2
