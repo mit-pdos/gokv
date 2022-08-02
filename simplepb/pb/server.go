@@ -65,10 +65,13 @@ func (s *Server) Apply(op Op) (e.Error, []byte) {
 	}
 	wg.Wait()
 	var err = e.None
-	for _, err2 := range errs {
+	i := 0
+	for i < len(errs) {
+		err2 := errs[i]
 		if err2 != e.None {
 			err = err2
 		}
+		i += 1
 	}
 
 	log.Println("Apply() returned ", err)
