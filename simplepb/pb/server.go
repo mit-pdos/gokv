@@ -4,6 +4,7 @@ import (
 	"log"
 	"sync"
 
+	"github.com/goose-lang/std"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/simplepb/e"
 	"github.com/mit-pdos/gokv/urpc"
@@ -41,7 +42,7 @@ func (s *Server) Apply(op Op) (e.Error, []byte) {
 	ret := s.sm.Apply(op)
 
 	nextIndex := s.nextIndex
-	s.nextIndex += 1
+	s.nextIndex = std.SumAssumeNoOverflow(s.nextIndex, 1)
 	epoch := s.epoch
 	clerks := s.clerks
 	s.mu.Unlock()
