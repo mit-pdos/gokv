@@ -73,7 +73,7 @@ type GetStateReply struct {
 }
 
 func EncodeGetStateReply(reply *GetStateReply) []byte {
-	var enc = make([]byte, 0, 8)
+	var enc = make([]byte, 0, 8+len(reply.State))
 	enc = marshal.WriteInt(enc, reply.Err)
 	enc = marshal.WriteBytes(enc, reply.State)
 	return enc
