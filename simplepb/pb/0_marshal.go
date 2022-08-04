@@ -106,7 +106,8 @@ func DecodeBecomePrimaryArgs(enc_args []byte) *BecomePrimaryArgs {
 	var enc = enc_args
 	args := new(BecomePrimaryArgs)
 	args.Epoch, enc = marshal.ReadInt(enc)
-	replicasLen, enc := marshal.ReadInt(enc)
+	var replicasLen uint64
+	replicasLen, enc = marshal.ReadInt(enc)
 	args.Replicas = make([]grove_ffi.Address, replicasLen)
 	for i := range args.Replicas {
 		args.Replicas[i], enc = marshal.ReadInt(enc)
