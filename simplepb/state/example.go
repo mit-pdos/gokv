@@ -10,15 +10,18 @@ import (
 type KVState struct {
 	kvs map[uint64][]byte
 
-	filename  string
 	epoch     uint64
 	nextIndex uint64
+	sealed    bool
+
+	filename string
 }
 
 type Op = []byte
 
-func (s *KVState) loadState(snap_in []byte) {
-	log.Println("Loading encoded state: ", len(snap_in))
+// helper for unmarshalling kvs
+func (s *KVState) decodeKvs(snap_in []byte) {
+	log.Println("Decoding encoded state of length: ", len(snap_in))
 	var snap = snap_in
 	s.kvs = make(map[uint64][]byte, 0)
 	numEntries, snap := marshal.ReadInt(snap)
@@ -28,10 +31,24 @@ func (s *KVState) loadState(snap_in []byte) {
 		var val []byte
 		key, snap = marshal.ReadInt(snap)
 		valLen, snap = marshal.ReadInt(snap)
+
+		// XXX: this will keep the whole original encoded slice around in
+		// memory. We probably don't want that.
 		val = snap[:valLen]
 		snap = snap[valLen:]
 		s.kvs[key] = val
 	}
+}
+
+func (s *KVState) encodeKvs() []byte {
+	var enc = make([]byte, 0)
+	enc = marshal.WriteInt(enc, uint64(len(s.kvs)))
+	for k, v := range s.kvs {
+		enc = marshal.WriteInt(enc, k)
+		enc = marshal.WriteInt(enc, uint64(len(v)))
+		enc = marshal.WriteBytes(enc, v)
+	}
+	return enc
 }
 
 func RecoverKVState(fname string) *KVState {
@@ -41,36 +58,27 @@ func RecoverKVState(fname string) *KVState {
 	if len(encState) == 0 {
 		s.epoch = 0
 		s.nextIndex = 0
+		s.sealed = false
 		s.kvs = make(map[uint64][]byte)
 	} else {
 		s.epoch, encState = marshal.ReadInt(encState)
 		s.nextIndex, encState = marshal.ReadInt(encState)
-		s.loadState(encState)
+		s.decodeKvs(encState)
 	}
 	return s
 }
 
-func (s *KVState) GetState() []byte {
+func (s *KVState) getState() []byte {
 	var enc = make([]byte, 0)
-	enc = marshal.WriteInt(enc, uint64(len(s.kvs)))
-	for k, v := range s.kvs {
-		enc = marshal.WriteInt(enc, k)
-		enc = marshal.WriteInt(enc, uint64(len(v)))
-		enc = marshal.WriteBytes(enc, v)
-	}
+	enc = marshal.WriteInt(enc, s.epoch)
+	enc = marshal.WriteInt(enc, s.nextIndex)
+	enc = marshal.WriteBytes(enc, s.encodeKvs())
 	log.Println("Size of encoded state", len(enc))
 	return enc
 }
 
 func (s *KVState) MakeDurable() {
-	state := s.GetState()
-	var enc = make([]byte, 0, 16+len(state))
-
-	enc = marshal.WriteInt(enc, s.epoch)
-	enc = marshal.WriteInt(enc, s.nextIndex)
-	enc = marshal.WriteBytes(enc, state)
-
-	grove_ffi.Write(s.filename, enc)
+	grove_ffi.Write(s.filename, s.getState())
 }
 
 func (s *KVState) Apply(op Op) []byte {
@@ -84,9 +92,18 @@ func (s *KVState) Apply(op Op) []byte {
 	return ret
 }
 
-func (s *KVState) SetState(snap_in []byte) {
-	s.loadState(snap_in)
+func (s *KVState) SetState(snap_in []byte, epoch uint64, nextIndex uint64) {
+	s.decodeKvs(snap_in)
+	s.epoch = epoch
+	s.nextIndex = nextIndex
 	s.MakeDurable()
+}
+
+func (s *KVState) GetStateAndSeal() []byte {
+	ret := s.encodeKvs()
+	s.sealed = true
+	s.MakeDurable()
+	return ret
 }
 
 func (s *KVState) EnterEpoch(epoch uint64) {
@@ -96,10 +113,9 @@ func (s *KVState) EnterEpoch(epoch uint64) {
 
 func MakeKVStateMachine(initState *KVState) *pb.StateMachine {
 	return &pb.StateMachine{
-		Apply:      initState.Apply,
-		SetState:   initState.SetState,
-		GetState:   initState.GetState,
-		EnterEpoch: initState.EnterEpoch,
+		Apply:           initState.Apply,
+		SetState:        initState.SetState,
+		GetStateAndSeal: initState.GetStateAndSeal,
 	}
 }
 

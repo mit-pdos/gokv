@@ -12,18 +12,17 @@ import (
 )
 
 type StateMachine struct {
-	Apply      func(op Op) []byte
-	SetState   func(snap []byte)
-	GetState   func() []byte
-	EnterEpoch func(epoch uint64)
+	Apply           func(op Op) []byte
+	SetState        func(snap []byte, nextIndex uint64, epoch uint64)
+	GetStateAndSeal func() []byte
 }
 
 type Server struct {
 	mu        *sync.Mutex
 	epoch     uint64
+	sealed    bool
 	sm        *StateMachine
-	nextIndex uint64 // this is a per-epoch deduplication ID
-	// reset to 0 when entering a new epoch
+	nextIndex uint64
 
 	isPrimary bool
 	clerks    []*Clerk
@@ -79,14 +78,9 @@ func (s *Server) Apply(op Op) (e.Error, []byte) {
 	return err, ret
 }
 
+// requires that we've already at least entered this epoch
 // returns true iff stale
-func (s *Server) epochFence(epoch uint64) bool {
-	if s.epoch < epoch {
-		s.epoch = epoch
-		s.sm.EnterEpoch(s.epoch)
-		s.isPrimary = false
-		s.nextIndex = 0
-	}
+func (s *Server) isEpochStale(epoch uint64) bool {
 	return s.epoch > epoch
 }
 
@@ -94,7 +88,11 @@ func (s *Server) epochFence(epoch uint64) bool {
 // can be considered committed by primary.
 func (s *Server) ApplyAsBackup(args *ApplyArgs) e.Error {
 	s.mu.Lock()
-	if s.epochFence(args.epoch) {
+	if s.isEpochStale(args.epoch) {
+		s.mu.Unlock()
+		return e.Stale
+	}
+	if s.sealed {
 		s.mu.Unlock()
 		return e.Stale
 	}
@@ -121,29 +119,35 @@ func (s *Server) SetState(args *SetStateArgs) e.Error {
 		s.mu.Unlock()
 		return e.None
 	} else {
-		s.sm.SetState(args.State)
+		s.isPrimary = false
+		s.epoch = args.Epoch
+		s.sealed = false
+		s.sm.SetState(args.State, args.Epoch, args.NextIndex)
 
 		s.mu.Unlock()
 		return e.None
 	}
 }
 
+// XXX: probably should rename to GetStateAndSeal
 func (s *Server) GetState(args *GetStateArgs) *GetStateReply {
 	s.mu.Lock()
-	if s.epochFence(args.Epoch) {
+	if s.isEpochStale(args.Epoch) {
 		s.mu.Unlock()
 		return &GetStateReply{Err: e.Stale, State: nil}
 	}
 
-	ret := s.sm.GetState()
+	s.sealed = true
+	ret := s.sm.GetStateAndSeal()
+	nextIndex := s.nextIndex
 	s.mu.Unlock()
 
-	return &GetStateReply{Err: e.None, State: ret}
+	return &GetStateReply{Err: e.None, State: ret, NextIndex: nextIndex}
 }
 
 func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {
 	s.mu.Lock()
-	if s.epochFence(args.Epoch) {
+	if s.isEpochStale(args.Epoch) {
 		log.Println("Stale BecomePrimary request")
 		s.mu.Unlock()
 		return e.Stale

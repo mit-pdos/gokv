@@ -53,7 +53,7 @@ func EnterNewConfig(configHost grove_ffi.Address, servers []grove_ffi.Address) e
 		clerk := clerk
 		i := i
 		go func() {
-			errs[i] = clerk.SetState(&pb.SetStateArgs{Epoch: epoch, State: reply.State})
+			errs[i] = clerk.SetState(&pb.SetStateArgs{Epoch: epoch, State: reply.State, NextIndex: reply.NextIndex})
 			wg.Done()
 		}()
 	}
