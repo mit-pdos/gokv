@@ -92,9 +92,10 @@ func (s *KVState) Apply(op Op) []byte {
 	return ret
 }
 
-func (s *KVState) SetState(snap_in []byte, epoch uint64, nextIndex uint64) {
+func (s *KVState) SetStateAndUnseal(snap_in []byte, epoch uint64, nextIndex uint64) {
 	s.decodeKvs(snap_in)
 	s.epoch = epoch
+	s.sealed = false
 	s.nextIndex = nextIndex
 	s.MakeDurable()
 }
@@ -113,9 +114,9 @@ func (s *KVState) EnterEpoch(epoch uint64) {
 
 func MakeKVStateMachine(initState *KVState) *pb.StateMachine {
 	return &pb.StateMachine{
-		Apply:           initState.Apply,
-		SetState:        initState.SetState,
-		GetStateAndSeal: initState.GetStateAndSeal,
+		Apply:             initState.Apply,
+		SetStateAndUnseal: initState.SetStateAndUnseal,
+		GetStateAndSeal:   initState.GetStateAndSeal,
 	}
 }
 

@@ -12,9 +12,9 @@ import (
 )
 
 type StateMachine struct {
-	Apply           func(op Op) []byte
-	SetState        func(snap []byte, nextIndex uint64, epoch uint64)
-	GetStateAndSeal func() []byte
+	Apply             func(op Op) []byte
+	SetStateAndUnseal func(snap []byte, nextIndex uint64, epoch uint64)
+	GetStateAndSeal   func() []byte
 }
 
 type Server struct {
@@ -126,7 +126,7 @@ func (s *Server) SetState(args *SetStateArgs) e.Error {
 		s.isPrimary = false
 		s.epoch = args.Epoch
 		s.sealed = false
-		s.sm.SetState(args.State, args.Epoch, args.NextIndex)
+		s.sm.SetStateAndUnseal(args.State, args.Epoch, args.NextIndex)
 
 		s.mu.Unlock()
 		return e.None
