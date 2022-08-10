@@ -36,6 +36,10 @@ func (s *Server) Apply(op Op) (e.Error, []byte) {
 		s.mu.Unlock()
 		return e.Stale, nil
 	}
+	if s.sealed {
+		s.mu.Unlock()
+		return e.Stale, nil // TODO: make e.Sealed
+	}
 
 	// apply it locally
 	ret := s.sm.Apply(op)
