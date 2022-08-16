@@ -66,10 +66,13 @@ func EnterNewConfig(configHost grove_ffi.Address, servers []grove_ffi.Address) e
 	wg.Wait()
 
 	var err = e.None
-	for _, err2 := range errs {
+	i = 0
+	for i < uint64(len(errs)) {
+		err2 := errs[i]
 		if err2 != e.None {
 			err = err2
 		}
+		i += 1
 	}
 	if err != e.None {
 		return err
