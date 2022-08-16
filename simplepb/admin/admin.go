@@ -1,12 +1,13 @@
 package admin
 
 import (
+	"sync"
+
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/simplepb/config"
 	"github.com/mit-pdos/gokv/simplepb/e"
 	"github.com/mit-pdos/gokv/simplepb/pb"
 	"github.com/tchajed/goose/machine"
-	"sync"
 )
 
 func InitializeSystem(configHost grove_ffi.Address, servers []grove_ffi.Address) e.Error {
@@ -43,19 +44,24 @@ func EnterNewConfig(configHost grove_ffi.Address, servers []grove_ffi.Address) e
 
 	// Set the state of all the new servers.
 	clerks := make([]*pb.Clerk, len(servers))
-	for i := range clerks {
+	var i = uint64(0)
+	for i < uint64(len(clerks)) {
 		clerks[i] = pb.MakeClerk(servers[i])
+		i += 1
 	}
 	wg := new(sync.WaitGroup)
 	errs := make([]e.Error, len(clerks))
-	for i, clerk := range clerks {
+
+	i = 0
+	for i < uint64(len(clerks)) {
 		wg.Add(1)
-		clerk := clerk
-		i := i
+		clerk := clerks[i]
+		locali := i
 		go func() {
-			errs[i] = clerk.SetState(&pb.SetStateArgs{Epoch: epoch, State: reply.State, NextIndex: reply.NextIndex})
+			errs[locali] = clerk.SetState(&pb.SetStateArgs{Epoch: epoch, State: reply.State, NextIndex: reply.NextIndex})
 			wg.Done()
 		}()
+		i += 1
 	}
 	wg.Wait()
 
