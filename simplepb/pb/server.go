@@ -159,6 +159,8 @@ func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {
 	log.Println("Became Primary")
 	s.isPrimary = true
 
+	// XXX: should probably not bother doing this if we are already the primary
+	// in this epoch
 	s.clerks = make([]*Clerk, len(args.Replicas)-1)
 	for i := range s.clerks {
 		s.clerks[i] = MakeClerk(args.Replicas[i+1])

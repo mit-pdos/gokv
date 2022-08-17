@@ -25,6 +25,10 @@ func InitializeSystem(configHost grove_ffi.Address, servers []grove_ffi.Address)
 }
 
 func EnterNewConfig(configHost grove_ffi.Address, servers []grove_ffi.Address) e.Error {
+	if len(servers) == 0 {
+		return e.EmptyConfig
+	}
+
 	configCk := config.MakeClerk(configHost)
 	// Get new epoch number from config service.
 	// Read from config service, fenced with that epoch.

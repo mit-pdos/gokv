@@ -7,10 +7,11 @@ import (
 type Error = uint64
 
 const (
-	None       = uint64(0)
-	Stale      = uint64(1)
-	OutOfOrder = uint64(2)
-	Timeout    = uint64(3)
+	None        = uint64(0)
+	Stale       = uint64(1)
+	OutOfOrder  = uint64(2)
+	Timeout     = uint64(3)
+	EmptyConfig = uint64(4)
 )
 
 func EncodeError(err Error) []byte {
