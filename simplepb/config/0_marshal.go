@@ -19,8 +19,10 @@ func DecodeConfig(enc_config []byte) []grove_ffi.Address {
 	var configLen uint64
 	configLen, enc = marshal.ReadInt(enc)
 	config := make([]grove_ffi.Address, configLen)
-	for i := range config {
+	var i = uint64(0)
+	for i < uint64(len(config)) {
 		config[i], enc = marshal.ReadInt(enc)
+		i++
 	}
 	return config
 }
