@@ -148,8 +148,9 @@ func (s *Server[ExtraT]) Propose(op LogEntry, extra ExtraT, cancelFn func()) Err
 // index, then returns what's been committed.
 // Requires that the server's epoch number is at least `epoch`.
 // Possible errors:
-//   ETruncated iff the log has been truncated past the specified index.
-//   EStale iff the server's epoch number is higher than the specified one.
+//
+//	ETruncated iff the log has been truncated past the specified index.
+//	EStale iff the server's epoch number is higher than the specified one.
 func (s *Server[ExtraT]) GetEntry(index uint64) (Error, LogEntryAndExtra[ExtraT]) {
 	s.mu.Lock()
 	for s.commitIndex < index {

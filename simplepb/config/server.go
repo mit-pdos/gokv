@@ -1,12 +1,14 @@
 package config
 
 import (
+	"log"
+	"sync"
+
+	"github.com/goose-lang/std"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/simplepb/e"
 	"github.com/mit-pdos/gokv/urpc"
 	"github.com/tchajed/marshal"
-	"log"
-	"sync"
 )
 
 type Server struct {
@@ -17,7 +19,9 @@ type Server struct {
 
 func (s *Server) GetEpochAndConfig(args []byte, reply *[]byte) {
 	s.mu.Lock()
-	s.epoch += 1
+
+	s.epoch = std.SumAssumeNoOverflow(s.epoch, 1)
+
 	*reply = make([]byte, 0, 8+8*len(s.config))
 	*reply = marshal.WriteInt(*reply, s.epoch)
 	*reply = marshal.WriteBytes(*reply, EncodeConfig(s.config))

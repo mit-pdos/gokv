@@ -52,7 +52,7 @@ func AddressToStr(e Address) string {
 	return fmt.Sprintf("%s:%d", net.IPv4(a0, a1, a2, a3).String(), port)
 }
 
-/// Listener
+// / Listener
 type listener struct {
 	l net.Listener
 }
@@ -78,7 +78,7 @@ func Accept(l Listener) Connection {
 	return makeConnection(conn)
 }
 
-/// Connection
+// / Connection
 type connection struct {
 	conn    net.Conn
 	send_mu *sync.Mutex // guarding *sending* on `conn`
