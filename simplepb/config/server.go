@@ -38,14 +38,14 @@ func (s *Server) WriteConfig(args []byte, reply *[]byte) {
 	s.mu.Lock()
 	epoch, enc := marshal.ReadInt(args)
 	if epoch != s.epoch {
-		*reply = marshal.WriteInt(*reply, e.Stale)
+		*reply = marshal.WriteInt(nil, e.Stale)
 		s.mu.Unlock()
 		log.Println("Stale write", s.config)
 		return
 	}
 	s.config = DecodeConfig(enc)
 	log.Println("New config is:", s.config)
-	*reply = marshal.WriteInt(*reply, e.None)
+	*reply = marshal.WriteInt(nil, e.None)
 	s.mu.Unlock()
 }
 
@@ -61,15 +61,9 @@ func (s *Server) Serve(me grove_ffi.Address) {
 	handlers := make(map[uint64]func([]byte, *[]byte))
 	// XXX: doing this because partial application is annoying to deal with in proof;
 	// should have no/little performance impact.
-	handlers[RPC_GETEPOCH] = func(args []byte, reply *[]byte) {
-		s.GetEpochAndConfig(args, reply)
-	}
-	handlers[RPC_GETCONFIG] = func(args []byte, reply *[]byte) {
-		s.GetConfig(args, reply)
-	}
-	handlers[RPC_WRITECONFIG] = func(args []byte, reply *[]byte) {
-		s.WriteConfig(args, reply)
-	}
+	handlers[RPC_GETEPOCH] = s.GetEpochAndConfig
+	handlers[RPC_GETCONFIG] = s.GetConfig
+	handlers[RPC_WRITECONFIG] = s.WriteConfig
 
 	rs := urpc.MakeServer(handlers)
 	rs.Serve(me)
