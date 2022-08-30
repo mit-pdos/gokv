@@ -126,6 +126,7 @@ func (s *Server) SetState(args *SetStateArgs) e.Error {
 		s.isPrimary = false
 		s.epoch = args.Epoch
 		s.sealed = false
+		s.nextIndex = args.NextIndex
 		s.sm.SetStateAndUnseal(args.State, args.Epoch, args.NextIndex)
 
 		s.mu.Unlock()
