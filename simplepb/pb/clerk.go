@@ -15,8 +15,8 @@ const (
 	RPC_APPLY         = uint64(0)
 	RPC_SETSTATE      = uint64(1)
 	RPC_GETSTATE      = uint64(2)
-	RPC_BECOMEPRIMARY = uint64(4)
-	RPC_PRIMARYAPPLY  = uint64(5)
+	RPC_BECOMEPRIMARY = uint64(3)
+	RPC_PRIMARYAPPLY  = uint64(4)
 )
 
 func MakeClerk(host grove_ffi.Address) *Clerk {
