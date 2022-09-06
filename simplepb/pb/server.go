@@ -164,7 +164,7 @@ func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {
 	// in this epoch
 	s.clerks = make([]*Clerk, len(args.Replicas)-1)
 	var i = uint64(0)
-	for i < uint64(len(args.Replicas)) {
+	for i < uint64(len(s.clerks)) {
 		s.clerks[i] = MakeClerk(args.Replicas[i+1])
 		i++
 	}
