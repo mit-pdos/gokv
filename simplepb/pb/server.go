@@ -163,8 +163,10 @@ func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {
 	// XXX: should probably not bother doing this if we are already the primary
 	// in this epoch
 	s.clerks = make([]*Clerk, len(args.Replicas)-1)
-	for i := uint64(0); i < uint64(len(args.Replicas)); i++ {
+	var i = uint64(0)
+	for i < uint64(len(args.Replicas)) {
 		s.clerks[i] = MakeClerk(args.Replicas[i+1])
+		i++
 	}
 
 	s.mu.Unlock()
