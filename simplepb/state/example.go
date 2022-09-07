@@ -20,10 +20,10 @@ type KVState struct {
 type Op = []byte
 
 // helper for unmarshalling kvs
-func (s *KVState) decodeKvs(snap_in []byte) {
+func (s *KVState) decodeKvs(snap_in []byte) map[uint64][]byte {
 	log.Println("Decoding encoded state of length: ", len(snap_in))
 	var snap = snap_in
-	s.kvs = make(map[uint64][]byte, 0)
+	kvs := make(map[uint64][]byte, 0)
 	numEntries, snap := marshal.ReadInt(snap)
 	for i := uint64(0); i < numEntries; i++ {
 		var key uint64
@@ -36,8 +36,9 @@ func (s *KVState) decodeKvs(snap_in []byte) {
 		// memory. We probably don't want that.
 		val = snap[:valLen]
 		snap = snap[valLen:]
-		s.kvs[key] = val
+		kvs[key] = val
 	}
+	return kvs
 }
 
 func (s *KVState) encodeKvs() []byte {
@@ -63,7 +64,11 @@ func RecoverKVState(fname string) *KVState {
 	} else {
 		s.epoch, encState = marshal.ReadInt(encState)
 		s.nextIndex, encState = marshal.ReadInt(encState)
-		s.decodeKvs(encState)
+
+		var sealedInt uint64
+		sealedInt, encState = marshal.ReadInt(encState)
+		s.sealed = (sealedInt == 0)
+		s.kvs = s.decodeKvs(encState)
 	}
 	return s
 }
@@ -72,6 +77,11 @@ func (s *KVState) getState() []byte {
 	var enc = make([]byte, 0)
 	enc = marshal.WriteInt(enc, s.epoch)
 	enc = marshal.WriteInt(enc, s.nextIndex)
+	if s.sealed {
+		enc = marshal.WriteInt(enc, 1)
+	} else {
+		enc = marshal.WriteInt(enc, 0)
+	}
 	enc = marshal.WriteBytes(enc, s.encodeKvs())
 	log.Println("Size of encoded state", len(enc))
 	return enc
@@ -126,11 +136,9 @@ type KVServer struct {
 
 func MakeServer(fname string) *KVServer {
 	s := new(KVServer)
-	var epoch uint64
-	var nextIndex uint64
 	state := RecoverKVState(fname)
 
-	s.r = pb.MakeServer(MakeKVStateMachine(state), nextIndex, epoch)
+	s.r = pb.MakeServer(MakeKVStateMachine(state), state.nextIndex, state.epoch, state.sealed)
 	return s
 }
 

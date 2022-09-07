@@ -177,10 +177,11 @@ func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {
 	return e.None
 }
 
-func MakeServer(sm *StateMachine, nextIndex uint64, epoch uint64) *Server {
+func MakeServer(sm *StateMachine, nextIndex uint64, epoch uint64, sealed bool) *Server {
 	s := new(Server)
 	s.mu = new(sync.Mutex)
 	s.epoch = epoch
+	s.sealed = sealed
 	s.sm = sm
 	s.nextIndex = nextIndex
 	s.isPrimary = false
