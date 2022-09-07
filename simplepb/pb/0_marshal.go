@@ -8,13 +8,13 @@ import (
 
 type Op = []byte
 
-type ApplyArgs struct {
+type ApplyAsBackupArgs struct {
 	epoch uint64
 	index uint64
 	op    []byte
 }
 
-func EncodeApplyArgs(args *ApplyArgs) []byte {
+func EncodeApplyAsBackupArgs(args *ApplyAsBackupArgs) []byte {
 	var enc = make([]byte, 0, 8+8+uint64(len(args.op)))
 	enc = marshal.WriteInt(enc, args.epoch)
 	enc = marshal.WriteInt(enc, args.index)
@@ -22,9 +22,9 @@ func EncodeApplyArgs(args *ApplyArgs) []byte {
 	return enc
 }
 
-func DecodeApplyArgs(enc_args []byte) *ApplyArgs {
+func DecodeApplyAsBackupArgs(enc_args []byte) *ApplyAsBackupArgs {
 	var enc = enc_args
-	args := new(ApplyArgs)
+	args := new(ApplyAsBackupArgs)
 	args.epoch, enc = marshal.ReadInt(enc)
 	args.index, enc = marshal.ReadInt(enc)
 	args.op = enc
@@ -119,4 +119,25 @@ func DecodeBecomePrimaryArgs(enc_args []byte) *BecomePrimaryArgs {
 		args.Replicas[i], enc = marshal.ReadInt(enc)
 	}
 	return args
+}
+
+type ApplyReply struct {
+	Err   e.Error
+	Reply []byte
+}
+
+func EncodeApplyReply(reply *ApplyReply) []byte {
+	var enc = make([]byte, 0, 8+uint64(len(reply.Reply)))
+	enc = marshal.WriteInt(enc, reply.Err)
+	enc = marshal.WriteBytes(enc, reply.Reply)
+	return enc
+}
+
+func DecodeApplyReply(enc_reply []byte) *ApplyReply {
+	var enc = enc_reply
+	reply := new(ApplyReply)
+	reply.Err, enc = marshal.ReadInt(enc)
+	reply.Reply = enc // XXX: re-slices the enc_reply, so there 8 bytes in front
+	// that will sit around until ApplyReply is deallocated
+	return reply
 }

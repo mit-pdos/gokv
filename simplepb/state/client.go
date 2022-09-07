@@ -7,10 +7,6 @@ import (
 	"github.com/tchajed/marshal"
 )
 
-const (
-	RPC_FAA = uint64(5) // XXX: has to be bigger than all pb RPCs
-)
-
 type Clerk struct {
 	cl *pb.Clerk
 }
@@ -24,5 +20,5 @@ func (ck *Clerk) FetchAndAppend(key uint64, val []byte) (e.Error, []byte) {
 	args = marshal.WriteInt(args, key)
 	args = marshal.WriteBytes(args, val)
 
-	return ck.cl.PrimaryApply(args)
+	return ck.cl.Apply(args)
 }

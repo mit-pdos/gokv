@@ -8,7 +8,6 @@ import (
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/simplepb/e"
 	"github.com/mit-pdos/gokv/urpc"
-	"github.com/tchajed/marshal"
 )
 
 type StateMachine struct {
@@ -29,20 +28,24 @@ type Server struct {
 }
 
 // called on the primary server to apply a new operation.
-func (s *Server) Apply(op Op) (e.Error, []byte) {
+func (s *Server) Apply(op Op) *ApplyReply {
+	reply := new(ApplyReply)
+	reply.Reply = nil
 	s.mu.Lock()
 	if !s.isPrimary {
 		log.Println("Got request while not being primary")
 		s.mu.Unlock()
-		return e.Stale, nil
+		reply.Err = e.Stale
+		return reply
 	}
 	if s.sealed {
 		s.mu.Unlock()
-		return e.Stale, nil // TODO: make e.Sealed
+		reply.Err = e.Stale
+		return reply
 	}
 
 	// apply it locally
-	ret := s.sm.Apply(op)
+	reply.Reply = s.sm.Apply(op)
 
 	nextIndex := s.nextIndex
 	s.nextIndex = std.SumAssumeNoOverflow(s.nextIndex, 1)
@@ -53,7 +56,7 @@ func (s *Server) Apply(op Op) (e.Error, []byte) {
 	// tell backups to apply it
 	wg := new(sync.WaitGroup)
 	errs := make([]e.Error, len(clerks))
-	args := &ApplyArgs{
+	args := &ApplyAsBackupArgs{
 		epoch: epoch,
 		index: nextIndex,
 		op:    op,
@@ -63,7 +66,7 @@ func (s *Server) Apply(op Op) (e.Error, []byte) {
 		i := i
 		wg.Add(1)
 		go func() {
-			errs[i] = clerk.Apply(args)
+			errs[i] = clerk.ApplyAsBackup(args)
 			wg.Done()
 		}()
 	}
@@ -77,9 +80,10 @@ func (s *Server) Apply(op Op) (e.Error, []byte) {
 		}
 		i += 1
 	}
+	reply.Err = err
 
 	log.Println("Apply() returned ", err)
-	return err, ret
+	return reply
 }
 
 // requires that we've already at least entered this epoch
@@ -90,7 +94,7 @@ func (s *Server) isEpochStale(epoch uint64) bool {
 
 // called on backup servers to apply an operation so it is replicated and
 // can be considered committed by primary.
-func (s *Server) ApplyAsBackup(args *ApplyArgs) e.Error {
+func (s *Server) ApplyAsBackup(args *ApplyAsBackupArgs) e.Error {
 	s.mu.Lock()
 	if s.isEpochStale(args.epoch) {
 		s.mu.Unlock()
@@ -186,8 +190,8 @@ func MakeServer(sm *StateMachine, nextIndex uint64, epoch uint64) *Server {
 func (s *Server) Serve(me grove_ffi.Address) {
 	handlers := make(map[uint64]func([]byte, *[]byte))
 
-	handlers[RPC_APPLY] = func(args []byte, reply *[]byte) {
-		*reply = e.EncodeError(s.ApplyAsBackup(DecodeApplyArgs(args)))
+	handlers[RPC_APPLYASBACKUP] = func(args []byte, reply *[]byte) {
+		*reply = e.EncodeError(s.ApplyAsBackup(DecodeApplyAsBackupArgs(args)))
 	}
 
 	handlers[RPC_SETSTATE] = func(args []byte, reply *[]byte) {
@@ -203,15 +207,7 @@ func (s *Server) Serve(me grove_ffi.Address) {
 	}
 
 	handlers[RPC_PRIMARYAPPLY] = func(args []byte, reply *[]byte) {
-		err, ret := s.Apply(args)
-		if err == e.None {
-			*reply = make([]byte, 0, 8+len(ret))
-			*reply = marshal.WriteInt(*reply, err)
-			*reply = marshal.WriteBytes(*reply, ret)
-		} else {
-			*reply = make([]byte, 0, 8)
-			*reply = marshal.WriteInt(*reply, err)
-		}
+		*reply = EncodeApplyReply(s.Apply(args))
 	}
 
 	rs := urpc.MakeServer(handlers)
