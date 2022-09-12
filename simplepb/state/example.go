@@ -20,22 +20,22 @@ type KVState struct {
 type Op = []byte
 
 // helper for unmarshalling kvs
-func decodeKvs(snap_in []byte) map[uint64][]byte {
-	log.Println("Decoding encoded state of length: ", len(snap_in))
-	var snap = snap_in
+func decodeKvs(enc_in []byte) map[uint64][]byte {
+	log.Println("Decoding encoded state of length: ", len(enc_in))
+	var enc = enc_in
 	kvs := make(map[uint64][]byte, 0)
-	numEntries, snap := marshal.ReadInt(snap)
+	numEntries, enc := marshal.ReadInt(enc)
 	for i := uint64(0); i < numEntries; i++ {
 		var key uint64
 		var valLen uint64
 		var val []byte
-		key, snap = marshal.ReadInt(snap)
-		valLen, snap = marshal.ReadInt(snap)
+		key, enc = marshal.ReadInt(enc)
+		valLen, enc = marshal.ReadInt(enc)
 
 		// XXX: this will keep the whole original encoded slice around in
 		// memory. We probably don't want that.
-		val = snap[:valLen]
-		snap = snap[valLen:]
+		val = enc[:valLen]
+		enc = enc[valLen:]
 		kvs[key] = val
 	}
 	return kvs
