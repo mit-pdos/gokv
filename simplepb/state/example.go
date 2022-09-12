@@ -20,7 +20,7 @@ type KVState struct {
 type Op = []byte
 
 // helper for unmarshalling kvs
-func (s *KVState) decodeKvs(snap_in []byte) map[uint64][]byte {
+func decodeKvs(snap_in []byte) map[uint64][]byte {
 	log.Println("Decoding encoded state of length: ", len(snap_in))
 	var snap = snap_in
 	kvs := make(map[uint64][]byte, 0)
@@ -41,10 +41,10 @@ func (s *KVState) decodeKvs(snap_in []byte) map[uint64][]byte {
 	return kvs
 }
 
-func (s *KVState) encodeKvs() []byte {
+func encodeKvs(kvs map[uint64][]byte) []byte {
 	var enc = make([]byte, 0)
-	enc = marshal.WriteInt(enc, uint64(len(s.kvs)))
-	for k, v := range s.kvs {
+	enc = marshal.WriteInt(enc, uint64(len(kvs)))
+	for k, v := range kvs {
 		enc = marshal.WriteInt(enc, k)
 		enc = marshal.WriteInt(enc, uint64(len(v)))
 		enc = marshal.WriteBytes(enc, v)
@@ -68,7 +68,7 @@ func RecoverKVState(fname string) *KVState {
 		var sealedInt uint64
 		sealedInt, encState = marshal.ReadInt(encState)
 		s.sealed = (sealedInt == 0)
-		s.kvs = s.decodeKvs(encState)
+		s.kvs = decodeKvs(encState)
 	}
 	return s
 }
@@ -82,7 +82,7 @@ func (s *KVState) getState() []byte {
 	} else {
 		enc = marshal.WriteInt(enc, 0)
 	}
-	enc = marshal.WriteBytes(enc, s.encodeKvs())
+	enc = marshal.WriteBytes(enc, encodeKvs(s.kvs))
 	log.Println("Size of encoded state", len(enc))
 	return enc
 }
@@ -103,7 +103,7 @@ func (s *KVState) Apply(op Op) []byte {
 }
 
 func (s *KVState) SetStateAndUnseal(snap_in []byte, epoch uint64, nextIndex uint64) {
-	s.decodeKvs(snap_in)
+	s.kvs = decodeKvs(snap_in)
 	s.epoch = epoch
 	s.sealed = false
 	s.nextIndex = nextIndex
@@ -111,7 +111,7 @@ func (s *KVState) SetStateAndUnseal(snap_in []byte, epoch uint64, nextIndex uint
 }
 
 func (s *KVState) GetStateAndSeal() []byte {
-	ret := s.encodeKvs()
+	ret := encodeKvs(s.kvs)
 	s.sealed = true
 	s.MakeDurable()
 	return ret
