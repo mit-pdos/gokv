@@ -1,10 +1,12 @@
 package state
 
 import (
+	"log"
+
+	"github.com/goose-lang/std"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/simplepb/pb"
 	"github.com/tchajed/marshal"
-	"log"
 )
 
 type KVState struct {
@@ -95,7 +97,7 @@ func (s *KVState) Apply(op Op) []byte {
 	// the only op is FetchAndAppend(key, val)
 	key, appendVal := marshal.ReadInt(op)
 	ret := s.kvs[key]
-	s.nextIndex += 1
+	s.nextIndex = std.SumAssumeNoOverflow(s.nextIndex, 1)
 	s.kvs[key] = append(s.kvs[key], appendVal...)
 
 	s.MakeDurable()
