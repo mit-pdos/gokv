@@ -27,7 +27,6 @@ func appendOp(fname string, op []byte) {
 // u64:   nextIndex
 // [*]op: ops in the format (op length ++ op)
 // ?u8:    sealed; this is only present if the state is sealed in this epoch
-
 type StateMachine struct {
 	fname string
 
@@ -98,7 +97,8 @@ func recoverStateMachine(smMem *InMemoryStateMachine, fname string) *StateMachin
 	var snapLen uint64
 	var snap []byte
 	snapLen, enc = marshal.ReadInt(enc)
-	snap, enc = enc[:snapLen], enc[snapLen:]
+	snap = enc[:snapLen]
+	enc = enc[snapLen:]
 	s.smMem.SetState(snap)
 
 	// load protocol state
@@ -109,9 +109,9 @@ func recoverStateMachine(smMem *InMemoryStateMachine, fname string) *StateMachin
 	for {
 		if len(enc) > 1 {
 			var opLen uint64
-			var op []byte
 			opLen, enc = marshal.ReadInt(enc)
-			op, enc = enc[:opLen], enc[opLen:]
+			op := enc[:opLen]
+			enc = enc[opLen:]
 			s.smMem.ApplyVolatile(op)
 		} else {
 			break
