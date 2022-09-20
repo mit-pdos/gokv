@@ -21,7 +21,7 @@ func appendOp(fname string, op []byte) {
 	grove_ffi.AtomicAppend(fname, enc)
 }
 
-const MAX_LOG_SIZE = 64 * 1024 * 1024
+const MAX_LOG_SIZE = uint64(64 * 1024 * 1024)
 
 // File format:
 // [N]u8: snapshot
