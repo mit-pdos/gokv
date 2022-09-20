@@ -8,18 +8,20 @@ import (
 
 type InMemoryStateMachine struct {
 	ApplyVolatile func([]byte) []byte
-	GetState func() []byte
-	SetState func([]byte)
+	GetState      func() []byte
+	SetState      func([]byte)
 }
 
 func appendOp(fname string, op []byte) {
-	var enc = make([]byte, 0, 8 + uint64(len(op)))
+	var enc = make([]byte, 0, 8+uint64(len(op)))
 	// write byte indicating that this is a op, then length of op, then op itself.
 	marshal.WriteInt(enc, uint64(len(op)))
 	marshal.WriteBytes(enc, op)
 
 	grove_ffi.AtomicAppend(fname, enc)
 }
+
+const MAX_LOG_SIZE = 64 * 1024 * 1024
 
 // File format:
 // [N]u8: snapshot
@@ -30,23 +32,18 @@ func appendOp(fname string, op []byte) {
 type StateMachine struct {
 	fname string
 
-	sealed     bool
-	epoch      uint64
-	nextIndex  uint64
-	smMem *InMemoryStateMachine
-}
-
-func (s *StateMachine) apply(op []byte) []byte {
-	appendOp(s.fname, op) // make the op durable
-	s.nextIndex += 1
-	return s.smMem.ApplyVolatile(op) // apply op in-memory
+	logsize   uint64
+	sealed    bool
+	epoch     uint64
+	nextIndex uint64
+	smMem     *InMemoryStateMachine
 }
 
 // FIXME: better name; this isn't the same as "MakeDurable"
-func (s *StateMachine) makeDurable(snap []byte) {
+func (s *StateMachine) makeDurableWithSnap(snap []byte) {
 	// TODO: we're copying the entire snapshot in memory just to insert the
 	// length before it. Shouldn't do this.
-	var enc = make([]byte, 0, 8 + len(snap) + 8 + 8)
+	var enc = make([]byte, 0, 8+len(snap)+8+8)
 	marshal.WriteInt(enc, uint64(len(snap)))
 	marshal.WriteBytes(enc, snap)
 	marshal.WriteInt(enc, s.epoch)
@@ -60,23 +57,38 @@ func (s *StateMachine) makeDurable(snap []byte) {
 	grove_ffi.Write(s.fname, enc)
 }
 
+// XXX: this is not safe to run concurrently with apply()
+func (s *StateMachine) truncateAndMakeDurable() {
+	snap := s.smMem.GetState()
+	s.makeDurableWithSnap(snap)
+}
+
+func (s *StateMachine) apply(op []byte) []byte {
+	ret := s.smMem.ApplyVolatile(op) // apply op in-memory
+	s.nextIndex += 1
+
+	s.logsize += uint64(len(op))
+	if s.logsize > MAX_LOG_SIZE {
+		s.logsize = 0
+		s.truncateAndMakeDurable()
+	} else {
+		appendOp(s.fname, op) // make the op durable
+	}
+	return ret
+}
+
 func (s *StateMachine) setStateAndUnseal(snap []byte, nextIndex uint64, epoch uint64) {
 	s.epoch = epoch
 	s.nextIndex = nextIndex
 	s.sealed = false
 	s.smMem.SetState(snap)
-
-	s.makeDurable(snap)
-}
-
-func (s *StateMachine) truncate() {
-	snap := s.smMem.GetState()
-	s.makeDurable(snap)
+	s.makeDurableWithSnap(snap)
 }
 
 func (s *StateMachine) getStateAndSeal() []byte {
 	if !s.sealed {
 		// seal the file by writing a byte at the end
+		s.sealed = true
 		grove_ffi.AtomicAppend(s.fname, make([]byte, 1))
 	}
 	// XXX: it might be faster to read the file from disk.
@@ -127,8 +139,8 @@ func recoverStateMachine(smMem *InMemoryStateMachine, fname string) *StateMachin
 func MakePbStateMachine(smMem *InMemoryStateMachine, fname string) *pb.StateMachine {
 	s := recoverStateMachine(smMem, fname)
 	return &pb.StateMachine{
-		Apply: s.apply,
+		Apply:             s.apply,
 		SetStateAndUnseal: s.setStateAndUnseal,
-		GetStateAndSeal: s.getStateAndSeal,
+		GetStateAndSeal:   s.getStateAndSeal,
 	}
 }
