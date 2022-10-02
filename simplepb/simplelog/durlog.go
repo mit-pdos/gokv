@@ -136,11 +136,17 @@ func recoverStateMachine(smMem *InMemoryStateMachine, fname string) *StateMachin
 	return s
 }
 
-func MakePbStateMachine(smMem *InMemoryStateMachine, fname string) *pb.StateMachine {
+// XXX: putting this here because MakeServer takes nextIndex, epoch, and sealed
+// as input, and the user of simplelog won't have access to the private fields
+// index, epoch, etc.
+//
+// Maybe we should make those be a part of pb.StateMachine
+func MakePbServer(smMem *InMemoryStateMachine, fname string) *pb.Server {
 	s := recoverStateMachine(smMem, fname)
-	return &pb.StateMachine{
+	sm := &pb.StateMachine{
 		Apply:             s.apply,
 		SetStateAndUnseal: s.setStateAndUnseal,
 		GetStateAndSeal:   s.getStateAndSeal,
 	}
+	return pb.MakeServer(sm, s.nextIndex, s.epoch, s.sealed)
 }

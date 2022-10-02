@@ -12,6 +12,7 @@ const (
 	OutOfOrder  = uint64(2)
 	Timeout     = uint64(3)
 	EmptyConfig = uint64(4)
+	NotLeader   = uint64(5)
 )
 
 func EncodeError(err Error) []byte {

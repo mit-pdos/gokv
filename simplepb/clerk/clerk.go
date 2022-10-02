@@ -1,4 +1,4 @@
-package client
+package clerk
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"

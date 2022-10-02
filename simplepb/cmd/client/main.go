@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	"github.com/mit-pdos/gokv/grove_ffi"
-	"github.com/mit-pdos/gokv/simplepb/client"
+	"github.com/mit-pdos/gokv/simplepb/clerk"
 )
 
 func main() {
@@ -31,7 +31,7 @@ func main() {
 	}
 
 	conf := grove_ffi.MakeAddress(confStr)
-	ck := client.Make(conf)
+	ck := clerk.Make(conf)
 
 	a := flag.Args()
 	usage_assert(len(a) > 0)
