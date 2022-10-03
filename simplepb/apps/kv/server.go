@@ -1,6 +1,7 @@
 package kv
 
 // Replicated KV server using simplelog for durability.
+// This does not use a reply table for deduplication.
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
@@ -16,7 +17,7 @@ type KVState struct {
 // Ops include:
 // Put(k, v)
 // Get(k)
-// ConditionalPut(k, v, expected_v)
+// // ConditionalPut(k, v, expected_v)
 const (
 	OP_PUT = byte(0)
 	OP_GET = byte(1)

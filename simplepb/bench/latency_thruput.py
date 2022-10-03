@@ -11,8 +11,6 @@ import time
 import atexit
 import signal
 
-from latency_config import *
-
 parser = argparse.ArgumentParser(
 description="Compute latency and throughput for kv service with varying client load"
 )
@@ -80,33 +78,6 @@ def many_cores(args, c):
 def one_core(args, c):
     return ["numactl", "-C", str(c)] + args
 
-def start_memkv_multiserver(config:list[list[int]]):
-    """
-    Given a list of lists of cores for each shard server, this brings up the kv
-    system
-    """
-    start_command(["go", "run",
-                   "./cmd/memkvcoord", "-init",
-                   "127.0.0.1:12300", "-port", "12200"], cwd=gokvdir)
-
-    for i, corelist in enumerate(config):
-        start_shard_multicore(12300 + i, corelist, i == 0)
-        time.sleep(1.0)
-        if i > 0:
-            run_command(["go", "run", "./cmd/memkvctl", "-coord", "127.0.0.1:12200", "add", "127.0.0.1:" + str(12300 + i)], cwd=gokvdir)
-    print("[INFO] Started kv service with {0} server(s)".format(len(config)))
-
-def start_shard_multicore(port:int, corelist:list[int], init:bool):
-    c = ",".join([str(j) for j in corelist])
-    if init:
-        start_command(many_cores(["go", "run", "./cmd/memkvshard", "-init", "-port", str(port)], c), cwd=gokvdir)
-    else:
-        start_command(many_cores(["go", "run", "./cmd/memkvshard", "-port", str(port)], c), cwd=gokvdir)
-    print("[INFO] Started a shard server with {0} cores on port {1}".format(len(corelist), port))
-
-def start_redis():
-    pass
-
 def parse_ycsb_output(output):
     # look for 'Run finished, takes...', then parse the lines for each of the operations
     # output = output[re.search("Run finished, takes .*\n", output).end():] # strip off beginning of output
@@ -141,10 +112,10 @@ def goycsb_bench(kvname:int, threads:int, runtime:int, valuesize:int, readprop:f
                                   '-p', 'readproportion=' + str(readprop),
                                   '-p', 'updateproportion=' + str(updateprop),
                                   '-p',
-                                  'rediskv.addr=' + config['hosts']['rediskv']
-                                  if kvname == 'rediskv'
-                                  else
-                                  'memkv.coord=' + config['hosts']['memkv'],
+                                  # 'rediskv.addr=' + config['hosts']['rediskv']
+                                  # if kvname == 'rediskv'
+                                  # else
+                                  # 'memkv.coord=' + config['hosts']['memkv'],
                                   '-p', 'warmup=20', # TODO: increase warmup
                                   '-p', 'recordcount=', str(keys),
                                   ], c), cwd=goycsbdir)
@@ -202,10 +173,22 @@ def closed_lt(kvname, valuesize, outfilename, readprop, updateprop, recordcount,
     return data
 
 def start_config_server():
-    """
+    # FIXME: core pinning
+    start_command(["go", "run", "./cmd/config", "-port", "12000"], cwd=gokvdir)
 
-    """
-    start_command(["go", "run", "./cmd/config", "-port", "12200"], cwd=gokvdir)
+def start_one_kv_server():
+    # FIXME: core pinning
+    # FIXME: delete kvserver.data file
+    # run_command(["rm", "kvserver.data"])
+    start_command(["go", "run", "./cmd/kvsrv", "-filename", "single_kvserver.data", "-port", "12100"], cwd=gokvdir)
+
+def start_single_node_kv_system():
+    start_config_server()
+    start_one_kv_server()
+    time.sleep(0.5)
+    # tell the config server about the initial config
+    start_command(["go", "run", "./cmd/configctl", "-config", "0.0.0.0:12000",
+                   "set-init"], cwd=gokvdir)
 
 def main():
     atexit.register(cleanup_procs)
@@ -213,14 +196,15 @@ def main():
     global gokvdir
     global goycsbdir
     os.makedirs(global_args.outdir, exist_ok=True)
-    goycsbdir = os.path.dirname(os.path.abspath(__file__))
-    gokvdir = os.path.join(os.path.dirname(goycsbdir), "gokv")
+    scriptdir = os.path.dirname(os.path.abspath(__file__))
+    gokvdir = os.path.dirname(scriptdir)
     os.makedirs(global_args.outdir, exist_ok=True)
     resource.setrlimit(resource.RLIMIT_NOFILE, (100000, 100000))
 
-    start_config_server() # should pin to core
-    start_pb_server() # should pin to core
-    closed_lt('pb-kv', 128, path.join(global_args.outdir, 'memkv_lt.jsons'), config['read'], config['write'], config['keys'], num_threads, config['benchcores'])
+    start_single_node_kv_system()
+    while True:
+        pass
+    # closed_lt('pb-kv', 128, path.join(global_args.outdir, 'pb-kvs.jsons'), config['read'], config['write'], config['keys'], num_threads, config['benchcores'])
 
 if __name__=='__main__':
     main()

@@ -59,8 +59,7 @@ func MakeServer() *Server {
 
 func (s *Server) Serve(me grove_ffi.Address) {
 	handlers := make(map[uint64]func([]byte, *[]byte))
-	// XXX: doing this because partial application is annoying to deal with in proof;
-	// should have no/little performance impact.
+
 	handlers[RPC_GETEPOCH] = s.GetEpochAndConfig
 	handlers[RPC_GETCONFIG] = s.GetConfig
 	handlers[RPC_WRITECONFIG] = s.WriteConfig

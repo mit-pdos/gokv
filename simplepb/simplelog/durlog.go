@@ -105,6 +105,10 @@ func recoverStateMachine(smMem *InMemoryStateMachine, fname string) *StateMachin
 	// load from file
 	var enc = grove_ffi.Read(s.fname)
 
+	if len(enc) == 0 {
+		return s
+	}
+
 	// load snapshot
 	var snapLen uint64
 	var snap []byte
