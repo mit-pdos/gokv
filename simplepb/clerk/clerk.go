@@ -4,13 +4,13 @@ import (
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/simplepb/config"
 	"github.com/mit-pdos/gokv/simplepb/e"
-	"github.com/mit-pdos/gokv/simplepb/state"
+	"github.com/mit-pdos/gokv/simplepb/pb"
 	"log"
 )
 
 type Clerk struct {
 	confCk    *config.Clerk
-	primaryCk *state.Clerk
+	primaryCk *pb.Clerk
 }
 
 func Make(confHost grove_ffi.Address) *Clerk {
@@ -21,26 +21,27 @@ func Make(confHost grove_ffi.Address) *Clerk {
 		if len(config) == 0 {
 			continue
 		} else {
-			ck.primaryCk = state.MakeClerk(config[0])
+			ck.primaryCk = pb.MakeClerk(config[0])
 			break
 		}
 	}
 	return ck
 }
 
-func (ck *Clerk) FetchAndAppend(key uint64, val []byte) []byte {
+// will retry forever
+func (ck *Clerk) Apply(op []byte) []byte {
 	var ret []byte
 	for {
 		var err e.Error
-		err, ret = ck.primaryCk.FetchAndAppend(key, val)
+		err, ret = ck.primaryCk.Apply(op)
 		if err == e.None {
-			grove_ffi.Sleep(uint64(100_000_000))
+			// grove_ffi.Sleep(uint64(100_000_000))
 			break
 		} else {
-			log.Println("Error: ", err)
+			log.Println("Error during apply(): ", err)
 			config := ck.confCk.GetConfig()
-			ck.primaryCk = state.MakeClerk(config[0])
-			grove_ffi.Sleep(uint64(100_000_000))
+			ck.primaryCk = pb.MakeClerk(config[0])
+			// grove_ffi.Sleep(uint64(100_000_000))
 			continue
 		}
 	}

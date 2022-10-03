@@ -30,7 +30,8 @@ type putArgs struct {
 }
 
 func encodePutArgs(args *putArgs) []byte {
-	var enc = make([]byte, 8+uint64(len(args.key))+uint64(len(args.val)))
+	var enc = make([]byte, 1, 1+8+uint64(len(args.key))+uint64(len(args.val)))
+	enc[0] = OP_PUT
 	enc = marshal.WriteInt(enc, uint64(len(args.key)))
 	enc = marshal.WriteBytes(enc, args.key)
 	enc = marshal.WriteBytes(enc, args.val)
@@ -50,6 +51,13 @@ func decodePutArgs(raw_args []byte) *putArgs {
 }
 
 type getArgs []byte
+
+func encodeGetArgs(args getArgs) []byte {
+	var enc = make([]byte, 1, 1+uint64(len(args)))
+	enc[0] = OP_GET
+	enc = marshal.WriteBytes(enc, args)
+	return enc
+}
 
 func decodeGetArgs(raw_args []byte) getArgs {
 	return raw_args
