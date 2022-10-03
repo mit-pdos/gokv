@@ -82,7 +82,7 @@ func (s *Server) Apply(op Op) *ApplyReply {
 	}
 	reply.Err = err
 
-	log.Println("Apply() returned ", err)
+	// log.Println("Apply() returned ", err)
 	return reply
 }
 

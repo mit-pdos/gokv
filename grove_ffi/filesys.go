@@ -39,6 +39,8 @@ func Read(filename string) []byte {
 }
 
 func AtomicAppend(filename string, data []byte) {
+	filename = filepath.Join(DataDir, filename)
+
 	f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		panic(err)

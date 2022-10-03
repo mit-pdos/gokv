@@ -20,6 +20,6 @@ func main() {
 	ck := config.MakeClerk(grove_ffi.MakeAddress(configHost))
 
 	config := make([]grove_ffi.Address, 1)
-	config[0] = grove_ffi.MakeAddress("0.0.0.0:12101")
+	config[0] = grove_ffi.MakeAddress("0.0.0.0:12100")
 	ck.WriteConfig(0, config)
 }

@@ -111,12 +111,12 @@ def goycsb_bench(kvname:int, threads:int, runtime:int, valuesize:int, readprop:f
                                   '-p', 'requestdistribution=uniform',
                                   '-p', 'readproportion=' + str(readprop),
                                   '-p', 'updateproportion=' + str(updateprop),
-                                  '-p',
+                                  # '-p',
                                   # 'rediskv.addr=' + config['hosts']['rediskv']
                                   # if kvname == 'rediskv'
                                   # else
                                   # 'memkv.coord=' + config['hosts']['memkv'],
-                                  '-p', 'pb.confiAddr=127.0.0.1:12200',
+                                  '-p', 'pbkv.configAddr=0.0.0.0:12200',
                                   '-p', 'warmup=20', # TODO: increase warmup
                                   '-p', 'recordcount=', str(keys),
                                   ], c), cwd=goycsbdir)
@@ -179,8 +179,8 @@ def start_config_server():
 
 def start_one_kv_server():
     # FIXME: core pinning
-    # FIXME: delete kvserver.data file
-    # run_command(["rm", "kvserver.data"])
+    # delete kvserver.data file
+    run_command(["rm", "durable/single_kvserver.data"], cwd=simplepbdir)
     start_command(["go", "run", "./cmd/kvsrv", "-filename", "single_kvserver.data", "-port", "12100"], cwd=simplepbdir)
 
 def start_single_node_kv_system():
@@ -188,8 +188,8 @@ def start_single_node_kv_system():
     start_one_kv_server()
     time.sleep(0.5)
     # tell the config server about the initial config
-    start_command(["go", "run", "./cmd/configctl", "-config", "0.0.0.0:12000",
-                   "set-init"], cwd=simplepbdir)
+    start_command(["go", "run", "./cmd/admin", "-conf", "0.0.0.0:12000",
+                   "init", "0.0.0.0:12100"], cwd=simplepbdir)
 
 def main():
     atexit.register(cleanup_procs)

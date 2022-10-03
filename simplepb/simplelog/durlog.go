@@ -15,8 +15,8 @@ type InMemoryStateMachine struct {
 func appendOp(fname string, op []byte) {
 	var enc = make([]byte, 0, 8+uint64(len(op)))
 	// write byte indicating that this is a op, then length of op, then op itself.
-	marshal.WriteInt(enc, uint64(len(op)))
-	marshal.WriteBytes(enc, op)
+	enc = marshal.WriteInt(enc, uint64(len(op)))
+	enc = marshal.WriteBytes(enc, op)
 
 	grove_ffi.AtomicAppend(fname, enc)
 }
