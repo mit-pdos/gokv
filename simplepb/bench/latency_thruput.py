@@ -40,7 +40,7 @@ parser.add_argument(
 )
 
 global_args = parser.parse_args()
-gokvdir = ''
+simplepbdir = ''
 goycsbdir = ''
 
 procs = []
@@ -102,7 +102,7 @@ def goycsb_bench(kvname:int, threads:int, runtime:int, valuesize:int, readprop:f
     p = start_command(many_cores(['go', 'run',
                                   path.join(goycsbdir, './cmd/go-ycsb'),
                                   'run', kvname,
-                                  '-P', '../gokv/bench/' + kvname + '_workload',
+                                  '-P', path.join(simplepbdir, "bench", kvname + '_workload'),
                                   '--threads', str(threads),
                                   '--target', '-1',
                                   '--interval', '1',
@@ -116,6 +116,7 @@ def goycsb_bench(kvname:int, threads:int, runtime:int, valuesize:int, readprop:f
                                   # if kvname == 'rediskv'
                                   # else
                                   # 'memkv.coord=' + config['hosts']['memkv'],
+                                  '-p', 'pb.confiAddr=127.0.0.1:12200',
                                   '-p', 'warmup=20', # TODO: increase warmup
                                   '-p', 'recordcount=', str(keys),
                                   ], c), cwd=goycsbdir)
@@ -174,13 +175,13 @@ def closed_lt(kvname, valuesize, outfilename, readprop, updateprop, recordcount,
 
 def start_config_server():
     # FIXME: core pinning
-    start_command(["go", "run", "./cmd/config", "-port", "12000"], cwd=gokvdir)
+    start_command(["go", "run", "./cmd/config", "-port", "12000"], cwd=simplepbdir)
 
 def start_one_kv_server():
     # FIXME: core pinning
     # FIXME: delete kvserver.data file
     # run_command(["rm", "kvserver.data"])
-    start_command(["go", "run", "./cmd/kvsrv", "-filename", "single_kvserver.data", "-port", "12100"], cwd=gokvdir)
+    start_command(["go", "run", "./cmd/kvsrv", "-filename", "single_kvserver.data", "-port", "12100"], cwd=simplepbdir)
 
 def start_single_node_kv_system():
     start_config_server()
@@ -188,23 +189,33 @@ def start_single_node_kv_system():
     time.sleep(0.5)
     # tell the config server about the initial config
     start_command(["go", "run", "./cmd/configctl", "-config", "0.0.0.0:12000",
-                   "set-init"], cwd=gokvdir)
+                   "set-init"], cwd=simplepbdir)
 
 def main():
     atexit.register(cleanup_procs)
     resource.setrlimit(resource.RLIMIT_NOFILE, (100000, 100000))
-    global gokvdir
+    global simplepbdir
     global goycsbdir
     os.makedirs(global_args.outdir, exist_ok=True)
     scriptdir = os.path.dirname(os.path.abspath(__file__))
-    gokvdir = os.path.dirname(scriptdir)
+    simplepbdir = os.path.dirname(scriptdir)
+    goycsbdir = os.path.join(os.path.dirname(os.path.dirname(simplepbdir)), "go-ycsb")
+
     os.makedirs(global_args.outdir, exist_ok=True)
     resource.setrlimit(resource.RLIMIT_NOFILE, (100000, 100000))
 
     start_single_node_kv_system()
-    while True:
-        pass
-    # closed_lt('pb-kv', 128, path.join(global_args.outdir, 'pb-kvs.jsons'), config['read'], config['write'], config['keys'], num_threads, config['benchcores'])
+
+    time.sleep(1000000)
+
+    config = {
+        'read': 0.95,
+        'write': 0.05,
+        'keys': 1000,
+        'benchcores': [6,7,8,9,10,11],
+    }
+
+    closed_lt('pbkv', 128, path.join(global_args.outdir, 'pb-kvs.jsons'), config['read'], config['write'], config['keys'], num_threads, config['benchcores'])
 
 if __name__=='__main__':
     main()
