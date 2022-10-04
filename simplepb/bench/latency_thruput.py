@@ -136,13 +136,15 @@ def goycsb_bench(kvname:int, threads:int, runtime:int, valuesize:int, readprop:f
 def num_threads(i):
     if i < 5:
         return i + 1
-    else:
+    elif i < 25:
         return (i - 4) * 5
+    else:
+        return 50 + (i - 24) * 50
 
 def closed_lt(kvname, valuesize, outfilename, readprop, updateprop, recordcount, thread_fn, bench_cores):
     data = []
-    i = 0
-    last_good_index = 0
+    i = 25
+    last_good_index = 25
     peak_thruput = 0
     # last_thruput = 10000
     # last_threads = 10
@@ -186,7 +188,7 @@ def start_one_kv_server():
 def start_single_node_kv_system():
     start_config_server()
     start_one_kv_server()
-    time.sleep(0.5)
+    time.sleep(1.0)
     # tell the config server about the initial config
     start_command(["go", "run", "./cmd/admin", "-conf", "0.0.0.0:12000",
                    "init", "0.0.0.0:12100"], cwd=simplepbdir)
@@ -209,8 +211,8 @@ def main():
     time.sleep(1000000)
 
     config = {
-        'read': 0.95,
-        'write': 0.05,
+        'read': 0,
+        'write': 1.0,
         'keys': 1000,
         'clientcores': [6,7,8,9,10,11],
     }

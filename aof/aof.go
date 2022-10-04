@@ -1,8 +1,10 @@
 package aof
 
 import (
-	"github.com/mit-pdos/lockservice/grove_ffi"
+	// "log"
 	"sync"
+
+	"github.com/mit-pdos/lockservice/grove_ffi"
 )
 
 type AppendOnlyFile struct {
@@ -35,6 +37,7 @@ func CreateAppendOnlyFile(fname string) *AppendOnlyFile {
 			newLength := a.length
 			a.membuf = make([]byte, 0)
 			a.mu.Unlock()
+			// log.Printf("AtomicAppend %d bytes\n", len(l))
 
 			grove_ffi.AtomicAppend(fname, l)
 

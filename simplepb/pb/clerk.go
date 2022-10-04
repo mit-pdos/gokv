@@ -64,7 +64,7 @@ func (ck *Clerk) BecomePrimary(args *BecomePrimaryArgs) e.Error {
 
 func (ck *Clerk) Apply(op []byte) (e.Error, []byte) {
 	reply := new([]byte)
-	err := ck.cl.Call(RPC_PRIMARYAPPLY, op, reply, 200 /* ms */)
+	err := ck.cl.Call(RPC_PRIMARYAPPLY, op, reply, 500 /* ms */)
 	if err == 0 {
 		r := DecodeApplyReply(*reply)
 		return r.Err, r.Reply
