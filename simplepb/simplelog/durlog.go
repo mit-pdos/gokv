@@ -1,6 +1,7 @@
 package simplelog
 
 import (
+	"github.com/mit-pdos/gokv/aof"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/simplepb/pb"
 	"github.com/tchajed/marshal"
@@ -21,7 +22,7 @@ func appendOp(fname string, op []byte) {
 	grove_ffi.AtomicAppend(fname, enc)
 }
 
-const MAX_LOG_SIZE = uint64(64 * 1024 * 1024)
+const MAX_LOG_SIZE = uint64(64 * 1024 * 1024 * 1024)
 
 // File format:
 // [N]u8: snapshot
@@ -31,6 +32,9 @@ const MAX_LOG_SIZE = uint64(64 * 1024 * 1024)
 // ?u8:    sealed; this is only present if the state is sealed in this epoch
 type StateMachine struct {
 	fname string
+
+	// this append-only file
+	logFile *aof.AppendOnlyFile
 
 	logsize   uint64
 	sealed    bool
@@ -63,18 +67,26 @@ func (s *StateMachine) truncateAndMakeDurable() {
 	s.makeDurableWithSnap(snap)
 }
 
-func (s *StateMachine) apply(op []byte) []byte {
+func (s *StateMachine) apply(op []byte) ([]byte, func()) {
 	ret := s.smMem.ApplyVolatile(op) // apply op in-memory
 	s.nextIndex += 1
 
 	s.logsize += uint64(len(op))
+	var waitFn func()
+
 	if s.logsize > MAX_LOG_SIZE {
-		s.logsize = 0
-		s.truncateAndMakeDurable()
+		panic("unsupported when using aof")
+		// s.logsize = 0
+		// s.truncateAndMakeDurable()
+		// waitFn = func() {}
 	} else {
-		appendOp(s.fname, op) // make the op durable
+		l := s.logFile.Append(op)
+
+		waitFn = func() {
+			s.logFile.WaitAppend(l)
+		}
 	}
-	return ret
+	return ret, waitFn
 }
 
 func (s *StateMachine) setStateAndUnseal(snap []byte, nextIndex uint64, epoch uint64) {
@@ -104,6 +116,7 @@ func recoverStateMachine(smMem *InMemoryStateMachine, fname string) *StateMachin
 
 	// load from file
 	var enc = grove_ffi.Read(s.fname)
+	s.logFile = aof.CreateAppendOnlyFile(fname)
 
 	if len(enc) == 0 {
 		return s
@@ -148,7 +161,7 @@ func recoverStateMachine(smMem *InMemoryStateMachine, fname string) *StateMachin
 func MakePbServer(smMem *InMemoryStateMachine, fname string) *pb.Server {
 	s := recoverStateMachine(smMem, fname)
 	sm := &pb.StateMachine{
-		Apply:             s.apply,
+		StartApply:        s.apply,
 		SetStateAndUnseal: s.setStateAndUnseal,
 		GetStateAndSeal:   s.getStateAndSeal,
 	}

@@ -39,8 +39,8 @@ func (srv *Server) readThread(conn grove_ffi.Connection) {
 		data := r.Data
 		rpcid, data := marshal.ReadInt(data)
 		seqno, data := marshal.ReadInt(data)
-		req := data                            // remaining data
-		srv.rpcHandle(conn, rpcid, seqno, req) // XXX: this could (and probably should) be in a goroutine YYY: but readThread is already its own goroutine, so that seems redundant?
+		req := data                                            // remaining data
+		go func() { srv.rpcHandle(conn, rpcid, seqno, req) }() // XXX: this could (and probably should) be in a goroutine YYY: but readThread is already its own goroutine, so that seems redundant?
 		continue
 	}
 }

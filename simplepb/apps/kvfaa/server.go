@@ -1,4 +1,4 @@
-package state
+package kvfaa
 
 import (
 	"log"
@@ -62,7 +62,7 @@ func (s *KVState) MakeDurable() {
 	grove_ffi.Write(s.filename, s.getState())
 }
 
-func (s *KVState) Apply(op Op) []byte {
+func (s *KVState) Apply(op Op) ([]byte, func()) {
 	// the only op is FetchAndAppend(key, val)
 	key, appendVal := marshal.ReadInt(op)
 	ret := s.kvs[key]
@@ -70,7 +70,7 @@ func (s *KVState) Apply(op Op) []byte {
 	s.kvs[key] = append(s.kvs[key], appendVal...)
 
 	s.MakeDurable()
-	return ret
+	return ret, func() {}
 }
 
 func (s *KVState) SetStateAndUnseal(snap_in []byte, epoch uint64, nextIndex uint64) {
@@ -95,7 +95,7 @@ func (s *KVState) EnterEpoch(epoch uint64) {
 
 func MakeKVStateMachine(initState *KVState) *pb.StateMachine {
 	return &pb.StateMachine{
-		Apply:             initState.Apply,
+		StartApply:        initState.Apply,
 		SetStateAndUnseal: initState.SetStateAndUnseal,
 		GetStateAndSeal:   initState.GetStateAndSeal,
 	}

@@ -10,12 +10,6 @@ import (
 	"github.com/mit-pdos/gokv/urpc"
 )
 
-type StateMachine struct {
-	Apply             func(op Op) []byte
-	SetStateAndUnseal func(snap []byte, nextIndex uint64, epoch uint64)
-	GetStateAndSeal   func() []byte
-}
-
 type Server struct {
 	mu        *sync.Mutex
 	epoch     uint64
@@ -45,13 +39,15 @@ func (s *Server) Apply(op Op) *ApplyReply {
 	}
 
 	// apply it locally
-	reply.Reply = s.sm.Apply(op)
+	ret, waitForDurable := s.sm.StartApply(op)
+	reply.Reply = ret
 
 	nextIndex := s.nextIndex
 	s.nextIndex = std.SumAssumeNoOverflow(s.nextIndex, 1)
 	epoch := s.epoch
 	clerks := s.clerks
 	s.mu.Unlock()
+	waitForDurable()
 
 	// tell backups to apply it
 	wg := new(sync.WaitGroup)
@@ -111,10 +107,12 @@ func (s *Server) ApplyAsBackup(args *ApplyAsBackupArgs) e.Error {
 	}
 
 	// apply it locally
-	s.sm.Apply(args.op)
+	_, waitFn := s.sm.StartApply(args.op)
 	s.nextIndex += 1
 
 	s.mu.Unlock()
+	waitFn()
+
 	return e.None
 }
 

@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"syscall"
 )
 
 // filesystem+network library
@@ -50,7 +49,7 @@ func AtomicAppend(filename string, data []byte) {
 	}
 	f.Write(data)
 	// f.FdatSync()
-	syscall.Fdatasync(int(f.Fd()))
+	// syscall.Fdatasync(int(f.Fd()))
 	err = f.Close()
 	if err != nil {
 		panic(err)

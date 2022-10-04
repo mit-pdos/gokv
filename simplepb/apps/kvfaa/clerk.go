@@ -1,21 +1,20 @@
-package state
+package kvfaa
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
-	"github.com/mit-pdos/gokv/simplepb/e"
-	"github.com/mit-pdos/gokv/simplepb/pb"
+	"github.com/mit-pdos/gokv/simplepb/clerk"
 	"github.com/tchajed/marshal"
 )
 
 type Clerk struct {
-	cl *pb.Clerk
+	cl *clerk.Clerk
 }
 
-func MakeClerk(host grove_ffi.Address) *Clerk {
-	return &Clerk{cl: pb.MakeClerk(host)}
+func MakeClerk(configHost grove_ffi.Address) *Clerk {
+	return &Clerk{cl: clerk.Make(configHost)}
 }
 
-func (ck *Clerk) FetchAndAppend(key uint64, val []byte) (e.Error, []byte) {
+func (ck *Clerk) FetchAndAppend(key uint64, val []byte) []byte {
 	var args = make([]byte, 0, 8+len(val))
 	args = marshal.WriteInt(args, key)
 	args = marshal.WriteBytes(args, val)

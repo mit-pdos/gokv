@@ -15,12 +15,12 @@ func MakeClerk(confHost grove_ffi.Address) *Clerk {
 
 func (ck *Clerk) Put(key []byte, val []byte) {
 	putArgs := &putArgs{
-		key:key,
-		val:val,
+		key: key,
+		val: val,
 	}
-	ck.cl.Apply(encodePutArgs(putArgs));
+	ck.cl.Apply(encodePutArgs(putArgs))
 }
 
 func (ck *Clerk) Get(key []byte) []byte {
-	return ck.cl.Apply(encodeGetArgs(key));
+	return ck.cl.Apply(encodeGetArgs(key))
 }

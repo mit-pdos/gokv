@@ -61,6 +61,10 @@ func (a *AppendOnlyFile) Append(data []byte) uint64 {
 	return r
 }
 
+func (a *AppendOnlyFile) Close() {
+	panic("unimpl")
+}
+
 func (a *AppendOnlyFile) WaitAppend(length uint64) {
 	a.mu.Lock()
 	for a.durableLength < length {
