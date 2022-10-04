@@ -40,3 +40,7 @@ fielddistribution=constant
 fieldcount=1
 
 warmuptime=5
+keyprefix=
+
+measurementtype=raw
+measurement.raw.output_file = /tmp/gokv/test.txt

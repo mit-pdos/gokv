@@ -7,9 +7,17 @@ import (
 	"github.com/mit-pdos/gokv/simplepb/apps/kv"
 	"log"
 	"os"
+
+	"net/http"
+	_ "net/http/pprof"
 )
 
 func main() {
+	// for performance profiling
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
+
 	var fname string
 	var port uint64
 	flag.StringVar(&fname, "filename", "", "name of file that holds durable state for this server")

@@ -116,8 +116,8 @@ def goycsb_bench(kvname:int, threads:int, runtime:int, valuesize:int, readprop:f
                                   # if kvname == 'rediskv'
                                   # else
                                   # 'memkv.coord=' + config['hosts']['memkv'],
-                                  '-p', 'pbkv.configAddr=0.0.0.0:12200',
-                                  '-p', 'warmup=20', # TODO: increase warmup
+                                  '-p', 'pbkv.configAddr=0.0.0.0:12000',
+                                  '-p', 'warmup=10', # TODO: increase warmup
                                   '-p', 'recordcount=', str(keys),
                                   ], c), cwd=goycsbdir)
 
@@ -212,10 +212,10 @@ def main():
         'read': 0.95,
         'write': 0.05,
         'keys': 1000,
-        'benchcores': [6,7,8,9,10,11],
+        'clientcores': [6,7,8,9,10,11],
     }
 
-    closed_lt('pbkv', 128, path.join(global_args.outdir, 'pb-kvs.jsons'), config['read'], config['write'], config['keys'], num_threads, config['benchcores'])
+    closed_lt('pbkv', 128, path.join(global_args.outdir, 'pb-kvs.jsons'), config['read'], config['write'], config['keys'], num_threads, config['clientcores'])
 
 if __name__=='__main__':
     main()

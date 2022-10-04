@@ -1,10 +1,13 @@
 package grove_ffi
 
-import "os"
-import "path/filepath"
-import "io/ioutil"
-import "log"
-import "fmt"
+import (
+	"fmt"
+	"io/ioutil"
+	"log"
+	"os"
+	"path/filepath"
+	"syscall"
+)
 
 // filesystem+network library
 const DataDir = "durable"
@@ -46,7 +49,8 @@ func AtomicAppend(filename string, data []byte) {
 		panic(err)
 	}
 	f.Write(data)
-	f.Sync()
+	// f.FdatSync()
+	syscall.Fdatasync(int(f.Fd()))
 	err = f.Close()
 	if err != nil {
 		panic(err)
