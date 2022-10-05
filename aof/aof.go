@@ -53,6 +53,8 @@ func CreateAppendOnlyFile(fname string) *AppendOnlyFile {
 
 func (a *AppendOnlyFile) Append(data []byte) uint64 {
 	a.mu.Lock()
+	// log.Printf("Append %d bytes\n", len(data))
+
 	a.membuf = append(a.membuf, data...)
 	for a.length+uint64(len(data)) < a.length {
 	}

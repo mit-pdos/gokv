@@ -92,7 +92,7 @@ def parse_ycsb_output(output):
     return a
 
 
-def goycsb_bench(kvname:int, threads:int, runtime:int, valuesize:int, readprop:float, updateprop:float, keys:int, bench_cores:list[int]):
+def goycsb_bench(kvname:str, threads:int, runtime:int, valuesize:int, readprop:float, updateprop:float, keys:int, bench_cores:list[int]):
     """
     Returns a dictionary of the form
     { 'UPDATE': {'thruput': 1000, 'avg_latency': 12345', 'raw': 'blah'},...}
@@ -206,10 +206,6 @@ def main():
     os.makedirs(global_args.outdir, exist_ok=True)
     resource.setrlimit(resource.RLIMIT_NOFILE, (100000, 100000))
 
-    start_single_node_kv_system()
-
-    time.sleep(1000000)
-
     config = {
         'read': 0,
         'write': 1.0,
@@ -217,7 +213,10 @@ def main():
         'clientcores': [6,7,8,9,10,11],
     }
 
-    closed_lt('pbkv', 128, path.join(global_args.outdir, 'pb-kvs.jsons'), config['read'], config['write'], config['keys'], num_threads, config['clientcores'])
+    # start_single_node_kv_system()
+    # time.sleep(1000000)
+    # closed_lt('pbkv', 128, path.join(global_args.outdir, 'pb-kvs.jsons'), config['read'], config['write'], config['keys'], num_threads, config['clientcores'])
+    closed_lt('rediskv', 128, path.join(global_args.outdir, 'redis-kvs.jsons'), config['read'], config['write'], config['keys'], num_threads, config['clientcores'])
 
 if __name__=='__main__':
     main()
