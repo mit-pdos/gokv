@@ -1,0 +1,36 @@
+# run on ben, on:
+# `/dev/sdb1 on / type ext4 (rw,noatime,discard)`
+#
+# with aof, without snapshotting (max log size was set to very large)
+# 
+#    config = {
+#        'read': 0,
+#        'write': 1.0,
+#        'keys': 1000,
+#        'clientcpus': '4-7',
+#        'configcpus': '0',
+#        'kvcpus': '1',
+#    }
+{"service": "pbkv", "num_threads": 1, "lts": {"UPDATE": {"thruput": 741.7, "avg_latency": 1323.0, "raw": "UPDATE - Takes(s): 10.0, Count: 7381, OPS: 741.7, Avg(us): 1323, Min(us): 805, Max(us): 15758, 99th(us): 2000, 99.9th(us): 3000, 99.99th(us): 16000\n"}}}
+{"service": "pbkv", "num_threads": 2, "lts": {"UPDATE": {"thruput": 986.2, "avg_latency": 2004.0, "raw": "UPDATE - Takes(s): 10.0, Count: 9813, OPS: 986.2, Avg(us): 2004, Min(us): 731, Max(us): 17427, 99th(us): 3000, 99.9th(us): 4000, 99.99th(us): 18000\n"}}}
+{"service": "pbkv", "num_threads": 3, "lts": {"UPDATE": {"thruput": 1467.6, "avg_latency": 2019.0, "raw": "UPDATE - Takes(s): 10.0, Count: 14603, OPS: 1467.6, Avg(us): 2019, Min(us): 777, Max(us): 4785, 99th(us): 3000, 99.9th(us): 4000, 99.99th(us): 5000\n"}}}
+{"service": "pbkv", "num_threads": 4, "lts": {"UPDATE": {"thruput": 1944.8, "avg_latency": 2032.0, "raw": "UPDATE - Takes(s): 10.0, Count: 19352, OPS: 1944.8, Avg(us): 2032, Min(us): 756, Max(us): 4540, 99th(us): 3000, 99.9th(us): 4000, 99.99th(us): 5000\n"}}}
+{"service": "pbkv", "num_threads": 5, "lts": {"UPDATE": {"thruput": 2404.8, "avg_latency": 2054.0, "raw": "UPDATE - Takes(s): 10.0, Count: 23930, OPS: 2404.8, Avg(us): 2054, Min(us): 798, Max(us): 7096, 99th(us): 3000, 99.9th(us): 4000, 99.99th(us): 7000\n"}}}
+{"service": "pbkv", "num_threads": 5, "lts": {"UPDATE": {"thruput": 2451.3, "avg_latency": 2015.0, "raw": "UPDATE - Takes(s): 10.0, Count: 24393, OPS: 2451.3, Avg(us): 2015, Min(us): 740, Max(us): 4759, 99th(us): 3000, 99.9th(us): 4000, 99.99th(us): 5000\n"}}}
+{"service": "pbkv", "num_threads": 10, "lts": {"UPDATE": {"thruput": 4653.1, "avg_latency": 15999.0, "raw": "UPDATE - Takes(s): 10.0, Count: 46299, OPS: 4653.1, Avg(us): 15999, Min(us): 678, Max(us): 64252678, 99th(us): 4000, 99.9th(us): 9000, 99.99th(us): 64248000\n"}}}
+{"service": "pbkv", "num_threads": 15, "lts": {"UPDATE": {"thruput": 6926.4, "avg_latency": 2146.0, "raw": "UPDATE - Takes(s): 10.0, Count: 68925, OPS: 6926.4, Avg(us): 2146, Min(us): 777, Max(us): 8768, 99th(us): 4000, 99.9th(us): 5000, 99.99th(us): 8000\n"}}}
+{"service": "pbkv", "num_threads": 20, "lts": {"UPDATE": {"thruput": 8664.6, "avg_latency": 2286.0, "raw": "UPDATE - Takes(s): 10.0, Count: 86218, OPS: 8664.6, Avg(us): 2286, Min(us): 614, Max(us): 9365, 99th(us): 4000, 99.9th(us): 5000, 99.99th(us): 9000\n"}}}
+{"service": "pbkv", "num_threads": 25, "lts": {"UPDATE": {"thruput": 11037.7, "avg_latency": 2242.0, "raw": "UPDATE - Takes(s): 10.0, Count: 109825, OPS: 11037.7, Avg(us): 2242, Min(us): 792, Max(us): 23177, 99th(us): 4000, 99.9th(us): 5000, 99.99th(us): 22000\n"}}}
+{"service": "pbkv", "num_threads": 30, "lts": {"UPDATE": {"thruput": 13152.9, "avg_latency": 2258.0, "raw": "UPDATE - Takes(s): 10.0, Count: 130877, OPS: 13152.9, Avg(us): 2258, Min(us): 736, Max(us): 8594, 99th(us): 4000, 99.9th(us): 5000, 99.99th(us): 7000\n"}}}
+{"service": "pbkv", "num_threads": 35, "lts": {"UPDATE": {"thruput": 13453.2, "avg_latency": 2579.0, "raw": "UPDATE - Takes(s): 10.0, Count: 133872, OPS: 13453.2, Avg(us): 2579, Min(us): 790, Max(us): 307847, 99th(us): 5000, 99.9th(us): 6000, 99.99th(us): 307000\n"}}}
+{"service": "pbkv", "num_threads": 40, "lts": {"UPDATE": {"thruput": 14738.4, "avg_latency": 2691.0, "raw": "UPDATE - Takes(s): 10.0, Count: 146648, OPS: 14738.4, Avg(us): 2691, Min(us): 776, Max(us): 9759, 99th(us): 5000, 99.9th(us): 6000, 99.99th(us): 9000\n"}}}
+{"service": "pbkv", "num_threads": 45, "lts": {"UPDATE": {"thruput": 15807.4, "avg_latency": 2825.0, "raw": "UPDATE - Takes(s): 10.0, Count: 157298, OPS: 15807.4, Avg(us): 2825, Min(us): 907, Max(us): 7895, 99th(us): 5000, 99.9th(us): 6000, 99.99th(us): 7000\n"}}}
+{"service": "pbkv", "num_threads": 50, "lts": {"UPDATE": {"thruput": 15917.1, "avg_latency": 3119.0, "raw": "UPDATE - Takes(s): 10.0, Count: 158376, OPS: 15917.1, Avg(us): 3119, Min(us): 1173, Max(us): 22140, 99th(us): 6000, 99.9th(us): 7000, 99.99th(us): 20000\n"}}}
+{"service": "pbkv", "num_threads": 55, "lts": {"UPDATE": {"thruput": 15376.3, "avg_latency": 3554.0, "raw": "UPDATE - Takes(s): 10.0, Count: 153009, OPS: 15376.3, Avg(us): 3554, Min(us): 1273, Max(us): 306571, 99th(us): 6000, 99.9th(us): 17000, 99.99th(us): 306000\n"}}}
+{"service": "pbkv", "num_threads": 60, "lts": {"UPDATE": {"thruput": 16015.2, "avg_latency": 3724.0, "raw": "UPDATE - Takes(s): 10.0, Count: 159353, OPS: 16015.2, Avg(us): 3724, Min(us): 1380, Max(us): 162612, 99th(us): 7000, 99.9th(us): 14000, 99.99th(us): 162000\n"}}}
+{"service": "pbkv", "num_threads": 65, "lts": {"UPDATE": {"thruput": 16034.2, "avg_latency": 4032.0, "raw": "UPDATE - Takes(s): 10.0, Count: 159543, OPS: 16034.2, Avg(us): 4032, Min(us): 1461, Max(us): 174780, 99th(us): 7000, 99.9th(us): 13000, 99.99th(us): 174000\n"}}}
+{"service": "pbkv", "num_threads": 70, "lts": {"UPDATE": {"thruput": 15303.1, "avg_latency": 4551.0, "raw": "UPDATE - Takes(s): 10.0, Count: 152269, OPS: 15303.1, Avg(us): 4551, Min(us): 1452, Max(us): 162072, 99th(us): 11000, 99.9th(us): 43000, 99.99th(us): 161000\n"}}}
+{"service": "pbkv", "num_threads": 75, "lts": {"UPDATE": {"thruput": 15490.6, "avg_latency": 4819.0, "raw": "UPDATE - Takes(s): 10.0, Count: 154134, OPS: 15490.6, Avg(us): 4819, Min(us): 1838, Max(us): 308580, 99th(us): 9000, 99.9th(us): 19000, 99.99th(us): 307000\n"}}}
+{"service": "pbkv", "num_threads": 80, "lts": {"UPDATE": {"thruput": 14068.5, "avg_latency": 5664.0, "raw": "UPDATE - Takes(s): 10.0, Count: 139993, OPS: 14068.5, Avg(us): 5664, Min(us): 1640, Max(us): 161896, 99th(us): 12000, 99.9th(us): 157000, 99.99th(us): 161000\n"}}}
+{"service": "pbkv", "num_threads": 85, "lts": {"UPDATE": {"thruput": 14328.1, "avg_latency": 5910.0, "raw": "UPDATE - Takes(s): 10.0, Count: 142565, OPS: 14328.1, Avg(us): 5910, Min(us): 2072, Max(us): 180133, 99th(us): 13000, 99.9th(us): 169000, 99.99th(us): 179000\n"}}}
+{"service": "pbkv", "num_threads": 90, "lts": {"UPDATE": {"thruput": 14808.1, "avg_latency": 6055.0, "raw": "UPDATE - Takes(s): 10.0, Count: 147354, OPS: 14808.1, Avg(us): 6055, Min(us): 1684, Max(us): 176525, 99th(us): 13000, 99.9th(us): 161000, 99.99th(us): 176000\n"}}}

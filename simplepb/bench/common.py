@@ -45,6 +45,14 @@ goycsbdir = ''
 
 procs = []
 
+os.makedirs(global_args.outdir, exist_ok=True)
+scriptdir = os.path.dirname(os.path.abspath(__file__))
+simplepbdir = os.path.dirname(scriptdir)
+goycsbdir = os.path.join(os.path.dirname(os.path.dirname(simplepbdir)), "go-ycsb")
+
+os.makedirs(global_args.outdir, exist_ok=True)
+resource.setrlimit(resource.RLIMIT_NOFILE, (100000, 100000))
+
 def run_command(args, cwd=None):
     if global_args.dry_run or global_args.verbose:
         print("[RUNNING] " + " ".join(args))
@@ -78,6 +86,9 @@ def many_cores(args, c):
 def one_core(args, c):
     return ["numactl", "-C", str(c)] + args
 
+def many_cpus(args, n):
+    return ["numactl", "-N", n] + args
+
 def parse_ycsb_output(output):
     # look for 'Run finished, takes...', then parse the lines for each of the operations
     # output = output[re.search("Run finished, takes .*\n", output).end():] # strip off beginning of output
@@ -92,14 +103,13 @@ def parse_ycsb_output(output):
     return a
 
 
-def goycsb_bench(kvname:str, threads:int, runtime:int, valuesize:int, readprop:float, updateprop:float, keys:int, bench_cores:list[int]):
+def goycsb_bench(kvname:str, threads:int, runtime:int, valuesize:int, readprop:float, updateprop:float, keys:int, benchcpus:str):
     """
     Returns a dictionary of the form
     { 'UPDATE': {'thruput': 1000, 'avg_latency': 12345', 'raw': 'blah'},...}
     """
 
-    c = ",".join([str(j) for j in bench_cores])
-    p = start_command(many_cores(['go', 'run',
+    p = start_command(many_cpus(['go', 'run',
                                   path.join(goycsbdir, './cmd/go-ycsb'),
                                   'run', kvname,
                                   '-P', path.join(simplepbdir, "bench", kvname + '_workload'),
@@ -111,15 +121,9 @@ def goycsb_bench(kvname:str, threads:int, runtime:int, valuesize:int, readprop:f
                                   '-p', 'requestdistribution=uniform',
                                   '-p', 'readproportion=' + str(readprop),
                                   '-p', 'updateproportion=' + str(updateprop),
-                                  # '-p',
-                                  # 'rediskv.addr=' + config['hosts']['rediskv']
-                                  # if kvname == 'rediskv'
-                                  # else
-                                  # 'memkv.coord=' + config['hosts']['memkv'],
-                                  '-p', 'pbkv.configAddr=0.0.0.0:12000',
                                   '-p', 'warmup=10', # TODO: increase warmup
                                   '-p', 'recordcount=', str(keys),
-                                  ], c), cwd=goycsbdir)
+                                  ], benchcpus), cwd=goycsbdir)
 
     if p is None:
         return ''
@@ -132,91 +136,3 @@ def goycsb_bench(kvname:str, threads:int, runtime:int, valuesize:int, readprop:f
     p.stdout.close()
     p.terminate()
     return parse_ycsb_output(ret)
-
-def num_threads(i):
-    if i < 5:
-        return i + 1
-    elif i < 25:
-        return (i - 4) * 5
-    else:
-        return 50 + (i - 24) * 50
-
-def closed_lt(kvname, valuesize, outfilename, readprop, updateprop, recordcount, thread_fn, bench_cores):
-    data = []
-    i = 25
-    last_good_index = 25
-    peak_thruput = 0
-    # last_thruput = 10000
-    # last_threads = 10
-
-    while True:
-        if i > last_good_index + 5:
-            break
-        threads = thread_fn(i)
-
-        a = goycsb_bench(kvname, threads, 10, valuesize, readprop, updateprop, recordcount, bench_cores)
-        p = {'service': kvname, 'num_threads': threads, 'lts': a}
-
-        data = data + [ p ]
-        with open(outfilename, 'a+') as outfile:
-            outfile.write(json.dumps(p) + '\n')
-
-        thput = sum([ a[op]['thruput'] for op in a ])
-
-        if thput > peak_thruput:
-            last_good_index = i
-        if thput > peak_thruput:
-            peak_thruput = thput
-
-        # last_thruput = int(thput + 1)
-        last_threads = threads
-
-        i = i + 1
-
-    return data
-
-def start_config_server():
-    # FIXME: core pinning
-    start_command(["go", "run", "./cmd/config", "-port", "12000"], cwd=simplepbdir)
-
-def start_one_kv_server():
-    # FIXME: core pinning
-    # delete kvserver.data file
-    run_command(["rm", "durable/single_kvserver.data"], cwd=simplepbdir)
-    start_command(["go", "run", "./cmd/kvsrv", "-filename", "single_kvserver.data", "-port", "12100"], cwd=simplepbdir)
-
-def start_single_node_kv_system():
-    start_config_server()
-    start_one_kv_server()
-    time.sleep(1.0)
-    # tell the config server about the initial config
-    start_command(["go", "run", "./cmd/admin", "-conf", "0.0.0.0:12000",
-                   "init", "0.0.0.0:12100"], cwd=simplepbdir)
-
-def main():
-    atexit.register(cleanup_procs)
-    resource.setrlimit(resource.RLIMIT_NOFILE, (100000, 100000))
-    global simplepbdir
-    global goycsbdir
-    os.makedirs(global_args.outdir, exist_ok=True)
-    scriptdir = os.path.dirname(os.path.abspath(__file__))
-    simplepbdir = os.path.dirname(scriptdir)
-    goycsbdir = os.path.join(os.path.dirname(os.path.dirname(simplepbdir)), "go-ycsb")
-
-    os.makedirs(global_args.outdir, exist_ok=True)
-    resource.setrlimit(resource.RLIMIT_NOFILE, (100000, 100000))
-
-    config = {
-        'read': 0,
-        'write': 1.0,
-        'keys': 1000,
-        'clientcores': [6,7,8,9,10,11],
-    }
-
-    # start_single_node_kv_system()
-    # time.sleep(1000000)
-    # closed_lt('pbkv', 128, path.join(global_args.outdir, 'pb-kvs.jsons'), config['read'], config['write'], config['keys'], num_threads, config['clientcores'])
-    closed_lt('rediskv', 128, path.join(global_args.outdir, 'redis-kvs.jsons'), config['read'], config['write'], config['keys'], num_threads, config['clientcores'])
-
-if __name__=='__main__':
-    main()

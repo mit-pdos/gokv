@@ -23,7 +23,7 @@
 #   Request distribution: zipfian
 
 recordcount=10000
-operationcount=10000000000
+operationcount=10000000
 workload=core
 
 readallfields=true
@@ -39,6 +39,8 @@ requestdistribution=uniform
 fielddistribution=constant
 fieldcount=1
 
-warmuptime=10
+warmuptime=5
 keyprefix=
-pbkv.configAddr=0.0.0.0:12000
+
+redis.addr=0.0.0.0:5001
+redis.pool_size=20000
