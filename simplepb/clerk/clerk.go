@@ -35,13 +35,11 @@ func (ck *Clerk) Apply(op []byte) []byte {
 		var err e.Error
 		err, ret = ck.primaryCk.Apply(op)
 		if err == e.None {
-			// grove_ffi.Sleep(uint64(100_000_000))
 			break
 		} else {
 			log.Println("Error during apply(): ", err)
 			config := ck.confCk.GetConfig()
 			ck.primaryCk = pb.MakeClerk(config[0])
-			// grove_ffi.Sleep(uint64(100_000_000))
 			continue
 		}
 	}

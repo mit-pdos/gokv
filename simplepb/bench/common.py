@@ -53,11 +53,11 @@ goycsbdir = os.path.join(os.path.dirname(os.path.dirname(simplepbdir)), "go-ycsb
 os.makedirs(global_args.outdir, exist_ok=True)
 resource.setrlimit(resource.RLIMIT_NOFILE, (100000, 100000))
 
-def run_command(args, cwd=None):
+def run_command(args, cwd=None, shell=False):
     if global_args.dry_run or global_args.verbose:
         print("[RUNNING] " + " ".join(args))
     if not global_args.dry_run:
-        return subprocess.run(args, capture_output=True, text=True, cwd=cwd)
+        return subprocess.run(args, capture_output=True, shell=shell, text=True, cwd=cwd)
 
 def start_command(args, cwd=None):
     if global_args.dry_run or global_args.verbose:

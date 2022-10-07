@@ -25,5 +25,6 @@ plt.show()
 
 plot('ssd/pb-kvs.jsons', 'ssd-pb')
 plot('ssd/redis-kvs.jsons', 'ssd-redis')
+plot('ssd/pb-kvs2.jsons', 'ssd-pb2')
 plt.legend()
 plt.show()

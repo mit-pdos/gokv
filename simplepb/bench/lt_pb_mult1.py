@@ -10,6 +10,7 @@ import itertools
 import time
 import atexit
 import signal
+import glob
 
 from common import *
 
@@ -23,8 +24,8 @@ def num_threads(i):
 
 def closed_lt(kvname, valuesize, outfilename, readprop, updateprop, recordcount, thread_fn, benchcpus):
     data = []
-    i = 0
-    last_good_index = 0
+    i = 5
+    last_good_index = 5
     peak_thruput = 0
     # last_thruput = 10000
     # last_threads = 10
@@ -62,25 +63,26 @@ def start_config_server():
 def start_one_kv_server(i:int):
     start_command(many_cpus(["go", "run", "./cmd/kvsrv", "-filename",
                              "multi_kvserver" + str(i) + ".data", "-port",
-                             str(12000 + i)],
+                             str(12100 + i)],
                             config['kv' + str(i) + 'cpus']),
                   cwd=simplepbdir)
 
 def cleanup_durable_dir():
-    run_command(["rm", "durable/*"], cwd=simplepbdir)
+    files = glob.glob(path.join(simplepbdir, "durable", "*.data"))
+    r = run_command(["rm", "-f"] + files, cwd=simplepbdir)
 
 def start_multi_node_kv_system():
     cleanup_durable_dir()
     start_config_server()
     for i in range(3):
         start_one_kv_server(i)
-    initconfig = "0.0.0.0:12100,0.0.0.0:12101,0.0.0.0:12102"
+    initconfig = ["0.0.0.0:12100", "0.0.0.0:12101", "0.0.0.0:12102"]
 
     # Wait for the system to (probably) be running ...
     time.sleep(1.0)
     # ... then tell the config server about the initial config.
     start_command(["go", "run", "./cmd/admin", "-conf", "0.0.0.0:12000",
-                   "init", initconfig], cwd=simplepbdir)
+                   "init"] + initconfig, cwd=simplepbdir)
 
 config = {}
 
@@ -100,10 +102,9 @@ def main():
         'kv2cpus': '3',
     }
 
-    # time.sleep(1000000)
     start_multi_node_kv_system()
+    # time.sleep(1000000)
     closed_lt('pbkv', 128, path.join(global_args.outdir, 'pb-kvs.jsons'), config['read'], config['write'], config['keys'], num_threads, config['clientcpus'])
-    # closed_lt('rediskv', 128, path.join(global_args.outdir, 'redis-kvs.jsons'), config['read'], config['write'], config['keys'], num_threads, config['clientcores'])
 
 if __name__=='__main__':
     main()

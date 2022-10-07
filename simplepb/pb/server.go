@@ -62,7 +62,16 @@ func (s *Server) Apply(op Op) *ApplyReply {
 		i := i
 		wg.Add(1)
 		go func() {
-			errs[i] = clerk.ApplyAsBackup(args)
+			// retry if we get OutOfOrder errors
+			for {
+				err := clerk.ApplyAsBackup(args)
+				if err == e.OutOfOrder || err == e.Timeout {
+					continue
+				} else {
+					errs[i] = err
+					break
+				}
+			}
 			wg.Done()
 		}()
 	}

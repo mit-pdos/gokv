@@ -24,7 +24,7 @@ func MakeClerk(host grove_ffi.Address) *Clerk {
 
 func (ck *Clerk) ApplyAsBackup(args *ApplyAsBackupArgs) e.Error {
 	reply := new([]byte)
-	err := ck.cl.Call(RPC_APPLYASBACKUP, EncodeApplyAsBackupArgs(args), reply, 100 /* ms */)
+	err := ck.cl.Call(RPC_APPLYASBACKUP, EncodeApplyAsBackupArgs(args), reply, 1000 /* ms */)
 	if err != 0 {
 		return e.Timeout
 	} else {
@@ -64,11 +64,11 @@ func (ck *Clerk) BecomePrimary(args *BecomePrimaryArgs) e.Error {
 
 func (ck *Clerk) Apply(op []byte) (e.Error, []byte) {
 	reply := new([]byte)
-	err := ck.cl.Call(RPC_PRIMARYAPPLY, op, reply, 2000 /* ms */)
+	err := ck.cl.Call(RPC_PRIMARYAPPLY, op, reply, 5000 /* ms */)
 	if err == 0 {
 		r := DecodeApplyReply(*reply)
 		return r.Err, r.Reply
 	} else {
-		return err, nil
+		return e.Timeout, nil
 	}
 }
