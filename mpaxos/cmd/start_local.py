@@ -78,7 +78,6 @@ def one_core(args, c):
 def many_cpus(args, n):
     return ["numactl", "-N", n] + args
 
-
 def main():
     # start n servers
     nservers = 5
