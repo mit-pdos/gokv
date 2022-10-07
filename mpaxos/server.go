@@ -1,6 +1,11 @@
 package mpaxos
 
-import "sync"
+import (
+	"sync"
+
+	"github.com/mit-pdos/gokv/grove_ffi"
+	"github.com/mit-pdos/gokv/urpc"
+)
 
 type Server struct {
 	mu            *sync.Mutex
@@ -10,7 +15,7 @@ type Server struct {
 	nextIndex uint64
 	state     []byte
 
-	clerks   []*Clerk
+	clerks   []*singleClerk
 	isLeader bool
 
 	applyFn func(state []byte, op []byte) ([]byte, []byte)
@@ -61,6 +66,10 @@ func (s *Server) enterNewEpoch(args *enterNewEpochArgs, reply *enterNewEpochRepl
 
 func (s *Server) becomeLeader() {
 	s.mu.Lock()
+	if s.isLeader {
+		s.mu.Unlock()
+		return
+	}
 	// pick a new epoch number
 	s.epoch += 1
 	s.isLeader = false
@@ -186,4 +195,55 @@ func (s *Server) apply(op []byte, reply *applyReply) {
 	} else {
 		reply.err = EEpochStale
 	}
+}
+
+func makeServer(fname string, applyFn func([]byte, []byte) ([]byte, []byte),
+	config []grove_ffi.Address) *Server {
+	s := new(Server)
+	s.mu = new(sync.Mutex)
+
+	s.state = make([]byte, 0)
+
+	s.clerks = make([]*singleClerk, len(config))
+	n := uint64(len(s.clerks))
+	var i = uint64(0)
+	for i < n {
+		s.clerks[i] = makeSingleClerk(config[i])
+		i += 1
+	}
+	return s
+}
+
+func StartServer(fname string, me grove_ffi.Address,
+	applyFn func([]byte, []byte) ([]byte, []byte),
+	config []grove_ffi.Address) {
+	s := makeServer(fname, applyFn, config)
+
+	handlers := make(map[uint64]func([]byte, *[]byte))
+	handlers[RPC_APPLY_AS_FOLLOWER] = func(raw_args []byte, raw_reply *[]byte) {
+		reply := new(applyAsFollowerReply)
+		args := decodeApplyAsFollowerArgs(raw_args)
+		s.applyAsFollower(args, reply)
+		*raw_reply = encodeApplyAsFollowerReply(reply)
+	}
+
+	handlers[RPC_ENTER_NEW_EPOCH] = func(raw_args []byte, raw_reply *[]byte) {
+		reply := new(enterNewEpochReply)
+		args := decodeEnterNewEpochArgs(raw_args)
+		s.enterNewEpoch(args, reply)
+		*raw_reply = encodeEnterNewEpochReply(reply)
+	}
+
+	handlers[RPC_APPLY] = func(raw_args []byte, raw_reply *[]byte) {
+		reply := new(applyReply)
+		s.apply(raw_args, reply)
+		*raw_reply = encodeApplyReply(reply)
+	}
+
+	handlers[RPC_BECOME_LEADER] = func(raw_args []byte, raw_reply *[]byte) {
+		s.becomeLeader()
+	}
+
+	r := urpc.MakeServer(handlers)
+	r.Serve(me)
 }

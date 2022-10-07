@@ -1,7 +1,5 @@
 package mpaxos
 
-import ()
-
 type Error uint64
 
 const (
@@ -18,12 +16,36 @@ type applyAsFollowerArgs struct {
 	state     []byte
 }
 
+func decodeApplyAsFollowerArgs(s []byte) *applyAsFollowerArgs {
+	panic("impl")
+}
+
+func encodeApplyAsFollowerArgs(o *applyAsFollowerArgs) []byte {
+	panic("impl")
+}
+
 type applyAsFollowerReply struct {
 	err Error
 }
 
+func decodeApplyAsFollowerReply(s []byte) *applyAsFollowerReply {
+	panic("impl")
+}
+
+func encodeApplyAsFollowerReply(o *applyAsFollowerReply) []byte {
+	panic("impl")
+}
+
 type enterNewEpochArgs struct {
 	epoch uint64
+}
+
+func decodeEnterNewEpochArgs(s []byte) *enterNewEpochArgs {
+	panic("impl")
+}
+
+func encodeEnterNewEpochArgs(o *enterNewEpochArgs) []byte {
+	panic("impl")
 }
 
 type enterNewEpochReply struct {
@@ -33,7 +55,23 @@ type enterNewEpochReply struct {
 	state         []byte
 }
 
+func decodeEnterNewEpochReply(s []byte) *enterNewEpochReply {
+	panic("impl")
+}
+
+func encodeEnterNewEpochReply(o *enterNewEpochReply) []byte {
+	panic("impl")
+}
+
 type applyReply struct {
 	err Error
 	ret []byte
+}
+
+func encodeApplyReply(o *applyReply) []byte {
+	panic("impl")
+}
+
+func decodeApplyReply(s []byte) *applyReply {
+	panic("impl")
 }

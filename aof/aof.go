@@ -2,8 +2,8 @@ package aof
 
 import (
 	// "log"
-	"sync"
 	"github.com/mit-pdos/gokv/grove_ffi"
+	"sync"
 )
 
 type AppendOnlyFile struct {
