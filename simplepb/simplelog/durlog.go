@@ -72,21 +72,19 @@ func (s *StateMachine) apply(op []byte) ([]byte, func()) {
 	s.nextIndex += 1
 
 	s.logsize += uint64(len(op))
-	var waitFn func()
 
 	if s.logsize > MAX_LOG_SIZE {
 		panic("unsupported when using aof")
 		// s.logsize = 0
 		// s.truncateAndMakeDurable()
-		// waitFn = func() {}
 	} else {
 		l := s.logFile.Append(op)
 
-		waitFn = func() {
+		waitFn := func() {
 			s.logFile.WaitAppend(l)
 		}
+		return ret, waitFn
 	}
-	return ret, waitFn
 }
 
 func (s *StateMachine) setStateAndUnseal(snap []byte, nextIndex uint64, epoch uint64) {
