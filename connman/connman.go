@@ -5,7 +5,6 @@ package connman
 // also tries reconnnecting on failures.
 
 import (
-	"net/rpc"
 	"sync"
 
 	"github.com/mit-pdos/gokv/grove_ffi"
@@ -86,21 +85,4 @@ func (c *ConnMan) CallAtLeastOnce(host HostName, rpcid uint64, args []byte, repl
 		}
 		break
 	}
-}
-
-func (c *ConnMan) Call(host HostName, rpcid uint64, args []byte, reply *[]byte, retryTimeout uint64) rpc.ServerError {
-	var cl *urpc.Client
-	cl = c.getClient(host)
-
-	err := cl.Call(rpcid, args, reply, retryTimeout)
-	if err == urpc.ErrDisconnect {
-		// need to try reconnecting in the future, so remove from rpcCls map
-		c.mu.Lock()
-		if cl == c.rpcCls[host] { // our RPCClient might already be out of date
-			delete(c.rpcCls, host)
-		}
-		c.mu.Unlock()
-		cl = c.getClient(host)
-	}
-	retur nerr
 }

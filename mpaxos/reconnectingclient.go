@@ -16,7 +16,14 @@ type ReconnectingClient struct {
 	addr      grove_ffi.Address
 }
 
-func MakeReconnectingClient() {
+func MakeReconnectingClient(addr grove_ffi.Address) *ReconnectingClient {
+	r := new(ReconnectingClient)
+	r.mu = new(sync.Mutex)
+	r.valid = false
+	r.making = false
+	r.made_cond = sync.NewCond(r.mu)
+	r.addr = addr
+	return r
 }
 
 func (cl *ReconnectingClient) getClient() *urpc.Client {
@@ -43,5 +50,11 @@ func (cl *ReconnectingClient) getClient() *urpc.Client {
 
 func (cl *ReconnectingClient) Call(rpcid uint64, args []byte, reply *[]byte, timeout_ms uint64) uint64 {
 	urpcCl := cl.getClient()
-	return urpcCl.Call(rpcid, args, reply, timeout_ms)
+	err := urpcCl.Call(rpcid, args, reply, timeout_ms)
+	if err == urpc.ErrDisconnect {
+		cl.mu.Lock()
+		cl.valid = false
+		cl.mu.Unlock()
+	}
+	return err
 }
