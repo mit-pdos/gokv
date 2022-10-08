@@ -49,7 +49,7 @@ func (s *singleClerk) apply(op []byte) (Error, []byte) {
 	}
 
 	r := decodeApplyReply(*reply)
-	if r.err == 0 {
+	if r.err != ENone {
 		return r.err, nil
 	}
 

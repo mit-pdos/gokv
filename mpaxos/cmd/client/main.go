@@ -8,6 +8,7 @@ import (
 )
 
 func main() {
+	flag.Parse()
 	a := flag.Args()
 
 	config := make([]grove_ffi.Address, len(a))

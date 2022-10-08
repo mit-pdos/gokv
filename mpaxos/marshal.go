@@ -1,5 +1,7 @@
 package mpaxos
 
+import "github.com/tchajed/marshal"
+
 type Error uint64
 
 const (
@@ -56,11 +58,26 @@ type enterNewEpochReply struct {
 }
 
 func decodeEnterNewEpochReply(s []byte) *enterNewEpochReply {
-	panic("impl")
+	o := new(enterNewEpochReply)
+	var enc = s
+
+	var err uint64
+	err, enc = marshal.ReadInt(enc)
+	o.err = Error(err)
+
+	o.acceptedEpoch, enc = marshal.ReadInt(enc)
+	o.nextIndex, enc = marshal.ReadInt(enc)
+	o.state = enc
+	return o
 }
 
 func encodeEnterNewEpochReply(o *enterNewEpochReply) []byte {
-	panic("impl")
+	var enc = make([]byte, 0, 8 + 8 + 8 + uint64(len(o.state)))
+	enc = marshal.WriteInt(enc, uint64(o.err))
+	enc = marshal.WriteInt(enc, o.acceptedEpoch)
+	enc = marshal.WriteInt(enc, o.nextIndex)
+	enc = marshal.WriteBytes(enc, o.state)
+	return enc
 }
 
 type applyReply struct {
@@ -69,9 +86,20 @@ type applyReply struct {
 }
 
 func encodeApplyReply(o *applyReply) []byte {
-	panic("impl")
+	var enc = make([]byte, 0, 8 + uint64(len(o.ret)))
+	enc = marshal.WriteInt(enc, uint64(o.err))
+	enc = marshal.WriteBytes(enc, o.ret)
+	return enc
 }
 
 func decodeApplyReply(s []byte) *applyReply {
-	panic("impl")
+	var enc = s
+	o := new(applyReply)
+
+	var err uint64
+	err, enc = marshal.ReadInt(enc)
+	o.err = Error(err)
+
+	o.ret = enc
+	return o
 }

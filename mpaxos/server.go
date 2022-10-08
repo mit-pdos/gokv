@@ -1,6 +1,7 @@
 package mpaxos
 
 import (
+	"log"
 	"sync"
 
 	"github.com/mit-pdos/gokv/grove_ffi"
@@ -65,20 +66,20 @@ func (s *Server) enterNewEpoch(args *enterNewEpochArgs, reply *enterNewEpochRepl
 }
 
 func (s *Server) becomeLeader() {
+	log.Println("started trybecomeleader")
 	s.mu.Lock()
 	if s.isLeader {
 		s.mu.Unlock()
 		return
 	}
 	// pick a new epoch number
-	s.epoch += 1
 	s.isLeader = false
 	clerks := s.clerks
-	args := &enterNewEpochArgs{epoch: s.epoch}
+	args := &enterNewEpochArgs{epoch: s.epoch + 1}
 	s.mu.Unlock()
 
-	var numReplies = uint64(1)
-	replies := make([]*enterNewEpochReply, uint64(len(clerks)))
+	var numReplies = uint64(0)
+	replies := make([]enterNewEpochReply, uint64(len(clerks)))
 
 	var i = uint64(0)
 	n := uint64(len(replies))
@@ -88,7 +89,7 @@ func (s *Server) becomeLeader() {
 
 	mu := new(sync.Mutex)
 	numReplies_cond := sync.NewCond(mu)
-	q := uint64((len(clerks)+1)+1) / 2
+	q := uint64(len(clerks)+1) / 2
 
 	for i, ck := range clerks {
 		ck := ck
@@ -98,7 +99,7 @@ func (s *Server) becomeLeader() {
 			ck.enterNewEpoch(args, reply)
 			mu.Lock()
 			numReplies += 1
-			replies[i] = reply
+			replies[i] = *reply
 			if numReplies >= q {
 				numReplies_cond.Signal()
 			}
@@ -112,7 +113,7 @@ func (s *Server) becomeLeader() {
 		numReplies_cond.Wait()
 	}
 
-	var latestReply *enterNewEpochReply
+	var latestReply enterNewEpochReply
 	var numSuccesses = uint64(0)
 	for _, reply := range replies {
 		if reply.err == ENone {
@@ -126,17 +127,20 @@ func (s *Server) becomeLeader() {
 		}
 	}
 
+	log.Println("finished trybecomeleader")
 	if numSuccesses >= q {
+		log.Println("succeeded becomeleader")
 		s.mu.Lock() // RULE: lock s.mu after mu
-		if s.epoch == args.epoch {
+		if s.epoch < args.epoch {
 			s.isLeader = true
 			s.acceptedEpoch = s.epoch
 			s.state = latestReply.state
 		}
-		s.mu.Lock()
+		s.mu.Unlock()
 		mu.Unlock()
 	} else {
 		mu.Unlock()
+		log.Println("failed becomeleader")
 		// failed
 	}
 }
