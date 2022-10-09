@@ -58,6 +58,7 @@ func (s *Server) enterNewEpoch(args *enterNewEpochArgs, reply *enterNewEpochRepl
 		return
 	}
 	// else, s.epoch < args.epoch
+	s.isLeader = false
 	s.epoch = args.epoch
 	reply.acceptedEpoch = s.acceptedEpoch
 	reply.nextIndex = s.nextIndex
@@ -67,15 +68,18 @@ func (s *Server) enterNewEpoch(args *enterNewEpochArgs, reply *enterNewEpochRepl
 
 func (s *Server) becomeLeader() {
 	log.Println("started trybecomeleader")
+	defer log.Println("finished trybecomeleader")
 	s.mu.Lock()
 	if s.isLeader {
+		log.Println("already leader")
 		s.mu.Unlock()
 		return
 	}
 	// pick a new epoch number
+	s.epoch = s.epoch + 1
 	s.isLeader = false
 	clerks := s.clerks
-	args := &enterNewEpochArgs{epoch: s.epoch + 1}
+	args := &enterNewEpochArgs{epoch: s.epoch}
 	s.mu.Unlock()
 
 	var numReplies = uint64(0)
@@ -85,6 +89,7 @@ func (s *Server) becomeLeader() {
 	n := uint64(len(replies))
 	for i < n {
 		replies[i].err = ETimeout
+		i += 1
 	}
 
 	mu := new(sync.Mutex)
@@ -127,11 +132,10 @@ func (s *Server) becomeLeader() {
 		}
 	}
 
-	log.Println("finished trybecomeleader")
 	if numSuccesses >= q {
-		log.Println("succeeded becomeleader")
+		log.Printf("succeeded becomeleader in epoch %d\n", args.epoch)
 		s.mu.Lock() // RULE: lock s.mu after mu
-		if s.epoch < args.epoch {
+		if s.epoch == args.epoch {
 			s.isLeader = true
 			s.acceptedEpoch = s.epoch
 			s.state = latestReply.state
@@ -189,8 +193,10 @@ func (s *Server) apply(op []byte, reply *applyReply) {
 
 	var numSuccesses = uint64(0)
 	for _, reply := range replies {
-		if reply.err == ENone {
-			numSuccesses += 1
+		if reply != nil {
+			if reply.err == ENone {
+				numSuccesses += 1
+			}
 		}
 	}
 
@@ -207,6 +213,7 @@ func makeServer(fname string, applyFn func([]byte, []byte) ([]byte, []byte),
 	s.mu = new(sync.Mutex)
 
 	s.state = make([]byte, 0)
+	s.applyFn = applyFn
 
 	s.clerks = make([]*singleClerk, len(config))
 	n := uint64(len(s.clerks))

@@ -3,6 +3,7 @@ package mpaxos
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/tchajed/goose/machine"
+	"log"
 )
 
 type Clerk struct {
@@ -34,12 +35,13 @@ func (ck *Clerk) Apply(op []byte) []byte {
 		i := machine.RandomUint64() % uint64(len(ck.cks))
 		cl := ck.cks[i]
 		cl.becomeLeader()
+		log.Println("became leader")
 
 		err, reply = cl.apply(op)
 		if err == ENone {
 			break
 		} else {
-			continue
+			log.Printf("cl.apply(op) returned %d\n", err)
 		}
 	}
 	return reply

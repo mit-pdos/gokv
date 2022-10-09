@@ -18,12 +18,21 @@ type applyAsFollowerArgs struct {
 	state     []byte
 }
 
-func decodeApplyAsFollowerArgs(s []byte) *applyAsFollowerArgs {
-	panic("impl")
+func encodeApplyAsFollowerArgs(o *applyAsFollowerArgs) []byte {
+	var enc = make([]byte, 0, 8 + 8 + len(o.state))
+	enc = marshal.WriteInt(enc, o.epoch)
+	enc = marshal.WriteInt(enc, o.nextIndex)
+	enc = marshal.WriteBytes(enc, o.state)
+	return enc
 }
 
-func encodeApplyAsFollowerArgs(o *applyAsFollowerArgs) []byte {
-	panic("impl")
+func decodeApplyAsFollowerArgs(s []byte) *applyAsFollowerArgs {
+	var enc = s
+	o := new(applyAsFollowerArgs)
+	o.epoch, enc = marshal.ReadInt(enc)
+	o.nextIndex, enc = marshal.ReadInt(enc)
+	o.state = enc
+	return o
 }
 
 type applyAsFollowerReply struct {
@@ -31,23 +40,32 @@ type applyAsFollowerReply struct {
 }
 
 func decodeApplyAsFollowerReply(s []byte) *applyAsFollowerReply {
-	panic("impl")
+	o := new(applyAsFollowerReply)
+	err, _ := marshal.ReadInt(s)
+	o.err = Error(err)
+	return o
 }
 
 func encodeApplyAsFollowerReply(o *applyAsFollowerReply) []byte {
-	panic("impl")
+	var enc []byte = make([]byte, 0, 8)
+	enc = marshal.WriteInt(enc, uint64(o.err))
+	return enc
 }
 
 type enterNewEpochArgs struct {
 	epoch uint64
 }
 
-func decodeEnterNewEpochArgs(s []byte) *enterNewEpochArgs {
-	panic("impl")
+func encodeEnterNewEpochArgs(o *enterNewEpochArgs) []byte {
+	var enc []byte = make([]byte, 0, 8)
+	enc = marshal.WriteInt(enc, o.epoch)
+	return enc
 }
 
-func encodeEnterNewEpochArgs(o *enterNewEpochArgs) []byte {
-	panic("impl")
+func decodeEnterNewEpochArgs(s []byte) *enterNewEpochArgs {
+	o := new(enterNewEpochArgs)
+	o.epoch, _ = marshal.ReadInt(s)
+	return o
 }
 
 type enterNewEpochReply struct {
