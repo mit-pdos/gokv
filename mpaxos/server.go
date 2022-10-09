@@ -68,7 +68,7 @@ func (s *Server) enterNewEpoch(args *enterNewEpochArgs, reply *enterNewEpochRepl
 
 func (s *Server) becomeLeader() {
 	log.Println("started trybecomeleader")
-	defer log.Println("finished trybecomeleader")
+	// defer log.Println("finished trybecomeleader")
 	s.mu.Lock()
 	if s.isLeader {
 		log.Println("already leader")
@@ -83,11 +83,12 @@ func (s *Server) becomeLeader() {
 	s.mu.Unlock()
 
 	var numReplies = uint64(0)
-	replies := make([]enterNewEpochReply, uint64(len(clerks)))
+	replies := make([]*enterNewEpochReply, uint64(len(clerks)))
 
 	var i = uint64(0)
 	n := uint64(len(replies))
 	for i < n {
+		replies[i] = new(enterNewEpochReply)
 		replies[i].err = ETimeout
 		i += 1
 	}
@@ -104,7 +105,7 @@ func (s *Server) becomeLeader() {
 			ck.enterNewEpoch(args, reply)
 			mu.Lock()
 			numReplies += 1
-			replies[i] = *reply
+			replies[i] = reply
 			if numReplies >= q {
 				numReplies_cond.Signal()
 			}
@@ -118,7 +119,7 @@ func (s *Server) becomeLeader() {
 		numReplies_cond.Wait()
 	}
 
-	var latestReply enterNewEpochReply
+	var latestReply *enterNewEpochReply
 	var numSuccesses = uint64(0)
 	for _, reply := range replies {
 		if reply.err == ENone {
@@ -166,7 +167,7 @@ func (s *Server) apply(op []byte, reply *applyReply) {
 	replies := make([]*applyAsFollowerReply, uint64(len(clerks)))
 	mu := new(sync.Mutex)
 	numReplies_cond := sync.NewCond(mu)
-	q := uint64((len(clerks)+1)+1) / 2
+	q := uint64(len(clerks)+1) / 2
 
 	for i, ck := range clerks {
 		ck := ck

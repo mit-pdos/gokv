@@ -30,14 +30,14 @@ func (s *singleClerk) enterNewEpoch(args *enterNewEpochArgs, reply *enterNewEpoc
 	raw_args := encodeEnterNewEpochArgs(args)
 	raw_reply := new([]byte)
 	s.cl.Call(RPC_ENTER_NEW_EPOCH, raw_args, raw_reply, 500 /* ms */)
-	reply = decodeEnterNewEpochReply(*raw_reply)
+	*reply = *decodeEnterNewEpochReply(*raw_reply)
 }
 
 func (s *singleClerk) applyAsFollower(args *applyAsFollowerArgs, reply *applyAsFollowerReply) {
 	raw_args := encodeApplyAsFollowerArgs(args)
 	raw_reply := new([]byte)
 	s.cl.Call(RPC_ENTER_NEW_EPOCH, raw_args, raw_reply, 500 /* ms */)
-	reply = decodeApplyAsFollowerReply(*raw_reply)
+	*reply = *decodeApplyAsFollowerReply(*raw_reply)
 }
 
 func (s *singleClerk) becomeLeader() {
