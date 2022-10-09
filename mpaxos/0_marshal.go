@@ -19,7 +19,7 @@ type applyAsFollowerArgs struct {
 }
 
 func encodeApplyAsFollowerArgs(o *applyAsFollowerArgs) []byte {
-	var enc = make([]byte, 0, 8 + 8 + len(o.state))
+	var enc = make([]byte, 0, 8+8+len(o.state))
 	enc = marshal.WriteInt(enc, o.epoch)
 	enc = marshal.WriteInt(enc, o.nextIndex)
 	enc = marshal.WriteBytes(enc, o.state)
@@ -90,7 +90,7 @@ func decodeEnterNewEpochReply(s []byte) *enterNewEpochReply {
 }
 
 func encodeEnterNewEpochReply(o *enterNewEpochReply) []byte {
-	var enc = make([]byte, 0, 8 + 8 + 8 + uint64(len(o.state)))
+	var enc = make([]byte, 0, 8+8+8+uint64(len(o.state)))
 	enc = marshal.WriteInt(enc, uint64(o.err))
 	enc = marshal.WriteInt(enc, o.acceptedEpoch)
 	enc = marshal.WriteInt(enc, o.nextIndex)
@@ -104,7 +104,7 @@ type applyReply struct {
 }
 
 func encodeApplyReply(o *applyReply) []byte {
-	var enc = make([]byte, 0, 8 + uint64(len(o.ret)))
+	var enc = make([]byte, 0, 8+uint64(len(o.ret)))
 	enc = marshal.WriteInt(enc, uint64(o.err))
 	enc = marshal.WriteBytes(enc, o.ret)
 	return enc

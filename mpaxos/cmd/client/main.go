@@ -17,15 +17,15 @@ func main() {
 	}
 
 	/*
-	usage_assert := func(b bool) {
-		if !b {
-			flag.PrintDefaults()
-			fmt.Println("Must provide command in form:")
-			fmt.Println(" put value")
-			fmt.Println(" get")
-			os.Exit(1)
+		usage_assert := func(b bool) {
+			if !b {
+				flag.PrintDefaults()
+				fmt.Println("Must provide command in form:")
+				fmt.Println(" put value")
+				fmt.Println(" get")
+				os.Exit(1)
+			}
 		}
-	}
 	*/
 
 	ck := example.MakeClerk(config)

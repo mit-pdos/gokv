@@ -10,7 +10,7 @@ import (
 type ReconnectingClient struct {
 	mu        *sync.Mutex
 	valid     bool
-	urpcCl        *urpc.Client
+	urpcCl    *urpc.Client
 	making    bool
 	made_cond *sync.Cond
 	addr      grove_ffi.Address
