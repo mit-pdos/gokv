@@ -4,6 +4,7 @@ import (
 	"log"
 	"sync"
 
+	"github.com/goose-lang/std"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc"
 )
@@ -25,8 +26,8 @@ type Server struct {
 func (s *Server) applyAsFollower(args *applyAsFollowerArgs, reply *applyAsFollowerReply) {
 	s.mu.Lock()
 	if s.epoch == args.epoch {
-		if s.nextIndex == args.nextIndex {
-			s.nextIndex += 1
+		if s.nextIndex <= args.nextIndex {
+			s.nextIndex = args.nextIndex + 1
 			s.state = args.state
 			reply.err = ENone
 		} else if s.nextIndex < args.nextIndex {
@@ -159,7 +160,7 @@ func (s *Server) apply(op []byte, reply *applyReply) {
 	}
 	s.state, reply.ret = s.applyFn(s.state, op)
 	args := &applyAsFollowerArgs{epoch: s.epoch, nextIndex: s.nextIndex, state: s.state}
-	s.nextIndex += 1
+	s.nextIndex = std.SumAssumeNoOverflow(s.nextIndex, 1)
 	clerks := s.clerks
 	s.mu.Unlock()
 
@@ -167,7 +168,7 @@ func (s *Server) apply(op []byte, reply *applyReply) {
 	replies := make([]*applyAsFollowerReply, uint64(len(clerks)))
 	mu := new(sync.Mutex)
 	numReplies_cond := sync.NewCond(mu)
-	q := uint64(len(clerks)+1) / 2
+	n := uint64(len(clerks))
 
 	for i, ck := range clerks {
 		ck := ck
@@ -179,7 +180,7 @@ func (s *Server) apply(op []byte, reply *applyReply) {
 			mu.Lock()
 			numReplies += 1
 			replies[i] = reply
-			if numReplies >= q {
+			if 2*numReplies > n {
 				numReplies_cond.Signal()
 			}
 			mu.Unlock()
@@ -188,7 +189,7 @@ func (s *Server) apply(op []byte, reply *applyReply) {
 
 	mu.Lock()
 	// wait for a quorum of replies
-	for numReplies < q {
+	for 2 * numReplies <= n {
 		numReplies_cond.Wait()
 	}
 
@@ -201,7 +202,7 @@ func (s *Server) apply(op []byte, reply *applyReply) {
 		}
 	}
 
-	if numSuccesses >= q {
+	if 2*numSuccesses > n {
 		reply.err = ENone
 	} else {
 		reply.err = EEpochStale
