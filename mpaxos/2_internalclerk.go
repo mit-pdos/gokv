@@ -59,5 +59,5 @@ func (s *singleClerk) apply(op []byte) (Error, []byte) {
 		return r.err, nil
 	}
 
-	return ENone, *reply
+	return ENone, r.ret
 }
