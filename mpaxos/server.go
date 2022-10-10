@@ -81,26 +81,16 @@ func (s *Server) becomeLeader() {
 		return
 	}
 	// pick a new epoch number
-	s.epoch = s.epoch + 1
-	s.isLeader = false
 	clerks := s.clerks
-	args := &enterNewEpochArgs{epoch: s.epoch}
+	args := &enterNewEpochArgs{epoch: s.epoch + 1}
 	s.mu.Unlock()
 
 	var numReplies = uint64(0)
 	replies := make([]*enterNewEpochReply, uint64(len(clerks)))
 
-	var i = uint64(0)
-	n := uint64(len(replies))
-	for i < n {
-		replies[i] = new(enterNewEpochReply)
-		replies[i].err = ETimeout
-		i += 1
-	}
-
 	mu := new(sync.Mutex)
 	numReplies_cond := sync.NewCond(mu)
-	q := uint64(len(clerks)+1) / 2
+	n := uint64(len(clerks))
 
 	for i, ck := range clerks {
 		ck := ck
@@ -111,7 +101,7 @@ func (s *Server) becomeLeader() {
 			mu.Lock()
 			numReplies += 1
 			replies[i] = reply
-			if numReplies >= q {
+			if 2*numReplies > n {
 				numReplies_cond.Signal()
 			}
 			mu.Unlock()
@@ -120,28 +110,31 @@ func (s *Server) becomeLeader() {
 
 	mu.Lock()
 	// wait for a quorum of replies
-	for numReplies < q {
+	for 2*numReplies <= n {
 		numReplies_cond.Wait()
 	}
 
 	var latestReply *enterNewEpochReply
 	var numSuccesses = uint64(0)
 	for _, reply := range replies {
-		if reply.err == ENone {
-			numSuccesses += 1
-			if latestReply.acceptedEpoch < reply.acceptedEpoch {
-				latestReply = reply
-			} else if latestReply.acceptedEpoch == reply.acceptedEpoch &&
-				reply.nextIndex > latestReply.nextIndex {
-				latestReply = reply
+		if reply != nil {
+			if reply.err == ENone {
+				numSuccesses += 1
+				if latestReply.acceptedEpoch < reply.acceptedEpoch {
+					latestReply = reply
+				} else if latestReply.acceptedEpoch == reply.acceptedEpoch &&
+					reply.nextIndex > latestReply.nextIndex {
+					latestReply = reply
+				}
 			}
 		}
 	}
 
-	if numSuccesses >= q {
+	if 2*numSuccesses > n {
 		log.Printf("succeeded becomeleader in epoch %d\n", args.epoch)
 		s.mu.Lock() // RULE: lock s.mu after mu
-		if s.epoch == args.epoch {
+		if s.epoch < args.epoch {
+			s.epoch = args.epoch
 			s.isLeader = true
 			s.acceptedEpoch = s.epoch
 			s.state = latestReply.state
