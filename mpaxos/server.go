@@ -189,7 +189,7 @@ func (s *Server) apply(op []byte, reply *applyReply) {
 
 	mu.Lock()
 	// wait for a quorum of replies
-	for 2 * numReplies <= n {
+	for 2*numReplies <= n {
 		numReplies_cond.Wait()
 	}
 
