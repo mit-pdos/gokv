@@ -26,6 +26,7 @@ type Server struct {
 func (s *Server) applyAsFollower(args *applyAsFollowerArgs, reply *applyAsFollowerReply) {
 	s.mu.Lock()
 	if s.epoch <= args.epoch {
+		s.isLeader = false
 		if s.acceptedEpoch == args.epoch {
 			if s.nextIndex <= args.nextIndex {
 				s.nextIndex = args.nextIndex + 1
@@ -35,6 +36,7 @@ func (s *Server) applyAsFollower(args *applyAsFollowerArgs, reply *applyAsFollow
 				reply.err = ENone
 			}
 		} else { // s.acceptedEpoch < args.epoch, because s.acceptedEpoch <= s.epoch <= args.epoch
+			s.acceptedEpoch = args.epoch
 			s.epoch = args.epoch
 			s.state = args.state
 			s.nextIndex = args.nextIndex
