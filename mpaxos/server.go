@@ -119,13 +119,17 @@ func (s *Server) becomeLeader() {
 	for _, reply := range replies {
 		if reply != nil {
 			if reply.err == ENone {
-				numSuccesses += 1
-				if latestReply.acceptedEpoch < reply.acceptedEpoch {
+				if numSuccesses == 0 {
 					latestReply = reply
-				} else if latestReply.acceptedEpoch == reply.acceptedEpoch &&
-					reply.nextIndex > latestReply.nextIndex {
-					latestReply = reply
+				} else {
+					if latestReply.acceptedEpoch < reply.acceptedEpoch {
+						latestReply = reply
+					} else if latestReply.acceptedEpoch == reply.acceptedEpoch &&
+						reply.nextIndex > latestReply.nextIndex {
+						latestReply = reply
+					}
 				}
+				numSuccesses += 1
 			}
 		}
 	}
