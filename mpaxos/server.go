@@ -141,6 +141,7 @@ func (s *Server) becomeLeader() {
 			s.epoch = args.epoch
 			s.isLeader = true
 			s.acceptedEpoch = s.epoch
+			s.nextIndex = latestReply.nextIndex
 			s.state = latestReply.state
 		}
 		s.mu.Unlock()
