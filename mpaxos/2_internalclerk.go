@@ -26,18 +26,27 @@ func makeSingleClerk(addr grove_ffi.Address) *singleClerk {
 	return ck
 }
 
-func (s *singleClerk) enterNewEpoch(args *enterNewEpochArgs, reply *enterNewEpochReply) {
+func (s *singleClerk) enterNewEpoch(args *enterNewEpochArgs) *enterNewEpochReply {
 	raw_args := encodeEnterNewEpochArgs(args)
 	raw_reply := new([]byte)
-	s.cl.Call(RPC_ENTER_NEW_EPOCH, raw_args, raw_reply, 500 /* ms */)
-	*reply = *decodeEnterNewEpochReply(*raw_reply)
+	err := s.cl.Call(RPC_ENTER_NEW_EPOCH, raw_args, raw_reply, 500 /* ms */)
+	if err == 0 {
+		return decodeEnterNewEpochReply(*raw_reply)
+	} else {
+		return &enterNewEpochReply{err: ETimeout}
+	}
+
 }
 
-func (s *singleClerk) applyAsFollower(args *applyAsFollowerArgs, reply *applyAsFollowerReply) {
+func (s *singleClerk) applyAsFollower(args *applyAsFollowerArgs) *applyAsFollowerReply {
 	raw_args := encodeApplyAsFollowerArgs(args)
 	raw_reply := new([]byte)
-	s.cl.Call(RPC_ENTER_NEW_EPOCH, raw_args, raw_reply, 500 /* ms */)
-	*reply = *decodeApplyAsFollowerReply(*raw_reply)
+	err := s.cl.Call(RPC_APPLY_AS_FOLLOWER, raw_args, raw_reply, 500 /* ms */)
+	if err == 0 {
+		return decodeApplyAsFollowerReply(*raw_reply)
+	} else {
+		return &applyAsFollowerReply{err: ETimeout}
+	}
 }
 
 func (s *singleClerk) becomeLeader() {

@@ -96,8 +96,7 @@ func (s *Server) becomeLeader() {
 		ck := ck
 		i := i
 		go func() {
-			reply := new(enterNewEpochReply)
-			ck.enterNewEpoch(args, reply)
+			reply := ck.enterNewEpoch(args)
 			mu.Lock()
 			numReplies += 1
 			replies[i] = reply
@@ -176,8 +175,7 @@ func (s *Server) apply(op []byte, reply *applyReply) {
 		ck := ck
 		i := i
 		go func() {
-			reply := new(applyAsFollowerReply)
-			ck.applyAsFollower(args, reply)
+			reply := ck.applyAsFollower(args)
 
 			mu.Lock()
 			numReplies += 1
