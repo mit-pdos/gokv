@@ -34,7 +34,11 @@ def closed_lt(kvname, valuesize, outfilename, readprop, updateprop, recordcount,
             break
         threads = thread_fn(i)
 
+        # FIXME: clear out redis data
+        cleanup_procs()
+        start_fresh_single_node_redisraft()
         a = goycsb_bench(kvname, threads, 10, valuesize, readprop, updateprop, recordcount, benchcpus)
+
         p = {'service': kvname, 'num_threads': threads, 'lts': a}
 
         data = data + [ p ]
@@ -57,10 +61,14 @@ def closed_lt(kvname, valuesize, outfilename, readprop, updateprop, recordcount,
 
 config = {}
 
-def start_single_node_redisraft():
+def start_fresh_single_node_redisraft():
     durable_dir = os.path.join(simplepbdir, 'durable')
     dbfilename = 'raft1.rdb'
     logfilename = 'raftlog1.db'
+
+    # clean up old files
+    run_command(["rm", dbfilename, logfilename, logfilename + ".meta", logfilename + ".idx"], cwd=durable_dir)
+
     run_command(["cp", os.path.join(redisdir, "redisraft", "redisraft.so"), durable_dir])
     start_command(many_cpus(["./redis/src/redis-server",
                              "--port", "5001", "--dbfilename", dbfilename,
@@ -72,6 +80,7 @@ def start_single_node_redisraft():
 
     time.sleep(1)
     run_command(["./redis/src/redis-cli", "-p", "5001", "raft.cluster", "init"], cwd=redisdir)
+    time.sleep(2)
 
 redisdir = ''
 
@@ -87,10 +96,11 @@ def main():
         'write': 1.0,
         'keys': 1000,
         'clientcpus': '4-7',
+        # 'clientcpus': '0',
         'rediscpus': '0',
     }
 
-    start_single_node_redisraft()
+    # start_fresh_single_node_redisraft()
     closed_lt('rediskv', 128, path.join(global_args.outdir, 'redis-kvs.jsons'), config['read'], config['write'], config['keys'], num_threads, config['clientcpus'])
 
 if __name__=='__main__':

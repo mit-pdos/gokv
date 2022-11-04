@@ -9,8 +9,8 @@ import (
 func bench_onesize(fname string, writeSize uint64) float64 {
 	// FIXME: try making data non-zero.
 	data := make([]byte, writeSize)
-	warmup := uint64(100)
-	n := uint64(100)
+	warmup := uint64(1000)
+	n := uint64(10000)
 	for i := uint64(0); i < warmup; i += 1 {
 		grove_ffi.AtomicAppend(fname, data)
 	}

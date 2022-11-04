@@ -5,7 +5,7 @@ import (
 	"github.com/mit-pdos/gokv/simplepb/config"
 	"github.com/mit-pdos/gokv/simplepb/e"
 	"github.com/mit-pdos/gokv/simplepb/pb"
-	"log"
+	// "log"
 )
 
 type Clerk struct {
@@ -37,7 +37,8 @@ func (ck *Clerk) Apply(op []byte) []byte {
 		if err == e.None {
 			break
 		} else {
-			log.Println("Error during apply(): ", err)
+			// log.Println("Error during apply(): ", err)
+			grove_ffi.Sleep(100 * 1e6) // throttle retries to config server
 			config := ck.confCk.GetConfig()
 			ck.primaryCk = pb.MakeClerk(config[0])
 			continue

@@ -136,3 +136,53 @@ def goycsb_bench(kvname:str, threads:int, runtime:int, valuesize:int, readprop:f
     p.stdout.close()
     p.terminate()
     return parse_ycsb_output(ret)
+
+def parse_ycsb_output_totalops(output):
+    # look for 'Run finished, takes...', then parse the lines for each of the operations
+    # output = output[re.search("Run finished, takes .*\n", output).end():] # strip off beginning of output
+
+    # NOTE: sample output from go-ycsb:
+    # UPDATE - Takes(s): 12.6, Count: 999999, OPS: 79654.6, Avg(us): 12434, Min(us): 28, Max(us): 54145, 99th(us): 29000, 99.9th(us): 41000, 99.99th(us): 49000
+    patrn = '(?P<opname>.*) - Takes\(s\): (?P<time>.*), Count: (?P<count>.*), OPS: (?P<ops>.*), Avg\(us\): (?P<avg_latency>.*), Min\(us\):.*\n' # Min(us): 28, Max(us): 54145, 99th(us): 29000, 99.9th(us): 41000, 99.99th(us): 49000'
+    ms = re.finditer(patrn, output, flags=re.MULTILINE)
+    a = 0
+    time = None
+    for m in ms:
+        a += int(m.group('count'))
+        time = float(m.group('time'))
+    return (time, a)
+
+def goycsb_bench_inst(kvname:str, threads:int, runtime:int, valuesize:int, readprop:float, updateprop:float, keys:int, benchcpus:str):
+    """
+    """
+
+    p = start_command(many_cores(['go', 'run',
+                                  path.join(goycsbdir, './cmd/go-ycsb'),
+                                  'run', kvname,
+                                  '-P', path.join(simplepbdir, "bench", kvname + '_workload'),
+                                  '--threads', str(threads),
+                                  '--target', '-1',
+                                  '--interval', '500',
+                                  '-p', 'operationcount=' + str(2**32 - 1),
+                                  '-p', 'fieldlength=' + str(valuesize),
+                                  '-p', 'requestdistribution=uniform',
+                                  '-p', 'readproportion=' + str(readprop),
+                                  '-p', 'updateproportion=' + str(updateprop),
+                                  '-p', 'warmup=10', # TODO: increase warmup
+                                  '-p', 'recordcount=', str(keys),
+                                  ], benchcpus), cwd=goycsbdir)
+    if p is None:
+        return ''
+
+    totalopss = []
+    for stdout_line in iter(p.stdout.readline, ""):
+        t,a = (parse_ycsb_output_totalops(stdout_line))
+        if t:
+            print(a)
+            totalopss.append((t,a))
+        if stdout_line.find('Takes(s): {0}.'.format(runtime)) != -1:
+            ret = stdout_line
+            break
+    p.stdout.close()
+    p.terminate()
+    return totalopss
