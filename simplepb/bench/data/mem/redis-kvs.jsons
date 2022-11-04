@@ -1,3 +1,15 @@
+# run on ben, on:
+# /tmp type tmpfs (rw,nosuid,nodev,size=131944140k,nr_inodes=409600,inode64)
+#
+# Command:
+# numactl -N 0 ./redis/src/redis-server --port 5001 --dbfilename raft1.rdb --loadmodule ./redisraft.so --raft.log-filename raftlog1.db --dir /home/upamanyu/gokv/simplepb/durable --raft.log-fsync yes --raft.addr localhost:5001
+#    config = {
+#        'read': 0,
+#        'write': 1.0,
+#        'keys': 1000,
+#        'clientcpus': '4-7',
+#        'rediscpus': '0',
+#    }
 {"service": "rediskv", "num_threads": 1, "lts": {"UPDATE": {"thruput": 2332.2, "avg_latency": 401.0, "raw": "UPDATE - Takes(s): 10.0, Count: 23206, OPS: 2332.2, Avg(us): 401, Min(us): 243, Max(us): 2388, 99th(us): 1000, 99.9th(us): 1000, 99.99th(us): 3000\n"}}}
 {"service": "rediskv", "num_threads": 2, "lts": {"UPDATE": {"thruput": 5005.8, "avg_latency": 374.0, "raw": "UPDATE - Takes(s): 10.0, Count: 49809, OPS: 5005.8, Avg(us): 374, Min(us): 170, Max(us): 2350, 99th(us): 1000, 99.9th(us): 2000, 99.99th(us): 3000\n"}}}
 {"service": "rediskv", "num_threads": 3, "lts": {"UPDATE": {"thruput": 6663.5, "avg_latency": 423.0, "raw": "UPDATE - Takes(s): 10.0, Count: 66309, OPS: 6663.5, Avg(us): 423, Min(us): 128, Max(us): 2437, 99th(us): 1000, 99.9th(us): 1000, 99.99th(us): 3000\n"}}}

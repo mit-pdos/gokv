@@ -20,18 +20,22 @@ func panic_if_err(err error) {
 // crash-atomically writes content to the file with name filename
 func Write(filename string, content []byte) {
 	_ = os.Mkdir("tmp", 0755)
-	file, err := ioutil.TempFile("tmp", filename+"_*")
+	tmpfile, err := ioutil.TempFile("tmp", filename+"_*")
 	panic_if_err(err)
-	defer os.Remove(file.Name())
+	// defer tmpfile.Close()
+	defer os.Remove(tmpfile.Name())
 
 	for i := 0; i < len(content); {
-		bytesWritten, err := file.Write(content[i:])
+		bytesWritten, err := tmpfile.Write(content[i:])
 		panic_if_err(err)
 		i += bytesWritten
 	}
+	err = tmpfile.Sync()
+	panic_if_err(err)
 
 	_ = os.Mkdir(DataDir, 0755)
-	panic_if_err(os.Rename(file.Name(), filepath.Join(DataDir, filename)))
+	panic_if_err(os.Rename(tmpfile.Name(), filepath.Join(DataDir, filename)))
+	// FIXME: how to make sure the os.Rename completes?
 }
 
 // reads the contents of the file filename
@@ -47,7 +51,9 @@ func AtomicAppend(filename string, data []byte) {
 		panic(err)
 	}
 	f.Write(data)
-	f.Sync()
+	err = f.Sync()
+	panic_if_err(err)
+	// time.Sleep(10 * time.Millisecond)
 	err = f.Close()
 	if err != nil {
 		panic(err)
