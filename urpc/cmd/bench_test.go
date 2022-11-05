@@ -25,7 +25,7 @@ func TestBenchRPC(t *testing.T) {
 	client := urpc.MakeClient(grove_ffi.MakeAddress("127.0.0.1:12345"))
 
 	start := time.Now()
-	N := 200000
+	N := 2000
 	var reply []byte
 	args := make([]byte, 0)
 	for n := 0; n < N; n++ {
@@ -38,15 +38,15 @@ func TestBenchRPC(t *testing.T) {
 }
 
 func TestBenchConcurrentRPC(t *testing.T) {
-	fmt.Println("==Benchmarking urpc")
-	numClients := 40
+	fmt.Println("==Benchmarking urpc with concurrent clients")
+	numClients := 100
 	clients := make([]*urpc.Client, numClients)
 	for i := 0; i < numClients; i++ {
 		clients[i] = urpc.MakeClient(grove_ffi.MakeAddress("127.0.0.1:12345"))
 	}
 
 	var wg sync.WaitGroup
-	N := 50000
+	N := 500
 	start := time.Now()
 	args := make([]byte, 128)
 	for i := 0; i < numClients; i++ {
@@ -55,7 +55,7 @@ func TestBenchConcurrentRPC(t *testing.T) {
 			var reply []byte
 			for n := 0; n < N; n++ {
 				reply = make([]byte, 0)
-				clients[i].Call(1, args, &reply, 1000 /* ms */)
+				clients[0].Call(1, args, &reply, 1000 /* ms */)
 			}
 			wg.Done()
 		}(i)

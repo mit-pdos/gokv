@@ -8,7 +8,7 @@ import (
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/simplepb/e"
 	"github.com/mit-pdos/gokv/urpc"
-	"github.com/tchajed/goose/machine"
+	// "github.com/tchajed/goose/machine"
 )
 
 type Server struct {
@@ -26,8 +26,10 @@ type Server struct {
 func (s *Server) Apply(op Op) *ApplyReply {
 	reply := new(ApplyReply)
 	reply.Reply = nil
+	// reply.Err = e.ENone
+	// return reply
 	s.mu.Lock()
-	begin := grove_ffi.TimeNow()
+	// begin := grove_ffi.TimeNow()
 	if !s.isPrimary {
 		log.Println("Got request while not being primary")
 		s.mu.Unlock()
@@ -49,10 +51,10 @@ func (s *Server) Apply(op Op) *ApplyReply {
 	epoch := s.epoch
 	clerks := s.clerks
 	s.mu.Unlock()
-	end := grove_ffi.TimeNow()
-	if machine.RandomUint64()%1024 == 0 {
-		log.Printf("replica.mu crit section: %d ns", end-begin)
-	}
+	// end := grove_ffi.TimeNow()
+	// if machine.RandomUint64()%1024 == 0 {
+	// log.Printf("replica.mu crit section: %d ns", end-begin)
+	// }
 	waitForDurable()
 
 	// tell backups to apply it

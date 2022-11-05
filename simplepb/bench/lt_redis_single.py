@@ -24,7 +24,7 @@ def num_threads(i):
 def closed_lt(kvname, valuesize, outfilename, readprop, updateprop, recordcount, thread_fn, benchcpus):
     data = []
     i = 0
-    last_good_index = 0
+    last_good_index = i
     peak_thruput = 0
     # last_thruput = 10000
     # last_threads = 10

@@ -1,11 +1,14 @@
 package urpc
 
 import (
+	// "log"
+	"sync"
+	// "time"
+
 	"github.com/goose-lang/std"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/marshal"
-	"sync"
 )
 
 type Server struct {
@@ -30,6 +33,7 @@ func MakeServer(handlers map[uint64]func([]byte, *[]byte)) *Server {
 }
 
 func (srv *Server) readThread(conn grove_ffi.Connection) {
+	// lastRpcTime := time.Now()
 	for {
 		r := grove_ffi.Receive(conn)
 		if r.Err {
@@ -39,7 +43,12 @@ func (srv *Server) readThread(conn grove_ffi.Connection) {
 		data := r.Data
 		rpcid, data := marshal.ReadInt(data)
 		seqno, data := marshal.ReadInt(data)
-		req := data                                            // remaining data
+		req := data // remaining data
+		// thisRpcTime := time.Now()
+		// if machine.RandomUint64()%1024 == 0 {
+		// log.Printf("urpc time between RPCs: %v\n", thisRpcTime.Sub(lastRpcTime))
+		// }
+		// lastRpcTime = thisRpcTime
 		go func() { srv.rpcHandle(conn, rpcid, seqno, req) }() // XXX: this could (and probably should) be in a goroutine YYY: but readThread is already its own goroutine, so that seems redundant?
 		continue
 	}
