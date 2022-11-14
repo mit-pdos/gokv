@@ -17,9 +17,9 @@ def num_threads(i):
     if i < 5:
         return i + 1
     elif i < 25:
-        return (i - 4) * 5
+        return 5 + (i - 5) * 5
     else:
-        return 50 + (i - 24) * 50
+        return 500 + (i - 25) * 500
 
 def closed_lt(kvname, valuesize, outfilename, readprop, updateprop, recordcount, thread_fn, benchcpus):
     data = []
@@ -34,7 +34,7 @@ def closed_lt(kvname, valuesize, outfilename, readprop, updateprop, recordcount,
             break
         threads = thread_fn(i)
 
-        a = goycsb_bench(kvname, threads, 10, valuesize, readprop, updateprop, recordcount, benchcpus)
+        a = goycsb_bench(kvname, threads, 20, valuesize, readprop, updateprop, recordcount, benchcpus)
         p = {'service': kvname, 'num_threads': threads, 'lts': a}
 
         data = data + [ p ]

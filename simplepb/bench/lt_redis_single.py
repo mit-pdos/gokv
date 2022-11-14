@@ -17,9 +17,9 @@ def num_threads(i):
     if i < 5:
         return i + 1
     elif i < 25:
-        return (i - 4) * 5
+        return 5 + (i - 5) * 5
     else:
-        return 50 + (i - 24) * 50
+        return 500 + (i - 25) * 500
 
 def closed_lt(kvname, valuesize, outfilename, readprop, updateprop, recordcount, thread_fn, benchcpus):
     data = []
@@ -37,7 +37,7 @@ def closed_lt(kvname, valuesize, outfilename, readprop, updateprop, recordcount,
         # FIXME: clear out redis data
         cleanup_procs()
         start_fresh_single_node_redisraft()
-        a = goycsb_bench(kvname, threads, 10, valuesize, readprop, updateprop, recordcount, benchcpus)
+        a = goycsb_bench(kvname, threads, 20, valuesize, readprop, updateprop, recordcount, benchcpus)
 
         p = {'service': kvname, 'num_threads': threads, 'lts': a}
 
@@ -70,6 +70,7 @@ def start_fresh_single_node_redisraft():
     run_command(["rm", dbfilename, logfilename, logfilename + ".meta", logfilename + ".idx"], cwd=durable_dir)
 
     run_command(["cp", os.path.join(redisdir, "redisraft", "redisraft.so"), durable_dir])
+    time.sleep(4)
     start_command(many_cpus(["./redis/src/redis-server",
                              "--port", "5001", "--dbfilename", dbfilename,
                              "--loadmodule", "./redisraft.so",
@@ -78,9 +79,9 @@ def start_fresh_single_node_redisraft():
                              "--raft.log-fsync", "yes",
                              "--raft.addr", "localhost:5001",], config['rediscpus']), cwd=redisdir)
 
-    time.sleep(1)
-    run_command(["./redis/src/redis-cli", "-p", "5001", "raft.cluster", "init"], cwd=redisdir)
     time.sleep(2)
+    run_command(["./redis/src/redis-cli", "-p", "5001", "raft.cluster", "init"], cwd=redisdir)
+    time.sleep(3)
 
 redisdir = ''
 
@@ -97,7 +98,7 @@ def main():
         'keys': 1000,
         'clientcpus': '4-7',
         # 'clientcpus': '0',
-        'rediscpus': '0',
+        'rediscpus': '1',
     }
 
     # start_fresh_single_node_redisraft()
