@@ -38,7 +38,7 @@ func (ck *Clerk) Apply(op []byte) []byte {
 			break
 		} else {
 			// log.Println("Error during apply(): ", err)
-			grove_ffi.Sleep(100 * 1e6) // throttle retries to config server
+			grove_ffi.Sleep(uint64(100) * uint64(1_000_000)) // throttle retries to config server
 			config := ck.confCk.GetConfig()
 			ck.primaryCk = pb.MakeClerk(config[0])
 			continue
