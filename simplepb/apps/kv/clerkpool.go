@@ -20,7 +20,8 @@ func MakeClerkPool(confHost grove_ffi.Address) *ClerkPool {
 }
 
 // TODO: get rid of stale clerks from the ck.cls list?
-// TODO: keep failed clerks out of ck.cls list?
+// TODO: keep failed clerks out of ck.cls list? Maybe f(cl) can return an
+// optional error saying "get rid of cl".
 // XXX: what's the performance overhead of function pointer here v.s. manually
 // inlining the body each time?
 func (ck *ClerkPool) doWithClerk(f func(ck *Clerk)) {
@@ -31,17 +32,26 @@ func (ck *ClerkPool) doWithClerk(f func(ck *Clerk)) {
 		cl = ck.cls[0]
 		ck.cls = ck.cls[1:]
 		ck.mu.Unlock()
+
+		f(cl)
+		// put cl back into the list
+		ck.mu.Lock()
+		ck.cls = append(ck.cls, cl)
+		ck.mu.Unlock()
+
 	} else {
 		ck.mu.Unlock()
 		cl = MakeClerk(ck.confHost)
+
+		f(cl)
+		// put the new cl into the list many times
+		ck.mu.Lock()
+		ck.cls = append(ck.cls, cl)
+		ck.cls = append(ck.cls, cl)
+		ck.cls = append(ck.cls, cl)
+		ck.cls = append(ck.cls, cl)
+		ck.mu.Unlock()
 	}
-
-	f(cl)
-
-	// put cl back into the list
-	ck.mu.Lock()
-	ck.cls = append(ck.cls, cl)
-	ck.mu.Unlock()
 }
 
 func (ck *ClerkPool) Put(key []byte, val []byte) {
