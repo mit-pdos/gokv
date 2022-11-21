@@ -5,6 +5,7 @@ import (
 	"net"
 	"sync/atomic"
 	"time"
+	"github.com/mit-pdos/gokv/rediscomp/benchclosed"
 )
 
 var msgSize int
@@ -56,11 +57,35 @@ func receiveEchos(donePtr *uint64, conn net.Conn) int {
 func main() {
 	msgSize = 128
 	serverAddress = "127.0.0.1:8080"
+	numClients := 50
+	warmup := 1 * time.Second
+	runtime := 10 * time.Second
 
-	done := new(uint64)
-	startClientConnection(done, 0*time.Millisecond)
+	benchclosed.RunBench(func() func() {
+		conn, err := net.Dial("tcp", serverAddress)
+		if err != nil {
+			panic(err)
+		}
+		msg := make([]byte, msgSize)
 
-	time.Sleep(10 * time.Second)
-	atomic.StoreUint64(done, 1)
-	select {}
+		return func() {
+			n, err := conn.Write(msg)
+			if err != nil {
+				panic(err)
+			} else if n != msgSize {
+				panic("Write didn't write the whole message")
+			}
+
+			n, err = conn.Read(msg)
+			if err != nil {
+				panic(err)
+			} else if n != msgSize {
+				panic("Read didn't return the whole message")
+			}
+		}
+	},
+		numClients,
+		runtime,
+		warmup,
+	)
 }

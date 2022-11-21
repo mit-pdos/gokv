@@ -32,7 +32,10 @@ func StartServer(portnum int) {
 				if err != nil {
 					return
 				}
+
+				// go func() {
 				conn.Write(buffer[:n])
+				// }()
 			}
 		}()
 	}
