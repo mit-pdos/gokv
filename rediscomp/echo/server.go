@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/http"
+	_ "net/http/pprof"
 )
 
 //
@@ -45,6 +47,10 @@ func StartServer(portnum int) {
 }
 
 func main() {
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
+
 	go StartServer(8080)
 	log.Printf("Started echo server on port 8080")
 	select {}
