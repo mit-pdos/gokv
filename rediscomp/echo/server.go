@@ -33,9 +33,9 @@ func StartServer(portnum int) {
 					return
 				}
 
-				// go func() {
-				conn.Write(buffer[:n])
-				// }()
+				go func() {
+					conn.Write(buffer[:n])
+				}()
 			}
 		}()
 	}
