@@ -5,7 +5,10 @@ import (
 	"net"
 	"sync/atomic"
 	"time"
+
+	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/rediscomp/benchclosed"
+	"github.com/mit-pdos/gokv/urpc"
 )
 
 var msgSize int
@@ -54,6 +57,40 @@ func receiveEchos(donePtr *uint64, conn net.Conn) int {
 	return numMessagesReceived
 }
 
+func echoInitClient() func() {
+	conn, err := net.Dial("tcp", serverAddress)
+	if err != nil {
+		panic(err)
+	}
+	msg := make([]byte, msgSize)
+
+	return func() {
+		n, err := conn.Write(msg)
+		if err != nil {
+			panic(err)
+		} else if n != msgSize {
+			panic("Write didn't write the whole message")
+		}
+
+		n, err = conn.Read(msg)
+		if err != nil {
+			panic(err)
+		} else if n != msgSize {
+			panic("Read didn't return the whole message")
+		}
+	}
+}
+
+func urpcInitClient() func() {
+	cl := urpc.MakeClient(grove_ffi.MakeAddress(serverAddress))
+	args := make([]byte, msgSize)
+	reply := new([]byte)
+
+	return func() {
+		cl.Call(0, args, reply, 100 /* ms */)
+	}
+}
+
 func main() {
 	msgSize = 128
 	serverAddress = "127.0.0.1:8080"
@@ -61,29 +98,7 @@ func main() {
 	warmup := 1 * time.Second
 	runtime := 10 * time.Second
 
-	benchclosed.RunBench(func() func() {
-		conn, err := net.Dial("tcp", serverAddress)
-		if err != nil {
-			panic(err)
-		}
-		msg := make([]byte, msgSize)
-
-		return func() {
-			n, err := conn.Write(msg)
-			if err != nil {
-				panic(err)
-			} else if n != msgSize {
-				panic("Write didn't write the whole message")
-			}
-
-			n, err = conn.Read(msg)
-			if err != nil {
-				panic(err)
-			} else if n != msgSize {
-				panic("Read didn't return the whole message")
-			}
-		}
-	},
+	benchclosed.RunBench(urpcInitClient,
 		numClients,
 		runtime,
 		warmup,
