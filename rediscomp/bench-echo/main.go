@@ -55,13 +55,13 @@ func usage() {
 func main() {
 	msgSize = 128
 	numClients := 50
-	var runtimeSeconds = *flag.Int("runtime", 10, "number of seconds to run benchmark for")
-	runtime := time.Duration(runtimeSeconds) * time.Second
+	var runtimeSeconds = flag.Int("runtime", 10, "number of seconds to run benchmark for")
 
-	var warmupSeconds = *flag.Int("warmup", 1, "number of seconds to warm up before measuring")
-	warmup := time.Duration(warmupSeconds) * time.Second
-
+	var warmupSeconds = flag.Int("warmup", 1, "number of seconds to warm up before measuring")
 	flag.Parse()
+
+	runtime := time.Duration(*runtimeSeconds) * time.Second
+	warmup := time.Duration(*warmupSeconds) * time.Second
 
 	args := flag.Args()
 	if len(args) != 1 {
@@ -79,6 +79,9 @@ func main() {
 	} else if args[0] == "urpc" {
 		initClient = urpcInitClient
 		serverAddress = "127.0.0.1:8081"
+	} else if args[0] == "grove" {
+		initClient = groveInitClient
+		serverAddress = "127.0.0.1:8082"
 	} else {
 		usage()
 		panic("invalid command provided")
