@@ -86,8 +86,8 @@ def many_cores(args, c):
 def one_core(args, c):
     return ["numactl", "-C", str(c)] + args
 
-def many_cpus(args, n):
-    return ["numactl", "-N", n] + args
+def many_cpus(args, c):
+    return ["numactl"] + c + args
 
 def parse_ycsb_output(output):
     # look for 'Run finished, takes...', then parse the lines for each of the operations
@@ -103,7 +103,7 @@ def parse_ycsb_output(output):
     return a
 
 
-def goycsb_bench(kvname:str, threads:int, runtime:int, valuesize:int, readprop:float, updateprop:float, keys:int, benchcpus:str):
+def goycsb_bench(kvname:str, threads:int, runtime:int, valuesize:int, readprop:float, updateprop:float, keys:int, cpuconfig:list[str]):
     """
     Returns a dictionary of the form
     { 'UPDATE': {'thruput': 1000, 'avg_latency': 12345', 'raw': 'blah'},...}
@@ -123,7 +123,7 @@ def goycsb_bench(kvname:str, threads:int, runtime:int, valuesize:int, readprop:f
                                   '-p', 'updateproportion=' + str(updateprop),
                                   '-p', 'warmup=10', # TODO: increase warmup
                                   '-p', 'recordcount=', str(keys),
-                                  ], benchcpus), cwd=goycsbdir)
+                                  ], cpuconfig), cwd=goycsbdir)
 
     if p is None:
         return ''

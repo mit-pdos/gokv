@@ -21,7 +21,7 @@ def num_threads(i):
     else:
         return 500 + (i - 25) * 500
 
-def closed_lt(kvname, valuesize, outfilename, readprop, updateprop, recordcount, thread_fn, benchcpus):
+def closed_lt(kvname, valuesize, outfilename, readprop, updateprop, recordcount, thread_fn, cpuconfig):
     data = []
     i = 0
     last_good_index = i
@@ -34,7 +34,7 @@ def closed_lt(kvname, valuesize, outfilename, readprop, updateprop, recordcount,
             break
         threads = thread_fn(i)
 
-        a = goycsb_bench(kvname, threads, 20, valuesize, readprop, updateprop, recordcount, benchcpus)
+        a = goycsb_bench(kvname, threads, 20, valuesize, readprop, updateprop, recordcount, cpuconfig)
         p = {'service': kvname, 'num_threads': threads, 'lts': a}
 
         data = data + [ p ]
@@ -59,15 +59,15 @@ def start_config_server():
     # FIXME: core pinning
     start_command(many_cpus(["go", "run", "./cmd/config", "-port", "12000"], config['configcpus']), cwd=simplepbdir)
 
-def start_one_kv_server():
+def start_one_kv_server(kvcpuconfig):
     # FIXME: core pinning
     # delete kvserver.data file
     run_command(["rm", "durable/single_kvserver.data"], cwd=simplepbdir)
-    start_command(many_cpus(["go", "run", "./cmd/kvsrv", "-filename", "single_kvserver.data", "-port", "12100"], config['kvcpus']), cwd=simplepbdir)
+    start_command(many_cpus(["go", "run", "./cmd/kvsrv", "-filename", "single_kvserver.data", "-port", "12100"], kvcpuconfig), cwd=simplepbdir)
 
-def start_single_node_kv_system():
+def start_single_node_kv_system(kvcpuconfig):
     start_config_server()
-    start_one_kv_server()
+    start_one_kv_server(kvcpuconfig)
     time.sleep(1.0)
     # tell the config server about the initial config
     start_command(["go", "run", "./cmd/admin", "-conf", "0.0.0.0:12000",
@@ -84,15 +84,31 @@ def main():
         'read': 0,
         'write': 1.0,
         'keys': 1000,
-        'clientcpus': '4-7',
-        'configcpus': '0',
-        'kvcpus': '1',
+        'clientcpus': ['-N', '4-7'],
+        'configcpus': ['-N', '0'],
+        'kvcpuconfigs': [['-C', '0'],
+                         ['-C', '0-1'],
+                         ['-C', '0-2'],
+                         ['-C', '0-3'],
+                         ['-C', '0-4'],
+                         ['-C', '0-5'],
+                         ['-C', '0-6'],
+                         ['-C', '0-7'],
+                         ['-C', '0-8'],
+                         ['-C', '0-9'],
+                         ]
     }
 
-    # time.sleep(1000000)
-    start_single_node_kv_system()
-    closed_lt('pbkv', 128, path.join(global_args.outdir, 'pb-kvs.jsons'), config['read'], config['write'], config['keys'], num_threads, config['clientcpus'])
-    # closed_lt('rediskv', 128, path.join(global_args.outdir, 'redis-kvs.jsons'), config['read'], config['write'], config['keys'], num_threads, config['clientcores'])
+    outfilepath = path.join(global_args.outdir, 'pb-kvs.jsons')
+    with open(outfilepath, 'a+') as outfile:
+        outfile.write(f"# Starting running on ben\n")
+
+    for kvcpuconfig in config['kvcpuconfigs']:
+        start_single_node_kv_system(kvcpuconfig)
+        with open(outfilepath, 'a+') as outfile:
+            outfile.write(f"# Run with kvcpuconfig = {kvcpuconfig}\n")
+        closed_lt('pbkv', 128, outfilepath, config['read'], config['write'], config['keys'], num_threads, config['clientcpus'])
+        cleanup_procs()
 
 if __name__=='__main__':
     main()
