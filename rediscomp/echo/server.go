@@ -26,8 +26,11 @@ func StartServer(portnum int) {
 		panic_if_err(err, "Listen")
 
 		go func() {
-			buffer := make([]byte, 16*1024)
 			for {
+				// XXX: need to allocate buffer in the loop because the replying
+				// goroutine uses it.
+				buffer := make([]byte, 128)
+
 				n, err := conn.Read(buffer)
 				if err != nil {
 					return
