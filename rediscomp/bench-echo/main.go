@@ -57,7 +57,7 @@ func main() {
 	numClients := 50
 	var runtimeSeconds = flag.Int("runtime", 10, "number of seconds to run benchmark for")
 
-	var warmupSeconds = flag.Int("warmup", 1, "number of seconds to warm up before measuring")
+	var warmupSeconds = flag.Int("warmup", 5, "number of seconds to warm up before measuring")
 	flag.Parse()
 
 	runtime := time.Duration(*runtimeSeconds) * time.Second
