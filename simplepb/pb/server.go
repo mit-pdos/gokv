@@ -102,7 +102,7 @@ func (s *Server) Apply(op Op) *ApplyReply {
 // requires that we've already at least entered this epoch
 // returns true iff stale
 func (s *Server) isEpochStale(epoch uint64) bool {
-	return s.epoch > epoch
+	return s.epoch != epoch
 }
 
 // called on backup servers to apply an operation so it is replicated and
