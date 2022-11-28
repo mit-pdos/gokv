@@ -1,11 +1,12 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"log"
 	"net"
 	"sync"
+
+	"github.com/mit-pdos/gokv/rediscomp/redis"
 )
 
 const PROTO_IOBUF_LEN = 16 * 1024 // from server.h
@@ -31,7 +32,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 		}
 
 		// parse command
-		key, val := parseSetCommand(buffer[:n])
+		key, val := redis.ParseSetCommand(buffer[:n])
 		// fmt.Printf("Setting %s -> %s\n", string(key), string(val))
 		s.mu.Lock()
 		s.kvs[string(key)] = val
@@ -41,57 +42,6 @@ func (s *Server) handleConnection(conn net.Conn) {
 }
 
 // returns key, value
-func parseSetCommand(data []byte) ([]byte, []byte) {
-	expectedPrefix := []byte("*3\r\n$3\r\nSET\r\n$")
-	if !bytes.HasPrefix(data, expectedPrefix) {
-		log.Fatalf("unexpected command; got %s", string(data))
-	}
-	data = data[len(expectedPrefix):]
-
-	keyLen := 0
-
-	// get size of key
-	i := 0
-	for data[i] != '\r' {
-		keyLen = (keyLen * 10) + int(data[i]-'0')
-		i++
-	}
-
-	if !(data[i+1] == '\n') {
-		panic("expected LF")
-	}
-	data = data[i+2:]
-
-	// now get the key
-	if len(data) < keyLen+3 { // + 2 for \r\n$
-		panic("incomplete SET command")
-	}
-
-	key := data[:keyLen]
-	data = data[keyLen+3:]
-
-	// get size of value
-	i = 0
-	valLen := 0
-	for data[i] != '\r' {
-		valLen = (valLen * 10) + int(data[i]-'0')
-		i++
-	}
-
-	if !(data[i+1] == '\n') {
-		panic("expected LF")
-	}
-	data = data[i+2:]
-
-	val := data[:valLen]
-
-	if !bytes.Equal(data[valLen:], []byte("\r\n")) {
-		log.Fatalf("unexpected data after end of SET command; have %s", data[valLen:])
-	}
-
-	return key, val
-}
-
 func StartServer(portnum int) {
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", portnum))
 	if err != nil {
