@@ -79,7 +79,7 @@ func (s *StateMachine) apply(op []byte) ([]byte, func()) {
 		// s.logsize = 0
 		// s.truncateAndMakeDurable()
 	} else {
-		var opWithLen = make([]byte, 0, 8 + uint64(len(op)))
+		var opWithLen = make([]byte, 0, 8+uint64(len(op)))
 		opWithLen = marshal.WriteInt(opWithLen, uint64(len(op)))
 		opWithLen = marshal.WriteBytes(opWithLen, op)
 		l := s.logFile.Append(opWithLen)
@@ -124,7 +124,7 @@ func recoverStateMachine(smMem *InMemoryStateMachine, fname string) *StateMachin
 	if len(enc) == 0 {
 		// this means the file represents an empty snapshot, epoch 0, and nextIndex 0
 		// write that in the file to start
-		initialContents := make([]byte, 8 + 8 + 8)
+		initialContents := make([]byte, 8+8+8)
 		grove_ffi.Write(s.fname, initialContents)
 
 		s.logFile = aof.CreateAppendOnlyFile(fname)

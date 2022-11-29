@@ -2,7 +2,7 @@ package aof
 
 import (
 	// "log"
-	"runtime"
+	// "runtime"
 	"sync"
 	// "time"
 
