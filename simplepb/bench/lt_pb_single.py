@@ -61,7 +61,8 @@ def start_config_server():
 
 def start_one_kv_server(kvcpuconfig):
     # delete kvserver.data file
-    run_command(remote_cmd(config['serverhost'], ["rm", "durable/single_kvserver.data"], simplepbdir), shell=True)
+    start_shell_command(' '.join(remote_cmd(config['serverhost'],
+                                           ["rm", "durable/single_kvserver.data"], simplepbdir))).wait()
 
     start_shell_command(' '.join(remote_cmd(config['serverhost'],
                              many_cpus([gobin, "run", "./cmd/kvsrv", "-filename", "single_kvserver.data", "-port", "12100"], kvcpuconfig), simplepbdir)))
@@ -99,6 +100,8 @@ def main():
                          ['-C', '0-7'],
                          ],
         'serverhost': '10.10.1.2',
+        'warmuptime': 10,
+        'runtime': 10,
     }
 
     for kvcpuconfig in config['kvcpuconfigs']:
@@ -110,7 +113,7 @@ def main():
         with open(outfilepath, 'a+') as outfile:
             outfile.write(f"# Run with kvcpuconfig = {kvcpuconfig}\n")
 
-        closed_lt('pbkv', 20, 30, 128, outfilepath, config['read'], config['write'], config['keys'], num_threads, config['clientcpus'])
+        closed_lt('pbkv', config['warmuptime'], config['runtime'], 128, outfilepath, config['read'], config['write'], config['keys'], num_threads, config['clientcpus'])
         cleanup_procs()
 
 if __name__=='__main__':

@@ -171,7 +171,7 @@ func (s *Server) GetState(args *GetStateArgs) *GetStateReply {
 
 func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {
 	s.mu.Lock()
-	if s.isEpochStale(args.Epoch) {
+	if args.Epoch < s.epoch {
 		log.Println("Stale BecomePrimary request")
 		s.mu.Unlock()
 		return e.Stale
