@@ -13,15 +13,6 @@ type InMemoryStateMachine struct {
 	SetState      func([]byte)
 }
 
-func appendOp(fname string, op []byte) {
-	var enc = make([]byte, 0, 8+uint64(len(op)))
-	// write byte indicating that this is a op, then length of op, then op itself.
-	enc = marshal.WriteInt(enc, uint64(len(op)))
-	enc = marshal.WriteBytes(enc, op)
-
-	grove_ffi.FileAppend(fname, enc)
-}
-
 const MAX_LOG_SIZE = uint64(64 * 1024 * 1024 * 1024)
 
 // File format:
@@ -62,6 +53,7 @@ func (s *StateMachine) makeDurableWithSnap(snap []byte) {
 }
 
 // XXX: this is not safe to run concurrently with apply()
+// requires that the state machine is not sealed
 func (s *StateMachine) truncateAndMakeDurable() {
 	snap := s.smMem.GetState()
 	s.makeDurableWithSnap(snap)
@@ -96,10 +88,12 @@ func (s *StateMachine) setStateAndUnseal(snap []byte, nextIndex uint64, epoch ui
 }
 
 func (s *StateMachine) getStateAndSeal() []byte {
+	// if sealed, then _definitely_ have up-to-date resources
 	if !s.sealed {
 		// seal the file by writing a byte at the end
 		s.sealed = true
-		grove_ffi.FileAppend(s.fname, make([]byte, 1))
+		l := s.logFile.Append(make([]byte, 1))
+		s.logFile.WaitAppend(l)
 	}
 	// XXX: it might be faster to read the file from disk.
 	snap := s.smMem.GetState()
@@ -114,11 +108,18 @@ func recoverStateMachine(smMem *InMemoryStateMachine, fname string) *StateMachin
 
 	// load from file
 	var enc = grove_ffi.FileRead(s.fname)
-	s.logFile = aof.CreateAppendOnlyFile(fname)
 
 	if len(enc) == 0 {
+		// this means the file represents an empty snapshot, epoch 0, and nextIndex 0
+		// write that in the file to start
+		initialContents := make([]byte, 8+8+8)
+		grove_ffi.FileWrite(s.fname, initialContents)
+
+		s.logFile = aof.CreateAppendOnlyFile(fname)
 		return s
 	}
+
+	s.logFile = aof.CreateAppendOnlyFile(fname)
 
 	// load snapshot
 	var snapLen uint64
@@ -134,6 +135,9 @@ func recoverStateMachine(smMem *InMemoryStateMachine, fname string) *StateMachin
 
 	// apply ops to bring in-memory state up to date
 	for {
+		// XXX: this depends on the fact that an `op` takes up at least 2 bytes
+		// e.g. because its opLen takes 8 bytes. A single extra byte is
+		// considered a "sealed" flag.
 		if len(enc) > 1 {
 			var opLen uint64
 			opLen, enc = marshal.ReadInt(enc)
