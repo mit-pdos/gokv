@@ -31,7 +31,7 @@ func (s *Server) Apply(op Op) *ApplyReply {
 	s.mu.Lock()
 	// begin := grove_ffi.TimeNow()
 	if !s.isPrimary {
-		log.Println("Got request while not being primary")
+		// log.Println("Got request while not being primary")
 		s.mu.Unlock()
 		reply.Err = e.Stale
 		return reply

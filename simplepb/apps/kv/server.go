@@ -91,7 +91,11 @@ func (s *KVState) getState() []byte {
 }
 
 func (s *KVState) setState(snap []byte) {
-	s.kvs = map_marshal.DecodeMapStringToBytes(snap)
+	if len(snap) == 0 {
+		s.kvs = make(map[string][]byte, 0)
+	} else {
+		s.kvs = map_marshal.DecodeMapStringToBytes(snap)
+	}
 }
 
 func makeKVStateMachine() *simplelog.InMemoryStateMachine {
