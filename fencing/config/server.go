@@ -3,6 +3,7 @@ package config
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc"
+	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/marshal"
 	"sync"
 )
@@ -20,7 +21,7 @@ type Server struct {
 
 	currHolderActive      bool
 	currHolderActive_cond *sync.Cond
-	heartbeatExpiration   grove_ffi.Time
+	heartbeatExpiration   uint64
 }
 
 func (s *Server) AcquireEpoch(newFrontend grove_ffi.Address) uint64 {
@@ -32,7 +33,7 @@ func (s *Server) AcquireEpoch(newFrontend grove_ffi.Address) uint64 {
 	s.data = newFrontend
 	s.currentEpoch += 1
 
-	now := grove_ffi.TimeNow()
+	now := machine.TimeNow()
 	s.heartbeatExpiration = now + TIMEOUT_MS*MILLION
 
 	ret := s.currentEpoch
@@ -57,12 +58,12 @@ func (s *Server) HeartbeatListener() {
 
 		// loops until the heartbeat expiration time is passed
 		for {
-			now := grove_ffi.TimeNow()
+			now := machine.TimeNow()
 			s.mu.Lock()
 			if now < s.heartbeatExpiration {
 				delay := s.heartbeatExpiration - now
 				s.mu.Unlock()
-				grove_ffi.Sleep(delay)
+				machine.Sleep(delay)
 			} else {
 				s.currHolderActive = false
 				s.currHolderActive_cond.Signal()
@@ -81,7 +82,7 @@ func (s *Server) Heartbeat(epoch uint64) bool {
 	s.mu.Lock()
 	var ret bool = false
 	if s.currentEpoch == epoch {
-		now := grove_ffi.TimeNow()
+		now := machine.TimeNow()
 		s.heartbeatExpiration = now + TIMEOUT_MS
 		ret = true
 	}

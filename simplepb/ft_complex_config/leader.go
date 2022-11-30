@@ -1,7 +1,6 @@
 package ftconfig
 
 import (
-	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/simplepb/e"
 	"github.com/tchajed/goose/machine"
 	"sync"
@@ -88,7 +87,7 @@ func (s *LeaderServer) TryBecomeLeader() e.Error {
 		}()
 	}
 
-	grove_ffi.Sleep(100 * 1_000_000)
+	machine.Sleep(100 * 1_000_000)
 	// XXX: this waits only 100 ms; if the median RPC latency to the old
 	// config's followers is more than this, then we will timeout too early.
 

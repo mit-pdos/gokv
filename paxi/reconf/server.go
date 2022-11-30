@@ -3,6 +3,7 @@ package reconf
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc"
+	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/marshal"
 	"log"
 	"sync"
@@ -113,7 +114,7 @@ func (r *Replica) TryBecomeLeader() bool {
 	})
 
 	// FIXME: put this in a condvar loop with timeout
-	grove_ffi.Sleep(50 * 1_000_000) // 50 ms
+	machine.Sleep(50 * 1_000_000) // 50 ms
 	mu.Lock()
 	if IsQuorum(highestVal.conf, prepared) {
 		// We successfully became the leader
@@ -174,7 +175,7 @@ func (r *Replica) tryCommit(mvalModifier func(*MonotonicValue), reply *TryCommit
 	})
 
 	// FIXME: put this in a condvar loop with timeout
-	grove_ffi.Sleep(100 * 1_000_000) // 100ms
+	machine.Sleep(100 * 1_000_000) // 100ms
 	mu.Lock()
 	if IsQuorum(mval.conf, accepted) {
 		reply.err = ENone

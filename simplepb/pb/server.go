@@ -29,7 +29,7 @@ func (s *Server) Apply(op Op) *ApplyReply {
 	// reply.Err = e.ENone
 	// return reply
 	s.mu.Lock()
-	// begin := grove_ffi.TimeNow()
+	// begin := machine.TimeNow()
 	if !s.isPrimary {
 		log.Println("Got request while not being primary")
 		s.mu.Unlock()
@@ -51,7 +51,7 @@ func (s *Server) Apply(op Op) *ApplyReply {
 	epoch := s.epoch
 	clerks := s.clerks
 	s.mu.Unlock()
-	// end := grove_ffi.TimeNow()
+	// end := machine.TimeNow()
 	// if machine.RandomUint64()%1024 == 0 {
 	// log.Printf("replica.mu crit section: %d ns", end-begin)
 	// }

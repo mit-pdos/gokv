@@ -3,6 +3,7 @@ package config
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc"
+	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/marshal"
 	"log"
 )
@@ -25,7 +26,7 @@ func (ck *Clerk) HeartbeatThread(epoch uint64) {
 		// XXX: make this statistically rigorous (e.g. aim for at most x% chance
 		// of spurious leader failure per hour)
 		reply_ptr := new([]byte)
-		grove_ffi.Sleep(TIMEOUT_MS * MILLION / 3)
+		machine.Sleep(TIMEOUT_MS * MILLION / 3)
 		err := ck.cl.Call(RPC_HB, args, reply_ptr, 100 /* ms */)
 		if err != 0 || len(*reply_ptr) != 0 {
 			break

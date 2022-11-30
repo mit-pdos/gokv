@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/mit-pdos/gokv/grove_ffi"
+	"github.com/tchajed/goose/machine"
 )
 
 // copied from grove_ffi/filesys.go and modified
@@ -34,12 +35,12 @@ func bench_onesize(fname string, writeSize uint64) float64 {
 	for i := uint64(0); i < warmup; i += 1 {
 		AppendWithoutSync(fname, data)
 	}
-	start := grove_ffi.TimeNow()
+	start := machine.TimeNow()
 
 	for i := uint64(0); i < n; i += 1 {
 		AppendWithoutSync(fname, data)
 	}
-	end := grove_ffi.TimeNow()
+	end := machine.TimeNow()
 	numWritesPerSec := float64(n) / (float64(end-start) / 1e9)
 	// numBytesPerSec = float64(writeSize*n) / float64(end-start)
 	return numWritesPerSec

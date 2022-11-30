@@ -7,6 +7,7 @@ import (
 
 	"github.com/mit-pdos/gokv/aof"
 	"github.com/mit-pdos/gokv/grove_ffi"
+	"github.com/tchajed/goose/machine"
 )
 
 func bench_onesize(fname string, writeSize uint64, numThreads uint64) float64 {
@@ -29,11 +30,11 @@ func bench_onesize(fname string, writeSize uint64, numThreads uint64) float64 {
 			for j := uint64(0); j < warmup; j++ {
 				f.WaitAppend(f.Append(data))
 			}
-			start := grove_ffi.TimeNow()
+			start := machine.TimeNow()
 			for j := uint64(0); j < n; j++ {
 				f.WaitAppend(f.Append(data))
 			}
-			end := grove_ffi.TimeNow()
+			end := machine.TimeNow()
 
 			// first add our time to totalTime and give up ownership of our frac
 			// of totalTime

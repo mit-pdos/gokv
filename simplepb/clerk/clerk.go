@@ -5,6 +5,7 @@ import (
 	"github.com/mit-pdos/gokv/simplepb/config"
 	"github.com/mit-pdos/gokv/simplepb/e"
 	"github.com/mit-pdos/gokv/simplepb/pb"
+	"github.com/tchajed/goose/machine"
 	// "log"
 )
 
@@ -38,7 +39,7 @@ func (ck *Clerk) Apply(op []byte) []byte {
 			break
 		} else {
 			// log.Println("Error during apply(): ", err)
-			grove_ffi.Sleep(uint64(100) * uint64(1_000_000)) // throttle retries to config server
+			machine.Sleep(uint64(100) * uint64(1_000_000)) // throttle retries to config server
 			config := ck.confCk.GetConfig()
 			ck.primaryCk = pb.MakeClerk(config[0])
 			continue
