@@ -18,7 +18,7 @@ func panic_if_err(err error) {
 }
 
 // crash-atomically writes content to the file with name filename
-func Write(filename string, content []byte) {
+func FileWrite(filename string, content []byte) {
 	_ = os.Mkdir("tmp", 0755)
 	tmpfile, err := ioutil.TempFile("tmp", filename+"_*")
 	panic_if_err(err)
@@ -39,12 +39,12 @@ func Write(filename string, content []byte) {
 }
 
 // reads the contents of the file filename
-func Read(filename string) []byte {
+func FileRead(filename string) []byte {
 	content, _ := ioutil.ReadFile(filepath.Join(DataDir, filename))
 	return content
 }
 
-func AtomicAppend(filename string, data []byte) {
+func FileAppend(filename string, data []byte) {
 	filename = filepath.Join(DataDir, filename)
 	f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
