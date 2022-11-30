@@ -24,7 +24,7 @@ type Op = []byte
 
 func RecoverKVState(fname string) *KVState {
 	s := new(KVState)
-	var encState = grove_ffi.Read(fname)
+	var encState = grove_ffi.FileRead(fname)
 	s.filename = fname
 	if len(encState) == 0 {
 		s.epoch = 0
@@ -59,7 +59,7 @@ func (s *KVState) getState() []byte {
 }
 
 func (s *KVState) MakeDurable() {
-	grove_ffi.Write(s.filename, s.getState())
+	grove_ffi.FileWrite(s.filename, s.getState())
 }
 
 func (s *KVState) Apply(op Op) ([]byte, func()) {

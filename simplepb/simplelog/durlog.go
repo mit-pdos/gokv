@@ -19,7 +19,7 @@ func appendOp(fname string, op []byte) {
 	enc = marshal.WriteInt(enc, uint64(len(op)))
 	enc = marshal.WriteBytes(enc, op)
 
-	grove_ffi.AtomicAppend(fname, enc)
+	grove_ffi.FileAppend(fname, enc)
 }
 
 const MAX_LOG_SIZE = uint64(64 * 1024 * 1024 * 1024)
@@ -58,7 +58,7 @@ func (s *StateMachine) makeDurableWithSnap(snap []byte) {
 		marshal.WriteBytes(enc, make([]byte, 1))
 	}
 
-	grove_ffi.Write(s.fname, enc)
+	grove_ffi.FileWrite(s.fname, enc)
 }
 
 // XXX: this is not safe to run concurrently with apply()
@@ -99,7 +99,7 @@ func (s *StateMachine) getStateAndSeal() []byte {
 	if !s.sealed {
 		// seal the file by writing a byte at the end
 		s.sealed = true
-		grove_ffi.AtomicAppend(s.fname, make([]byte, 1))
+		grove_ffi.FileAppend(s.fname, make([]byte, 1))
 	}
 	// XXX: it might be faster to read the file from disk.
 	snap := s.smMem.GetState()
@@ -113,7 +113,7 @@ func recoverStateMachine(smMem *InMemoryStateMachine, fname string) *StateMachin
 	}
 
 	// load from file
-	var enc = grove_ffi.Read(s.fname)
+	var enc = grove_ffi.FileRead(s.fname)
 	s.logFile = aof.CreateAppendOnlyFile(fname)
 
 	if len(enc) == 0 {

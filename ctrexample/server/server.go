@@ -18,7 +18,7 @@ type CtrServer struct {
 func (s *CtrServer) MakeDurable() {
 	e := marshal.NewEnc(8)
 	e.PutInt(s.val)
-	grove_ffi.Write(s.filename, e.Finish())
+	grove_ffi.FileWrite(s.filename, e.Finish())
 }
 
 func (s *CtrServer) FetchAndIncrement() uint64 {
@@ -37,7 +37,7 @@ func main() {
 	s.mu = new(sync.Mutex)
 	s.filename = "ctr"
 
-	a := grove_ffi.Read(s.filename)
+	a := grove_ffi.FileRead(s.filename)
 	if len(a) == 0 {
 		s.val = 0
 	} else {

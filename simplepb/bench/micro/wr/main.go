@@ -47,23 +47,23 @@ func bench_onesize(fname string, writeSize uint64) float64 {
 
 func main() {
 	fname := "test.data"
-	grove_ffi.Write(fname, nil)
+	grove_ffi.FileWrite(fname, nil)
 	fmt.Printf("16-byte writes -> %f writes/sec\n", bench_onesize(fname, 16))
-	grove_ffi.Write(fname, nil)
+	grove_ffi.FileWrite(fname, nil)
 	fmt.Printf("32-byte writes -> %f writes/sec\n", bench_onesize(fname, 32))
-	grove_ffi.Write(fname, nil)
+	grove_ffi.FileWrite(fname, nil)
 	fmt.Printf("1024-byte writes -> %f writes/sec\n", bench_onesize(fname, 1024))
-	grove_ffi.Write(fname, nil)
+	grove_ffi.FileWrite(fname, nil)
 	fmt.Printf("4096-byte writes -> %f writes/sec\n", bench_onesize(fname, 4096))
-	grove_ffi.Write(fname, nil)
+	grove_ffi.FileWrite(fname, nil)
 	fmt.Printf("8192-byte writes -> %f writes/sec\n", bench_onesize(fname, 8*1024))
-	grove_ffi.Write(fname, nil)
+	grove_ffi.FileWrite(fname, nil)
 	fmt.Printf("16384-byte writes -> %f writes/sec\n", bench_onesize(fname, 16*1024))
 
 	sz := uint64(0)
 	for i := 0; i < 20; i += 1 {
 		sz += 32 * 1024
-		grove_ffi.Write(fname, nil)
+		grove_ffi.FileWrite(fname, nil)
 		fmt.Printf("%d-byte writes -> %f writes/sec\n", sz, bench_onesize(fname, sz))
 	}
 }

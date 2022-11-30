@@ -51,7 +51,7 @@ func CreateAppendOnlyFile(fname string) *AppendOnlyFile {
 			a.mu.Unlock()
 			// log.Printf("AtomicAppend %d bytes\n", len(l))
 
-			grove_ffi.AtomicAppend(fname, l)
+			grove_ffi.FileAppend(fname, l)
 
 			a.mu.Lock()
 			a.durableLength = newLength

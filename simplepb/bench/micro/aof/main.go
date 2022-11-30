@@ -66,13 +66,13 @@ func main() {
 
 	for i := 4; i < 20; i += 1 {
 		sz = (1 << i)
-		grove_ffi.Write(fname, nil)
+		grove_ffi.FileWrite(fname, nil)
 		fmt.Printf("%d-byte writes -> %f writes/sec\n", sz, bench_onesize(fname, sz, 10))
 	}
 
 	for i := 0; i < 20; i += 1 {
 		sz += 32 * 1024
-		grove_ffi.Write(fname, nil)
+		grove_ffi.FileWrite(fname, nil)
 		fmt.Printf("%d-byte writes -> %f writes/sec\n", sz, bench_onesize(fname, sz, 10))
 	}
 }
