@@ -11,7 +11,6 @@ import (
 )
 
 type AppendOnlyFile struct {
-	fname string
 	mu    *sync.Mutex
 
 	durableCond *sync.Cond
