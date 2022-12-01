@@ -6,6 +6,7 @@ import (
 	// "time"
 
 	"github.com/mit-pdos/gokv/grove_ffi"
+	"github.com/tchajed/marshal"
 	// "github.com/tchajed/goose/machine"
 )
 
@@ -80,7 +81,9 @@ func (a *AppendOnlyFile) Append(data []byte) uint64 {
 
 	// log.Printf("Append %d bytes\n", len(data))
 
-	a.membuf = append(a.membuf, data...)
+	// XXX: using WriteBytes instead of append() because Goose has no reasoning
+	// principles for SliceAppend
+	a.membuf = marshal.WriteBytes(a.membuf, data)
 	for a.length+uint64(len(data)) < a.length {
 	}
 
