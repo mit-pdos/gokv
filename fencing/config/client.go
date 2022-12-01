@@ -41,7 +41,7 @@ func (ck *Clerk) AcquireEpoch(newFrontend grove_ffi.Address) uint64 {
 	err := ck.cl.Call(RPC_ACQUIRE_EPOCH, enc.Finish(), reply_ptr, 100 /* ms */)
 	if err != 0 {
 		log.Println("config: client failed to run RPC on config server")
-		grove_ffi.Exit(1)
+		machine.Exit(1)
 	}
 	dec := marshal.NewDec(*reply_ptr)
 	return dec.GetInt()
@@ -52,7 +52,7 @@ func (ck *Clerk) Get() uint64 {
 	err := ck.cl.Call(RPC_GET, make([]byte, 0), reply_ptr, 100 /* ms */)
 	if err != 0 {
 		log.Println("config: client failed to run RPC on config server")
-		grove_ffi.Exit(1)
+		machine.Exit(1)
 	}
 	dec := marshal.NewDec(*reply_ptr)
 	return dec.GetInt()

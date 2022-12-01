@@ -30,13 +30,13 @@ func (c *Clerk) Get(epoch uint64) uint64 {
 	err := c.cl.Call(RPC_GET, req, reply_ptr, 100 /* ms */)
 	if err != 0 {
 		log.Println("ctr: urpc get call failed/timed out")
-		grove_ffi.Exit(1)
+		machine.Exit(1)
 	}
 	r := DecGetReply(*reply_ptr)
 
 	if r.err != ENone {
 		log.Println("ctr: get() stale epoch number")
-		grove_ffi.Exit(1)
+		machine.Exit(1)
 	}
 	valProph.ResolveU64(r.val)
 	return r.val
@@ -53,7 +53,7 @@ func (c *Clerk) Put(v uint64, epoch uint64) {
 	err := c.cl.Call(RPC_PUT, req, reply_ptr, 100 /* ms */)
 	if err != 0 {
 		log.Println("ctr: urpc put call failed/timed out")
-		grove_ffi.Exit(1)
+		machine.Exit(1)
 	}
 
 	dec := marshal.NewDec(*reply_ptr)
@@ -61,7 +61,7 @@ func (c *Clerk) Put(v uint64, epoch uint64) {
 
 	if epochErr != ENone {
 		log.Println("ctr: get() stale epoch number")
-		grove_ffi.Exit(1)
+		machine.Exit(1)
 	}
 	return
 }
@@ -75,7 +75,7 @@ func MakeClerk(host grove_ffi.Address) *Clerk {
 	if err != 0 {
 		// panic("ctr: urpc call failed/timed out")
 		log.Println("ctr: urpc getcid call failed/timed out")
-		grove_ffi.Exit(1)
+		machine.Exit(1)
 	}
 	ck.e = erpc.MakeClient(marshal.NewDec(*reply_ptr).GetInt())
 
