@@ -31,7 +31,7 @@ func (s *Server) Apply(op Op) *ApplyReply {
 	s.mu.Lock()
 	// begin := machine.TimeNow()
 	if !s.isPrimary {
-		log.Println("Got request while not being primary")
+		// log.Println("Got request while not being primary")
 		s.mu.Unlock()
 		reply.Err = e.Stale
 		return reply
@@ -171,7 +171,7 @@ func (s *Server) GetState(args *GetStateArgs) *GetStateReply {
 
 func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {
 	s.mu.Lock()
-	if s.isEpochStale(args.Epoch) {
+	if args.Epoch < s.epoch {
 		log.Println("Stale BecomePrimary request")
 		s.mu.Unlock()
 		return e.Stale

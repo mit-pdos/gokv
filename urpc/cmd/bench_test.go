@@ -25,7 +25,7 @@ func TestBenchRPC(t *testing.T) {
 	client := urpc.MakeClient(grove_ffi.MakeAddress("127.0.0.1:12345"))
 
 	start := time.Now()
-	N := 2000
+	N := 20000
 	var reply []byte
 	args := make([]byte, 0)
 	for n := 0; n < N; n++ {

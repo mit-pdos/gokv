@@ -72,7 +72,10 @@ func (s *StateMachine) apply(op []byte) ([]byte, func()) {
 		// s.logsize = 0
 		// s.truncateAndMakeDurable()
 	} else {
-		l := s.logFile.Append(op)
+		var opWithLen = make([]byte, 0, 8+uint64(len(op)))
+		opWithLen = marshal.WriteInt(opWithLen, uint64(len(op)))
+		opWithLen = marshal.WriteBytes(opWithLen, op)
+		l := s.logFile.Append(opWithLen)
 
 		waitFn := func() {
 			s.logFile.WaitAppend(l)

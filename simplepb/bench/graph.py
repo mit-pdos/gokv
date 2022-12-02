@@ -2,11 +2,12 @@
 
 import matplotlib.pyplot as plt
 import json
+import sys
 
 def plot(filename, title=None):
     xs = []
     ys = []
-    with open('data/' + filename, newline='') as f:
+    with open(filename, newline='') as f:
         for l in f.readlines():
             if l.startswith("#"):
                 continue
@@ -29,7 +30,10 @@ def plot(filename, title=None):
 # plt.legend()
 # plt.show()
 
-plot('hdd/pb-kvs-11-07.jsons', 'ssd-pb')
-plot('hdd/redis-kvs-11-07.jsons', 'ssd-redis')
+# plot('hdd/pb-kvs-11-07.jsons', 'ssd-pb')
+# plot('hdd/redis-kvs-11-07.jsons', 'ssd-redis')
+for arg in sys.argv[1:]:
+    plot(arg, '?')
+
 plt.legend()
 plt.show()

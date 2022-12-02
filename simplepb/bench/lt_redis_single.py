@@ -10,6 +10,7 @@ import itertools
 import time
 import atexit
 import signal
+from datetime import datetime
 
 from common import *
 
@@ -21,23 +22,21 @@ def num_threads(i):
     else:
         return 500 + (i - 25) * 500
 
-def closed_lt(kvname, valuesize, outfilename, readprop, updateprop, recordcount, thread_fn, benchcpus):
+def closed_lt(kvname, warmuptime, runtime, valuesize, outfilename, readprop, updateprop, recordcount, thread_fn, benchcpus):
     data = []
     i = 0
     last_good_index = i
     peak_thruput = 0
-    # last_thruput = 10000
-    # last_threads = 10
 
     while True:
         if i > last_good_index + 5:
             break
         threads = thread_fn(i)
 
-        # FIXME: clear out redis data
         cleanup_procs()
         start_fresh_single_node_redisraft()
-        a = goycsb_bench(kvname, threads, 20, valuesize, readprop, updateprop, recordcount, benchcpus)
+        a = goycsb_bench(kvname, threads, warmuptime, runtime, valuesize, readprop, updateprop, recordcount, benchcpus,
+                         ['-p', f"redis.addr={config['serverhost']}:5001"])
 
         p = {'service': kvname, 'num_threads': threads, 'lts': a}
 
@@ -66,22 +65,41 @@ def start_fresh_single_node_redisraft():
     dbfilename = 'raft1.rdb'
     logfilename = 'raftlog1.db'
 
-    # clean up old files
-    run_command(["rm", dbfilename, logfilename, logfilename + ".meta", logfilename + ".idx"], cwd=durable_dir)
+    # clean up old processes
+    os.system(f"ssh upamanyu@{config['serverhost']} 'killall go kvsrv config redis-server'")
 
-    run_command(["cp", os.path.join(redisdir, "redisraft", "redisraft.so"), durable_dir])
+    # clean up old files
+    start_shell_command(' '.join(remote_cmd(config['serverhost'],
+                                            ["rm", "-f", dbfilename,
+                                             logfilename, logfilename + ".meta",
+                                             logfilename + ".idx"], durable_dir)
+                                 )).wait()
+
+
+    start_shell_command(' '.join(remote_cmd(config['serverhost'],
+                                            ["cp", os.path.join(redisdir, "redisraft", "redisraft.so"), durable_dir], cwd=redisdir))).wait()
     time.sleep(4)
-    start_command(many_cpus(["./redis/src/redis-server",
-                             "--port", "5001", "--dbfilename", dbfilename,
-                             "--loadmodule", "./redisraft.so",
-                             "--raft.log-filename", logfilename,
-                             "--dir", durable_dir,
-                             "--raft.log-fsync", "yes",
-                             "--raft.addr", "localhost:5001",], config['rediscpus']), cwd=redisdir)
+
+    start_shell_command(' '.join(remote_cmd(config['serverhost'],
+                                           many_cpus(["./redis/src/redis-server",
+                                                      "--port", "5001", "--dbfilename", dbfilename,
+                                                      "--protected-mode", "no",
+                                                      "--loadmodule", "./redisraft.so",
+                                                      "--raft.log-filename", logfilename,
+                                                      "--dir", durable_dir,
+                                                      "--raft.log-fsync", "yes",
+                                                      "--raft.addr", "0.0.0.0:5001",], config['rediscpus']),
+                                           redisdir))
+                        )
 
     time.sleep(2)
-    run_command(["./redis/src/redis-cli", "-p", "5001", "raft.cluster", "init"], cwd=redisdir)
-    time.sleep(3)
+    start_shell_command(' '.join(remote_cmd(config['serverhost'],
+                                            ["./redis/src/redis-cli",
+                                             "-h", config['serverhost'],
+                                             "-p",
+                                             "5001", "raft.cluster", "init"],
+                                            cwd=redisdir))).wait()
+    time.sleep(1)
 
 redisdir = ''
 
@@ -96,13 +114,17 @@ def main():
         'read': 0,
         'write': 1.0,
         'keys': 1000,
-        'clientcpus': '4-7',
-        # 'clientcpus': '0',
-        'rediscpus': '1',
+        'clientcpus': ['-C', '0-7'],
+        'rediscpus': ['-C', '0'],
+        'serverhost': '10.10.1.2',
+        'warmuptime': 10,
+        'runtime': 10,
     }
 
-    # start_fresh_single_node_redisraft()
-    closed_lt('rediskv', 128, path.join(global_args.outdir, 'redis-kvs.jsons'), config['read'], config['write'], config['keys'], num_threads, config['clientcpus'])
+    filename = datetime.now().strftime("%m-%d-%H-%M-%S") + "-redis-kvs.jsons"
+    outfilepath = path.join(global_args.outdir, filename)
+
+    closed_lt('rediskv', config['warmuptime'], config['runtime'], 128, outfilepath, config['read'], config['write'], config['keys'], num_threads, config['clientcpus'])
 
 if __name__=='__main__':
     main()

@@ -71,6 +71,18 @@ def start_command(args, cwd=None):
         procs.append(p)
         return p
 
+def start_shell_command(cmd, cwd=None):
+    if global_args.dry_run or global_args.verbose:
+        print("[STARTING] " + cmd)
+    if not global_args.dry_run:
+        e = subprocess.PIPE
+        if global_args.errors:
+            e = None
+        p = subprocess.Popen(cmd, text=True, stdout=subprocess.PIPE, shell=True, stderr=e, cwd=cwd, preexec_fn=os.setsid)
+        global procs
+        procs.append(p)
+        return p
+
 def cleanup_procs():
     global procs
     for p in procs:
@@ -86,8 +98,14 @@ def many_cores(args, c):
 def one_core(args, c):
     return ["numactl", "-C", str(c)] + args
 
-def many_cpus(args, n):
-    return ["numactl", "-N", n] + args
+def many_cpus(args, c):
+    return ["numactl"] + c + args
+
+def remote_cmd(hostname, cmd, cwd):
+    if cwd == None:
+        return ["ssh", hostname, f"'{' '.join(cmd)}'"]
+    else:
+        return ["ssh", hostname, f"'cd {cwd} ; {' '.join(cmd)} '"]
 
 def parse_ycsb_output(output):
     # look for 'Run finished, takes...', then parse the lines for each of the operations
@@ -103,7 +121,7 @@ def parse_ycsb_output(output):
     return a
 
 
-def goycsb_bench(kvname:str, threads:int, runtime:int, valuesize:int, readprop:float, updateprop:float, keys:int, benchcpus:str):
+def goycsb_bench(kvname:str, threads:int, warmuptime:int, runtime:int, valuesize:int, readprop:float, updateprop:float, keys:int, cpuconfig, extra_args=[]):
     """
     Returns a dictionary of the form
     { 'UPDATE': {'thruput': 1000, 'avg_latency': 12345', 'raw': 'blah'},...}
@@ -121,9 +139,9 @@ def goycsb_bench(kvname:str, threads:int, runtime:int, valuesize:int, readprop:f
                                   '-p', 'requestdistribution=uniform',
                                   '-p', 'readproportion=' + str(readprop),
                                   '-p', 'updateproportion=' + str(updateprop),
-                                  '-p', 'warmup=10', # TODO: increase warmup
+                                  '-p', 'warmup=' + str(warmuptime), # TODO: increase warmup
                                   '-p', 'recordcount=', str(keys),
-                                  ], benchcpus), cwd=goycsbdir)
+                                  ] + extra_args, cpuconfig), cwd=goycsbdir)
 
     if p is None:
         return ''

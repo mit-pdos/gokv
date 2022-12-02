@@ -3,9 +3,11 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
+
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/simplepb/admin"
-	"os"
+	"github.com/mit-pdos/gokv/simplepb/config"
 )
 
 func main() {
@@ -19,6 +21,7 @@ func main() {
 			fmt.Println("Must provide command in form:")
 			fmt.Println(" init host1 [host2 ...]")
 			fmt.Println(" reconfig host1 [host2 ...]")
+			fmt.Println(" getconf")
 			os.Exit(1)
 		}
 	}
@@ -47,5 +50,15 @@ func main() {
 		} else {
 			fmt.Printf("Finished switching configuration\n")
 		}
+	} else if a[0] == "getconf" {
+		ck := config.MakeClerk(confHost)
+		conf := ck.GetConfig()
+		fmt.Println("Got config")
+
+		servers := make([]string, 0)
+		for _, srv := range conf {
+			servers = append(servers, grove_ffi.AddressToStr(srv))
+		}
+		fmt.Printf("Configuration is: %v\n", servers)
 	}
 }
