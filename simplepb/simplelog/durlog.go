@@ -39,10 +39,10 @@ func (s *StateMachine) makeDurableWithSnap(snap []byte) {
 	// TODO: we're copying the entire snapshot in memory just to insert the
 	// length before it. Shouldn't do this.
 	var enc = make([]byte, 0, 8+len(snap)+8+8)
-	marshal.WriteInt(enc, uint64(len(snap)))
-	marshal.WriteBytes(enc, snap)
-	marshal.WriteInt(enc, s.epoch)
-	marshal.WriteInt(enc, s.nextIndex)
+	enc = marshal.WriteInt(enc, uint64(len(snap)))
+	enc = marshal.WriteBytes(enc, snap)
+	enc = marshal.WriteInt(enc, s.epoch)
+	enc = marshal.WriteInt(enc, s.nextIndex)
 
 	if s.sealed {
 		// XXX: maybe we should have a "WriteByte" function?
@@ -87,6 +87,7 @@ func (s *StateMachine) apply(op []byte) ([]byte, func()) {
 	}
 }
 
+// TODO: make the nextIndex and epoch argument order consistent with pb.StateMachine
 func (s *StateMachine) setStateAndUnseal(snap []byte, nextIndex uint64, epoch uint64) {
 	s.epoch = epoch
 	s.nextIndex = nextIndex
