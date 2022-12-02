@@ -49,7 +49,9 @@ func (s *StateMachine) makeDurableWithSnap(snap []byte) {
 		marshal.WriteBytes(enc, make([]byte, 1))
 	}
 
+	s.logFile.Close()
 	grove_ffi.FileWrite(s.fname, enc)
+	s.logFile = aof.CreateAppendOnlyFile(s.fname)
 }
 
 // XXX: this is not safe to run concurrently with apply()
