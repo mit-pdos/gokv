@@ -1,17 +1,15 @@
 package aof
 
 import (
-	// "log"
 	"sync"
-	// "time"
 
+	"github.com/goose-lang/std"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/tchajed/marshal"
-	// "github.com/tchajed/goose/machine"
 )
 
 type AppendOnlyFile struct {
-	mu    *sync.Mutex
+	mu *sync.Mutex
 
 	durableCond *sync.Cond
 	lengthCond  *sync.Cond
@@ -19,6 +17,10 @@ type AppendOnlyFile struct {
 	membuf        []byte
 	length        uint64 // logical length
 	durableLength uint64
+
+	closeRequested bool
+	closed         bool
+	closedCond     *sync.Cond
 }
 
 func CreateAppendOnlyFile(fname string) *AppendOnlyFile {
@@ -26,30 +28,35 @@ func CreateAppendOnlyFile(fname string) *AppendOnlyFile {
 	a.mu = new(sync.Mutex)
 	a.lengthCond = sync.NewCond(a.mu)
 	a.durableCond = sync.NewCond(a.mu)
+	a.closedCond = sync.NewCond(a.mu)
 
 	go func() {
 		a.mu.Lock()
-		// lastPrinted := time.Now()
 		for {
-			// TODO: also check how often we end up having to wait here right
-			// after completing AtomicAppend()
-			if len(a.membuf) == 0 {
-				// begin := time.Now()
+			if len(a.membuf) == 0 && !a.closeRequested {
 				a.lengthCond.Wait()
-				// end := time.Now()
-				// if end.After(lastPrinted.Add(100 * time.Millisecond)) {
-				// diff := end.Sub(begin)
-				// log.Printf("aof.BackgroundThread: waited for: %v for %d bytes\n", diff, len(a.membuf))
-				// lastPrinted = end
-				// }
 				continue
+			}
+
+			if a.closeRequested {
+				// Write the remaining stuff so that we can wake up anyone
+				// that's already waiting
+				grove_ffi.FileAppend(fname, a.membuf)
+				a.membuf = make([]byte, 0)
+				a.durableLength = a.length
+				a.durableCond.Broadcast()
+
+				a.closed = true
+				a.closedCond.Broadcast()
+				a.mu.Unlock()
+				break
 			}
 
 			l := a.membuf
 			newLength := a.length
 			a.membuf = make([]byte, 0)
+
 			a.mu.Unlock()
-			// log.Printf("AtomicAppend %d bytes\n", len(l))
 
 			grove_ffi.FileAppend(fname, l)
 
@@ -63,43 +70,30 @@ func CreateAppendOnlyFile(fname string) *AppendOnlyFile {
 	return a
 }
 
-// var beginTime = time.Now()
-// var appendStartTimes []time.Duration
+// NOTE: cannot be called concurrently with Append()
+func (a *AppendOnlyFile) Close() {
+	a.mu.Lock()
+	a.closeRequested = true
+	a.lengthCond.Signal()
+	for !a.closed {
+		a.closedCond.Wait()
+	}
+	a.mu.Unlock()
+}
 
+// NOTE: cannot be called concurrently with Close()
 func (a *AppendOnlyFile) Append(data []byte) uint64 {
 	a.mu.Lock()
-	// timeSinceLastCall := time.Now().Sub(beginTime)
-	// appendStartTimes = append(appendStartTimes, timeSinceLastCall)
-	// beginTime = time.Now()
-	// if len(appendStartTimes) >= 128 {
-	// if machine.RandomUint64()%64 == 0 {
-	// log.Printf("%v\n", appendStartTimes)
-	// }
-	// appendStartTimes = nil
-	//}
-
-	// log.Printf("Append %d bytes\n", len(data))
 
 	// XXX: using WriteBytes instead of append() because Goose has no reasoning
 	// principles for SliceAppend
 	a.membuf = marshal.WriteBytes(a.membuf, data)
-	for a.length+uint64(len(data)) < a.length {
-	}
-
-	a.length = a.length + uint64(len(data))
+	a.length = std.SumAssumeNoOverflow(a.length, uint64(len(data)))
 	r := a.length
 	a.lengthCond.Signal()
-	a.mu.Unlock()
-	// if machine.RandomUint64()%1024 == 0 {
-	// critSectionTime := time.Now().Sub(beginTime)
-	// log.Printf("aof.Append() time since last: %v\n", timeSinceLastCall)
-	// log.Printf("aof.Append() crit section: %v\n", critSectionTime)
-	// }
-	return r
-}
 
-func (a *AppendOnlyFile) Close() {
-	panic("unimpl")
+	a.mu.Unlock()
+	return r
 }
 
 func (a *AppendOnlyFile) WaitAppend(length uint64) {
