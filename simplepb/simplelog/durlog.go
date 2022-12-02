@@ -77,8 +77,11 @@ func (s *StateMachine) apply(op []byte) ([]byte, func()) {
 		opWithLen = marshal.WriteBytes(opWithLen, op)
 		l := s.logFile.Append(opWithLen)
 
+		// XXX: need to read this outside the goroutine because the logFile
+		// might be deleted and a new one take it place.
+		f := s.logFile
 		waitFn := func() {
-			s.logFile.WaitAppend(l)
+			f.WaitAppend(l)
 		}
 		return ret, waitFn
 	}
