@@ -108,8 +108,7 @@ func (s *Server) isEpochStale(epoch uint64) bool {
 // called on backup servers to apply an operation so it is replicated and
 // can be considered committed by primary.
 func (s *Server) ApplyAsBackup(args *ApplyAsBackupArgs) e.Error {
-	// FIXME: terrible hack, urpc is acquiring this lock on our behalf
-	// s.mu.Lock()
+	s.mu.Lock()
 	if s.isEpochStale(args.epoch) {
 		s.mu.Unlock()
 		return e.Stale
@@ -228,6 +227,5 @@ func (s *Server) Serve(me grove_ffi.Address) {
 	}
 
 	rs := urpc.MakeServer(handlers)
-	rs.Mu = s.mu
 	rs.Serve(me)
 }
