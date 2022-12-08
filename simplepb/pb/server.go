@@ -20,6 +20,10 @@ type Server struct {
 
 	isPrimary bool
 	clerks    []*Clerk
+
+	// only on backups
+	// opAppliedConds[j] is the condvariable for the op with nextIndex == j.
+	opAppliedConds map[uint64]*sync.Cond
 }
 
 // called on the primary server to apply a new operation.
@@ -118,7 +122,19 @@ func (s *Server) ApplyAsBackup(args *ApplyAsBackupArgs) e.Error {
 		return e.Stale
 	}
 
-	if args.index != s.nextIndex {
+	// operation sequencing
+	if args.index > s.nextIndex {
+		cond := sync.NewCond(s.mu)
+		s.opAppliedConds[args.index] = cond
+
+		// FIXME: deal with EnterNewEpoch
+		for args.index > s.nextIndex {
+			cond.Wait()
+		}
+	}
+
+	// this operation has already been applied, nothing to do.
+	if args.index < s.nextIndex {
 		s.mu.Unlock()
 		return e.OutOfOrder
 	}
@@ -126,6 +142,11 @@ func (s *Server) ApplyAsBackup(args *ApplyAsBackupArgs) e.Error {
 	// apply it locally
 	_, waitFn := s.sm.StartApply(args.op)
 	s.nextIndex += 1
+
+	if cond, ok := s.opAppliedConds[s.nextIndex]; ok {
+		cond.Signal()
+		delete(s.opAppliedConds, s.nextIndex)
+	}
 
 	s.mu.Unlock()
 	waitFn()
@@ -200,6 +221,7 @@ func MakeServer(sm *StateMachine, nextIndex uint64, epoch uint64, sealed bool) *
 	s.sm = sm
 	s.nextIndex = nextIndex
 	s.isPrimary = false
+	s.opAppliedConds = make(map[uint64]*sync.Cond)
 	return s
 }
 
