@@ -153,6 +153,7 @@ func recoverStateMachine(smMem *InMemoryStateMachine, fname string) *StateMachin
 			op := enc[:opLen]
 			enc = enc[opLen:]
 			s.smMem.ApplyVolatile(op)
+			s.nextIndex += 1
 		} else {
 			break
 		}
