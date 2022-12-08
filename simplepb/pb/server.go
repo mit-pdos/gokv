@@ -3,11 +3,14 @@ package pb
 import (
 	"log"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/goose-lang/std"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/simplepb/e"
 	"github.com/mit-pdos/gokv/urpc"
+	"github.com/tchajed/goose/machine"
 	// "github.com/tchajed/goose/machine"
 )
 
@@ -22,6 +25,9 @@ type Server struct {
 	clerks    []*Clerk
 }
 
+var total = int64(0)
+var num = int64(0)
+
 // called on the primary server to apply a new operation.
 func (s *Server) Apply(op Op) *ApplyReply {
 	reply := new(ApplyReply)
@@ -29,6 +35,7 @@ func (s *Server) Apply(op Op) *ApplyReply {
 	// reply.Err = e.ENone
 	// return reply
 	s.mu.Lock()
+	start := time.Now()
 	// begin := machine.TimeNow()
 	if !s.isPrimary {
 		// log.Println("Got request while not being primary")
@@ -51,6 +58,13 @@ func (s *Server) Apply(op Op) *ApplyReply {
 	epoch := s.epoch
 	clerks := s.clerks
 	s.mu.Unlock()
+	elapsed := time.Since(start)
+	if machine.RandomUint64()%50000 == 1 {
+		t := atomic.AddInt64(&total, int64(elapsed))
+		n := atomic.AddInt64(&num, 1)
+		log.Println("Average mu time:", t/n)
+	}
+
 	// end := machine.TimeNow()
 	// if machine.RandomUint64()%1024 == 0 {
 	// log.Printf("replica.mu crit section: %d ns", end-begin)
@@ -105,6 +119,9 @@ func (s *Server) isEpochStale(epoch uint64) bool {
 	return s.epoch != epoch
 }
 
+var outOfOrder = uint64(0)
+var backupApplies = uint64(0)
+
 // called on backup servers to apply an operation so it is replicated and
 // can be considered committed by primary.
 func (s *Server) ApplyAsBackup(args *ApplyAsBackupArgs) e.Error {
@@ -118,8 +135,17 @@ func (s *Server) ApplyAsBackup(args *ApplyAsBackupArgs) e.Error {
 		return e.Stale
 	}
 
+	backupApplies += 1
 	if args.index != s.nextIndex {
+		outOfOrder += 1
+		ratio := float32(outOfOrder) / float32(backupApplies)
+		log.Printf("Expected %d got %d", s.nextIndex, args.index)
 		s.mu.Unlock()
+
+		if machine.RandomUint64()%50000 == 1 {
+			log.Println("Ratio of e.OutOfOrder:", ratio)
+		}
+
 		return e.OutOfOrder
 	}
 

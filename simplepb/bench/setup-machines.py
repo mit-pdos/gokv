@@ -2,7 +2,7 @@
 from os import system as do
 
 do("ssh-keygen -C 'upamanyu' -f /tmp/id_rsa -N ''")
-for i in range(3):
+for i in range(2):
     do(f"scp cloudlab-setup.sh node{i}:")
     do(f"scp ~/.zshrc-cloudlab node{i}:.zshrc")
     do(f"ssh upamanyu@node{i} 'chmod +x cloudlab-setup.sh && ./cloudlab-setup.sh'")

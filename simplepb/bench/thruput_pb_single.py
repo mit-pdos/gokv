@@ -16,17 +16,16 @@ from common import *
 
 def num_threads(i):
     if i < 5:
-        return i + 1
-    elif i < 25:
-        return 5 + (i - 5) * 5
+        return 1 + i
+    elif i < 15:
+        return 10 + (i - 5) * 5
     else:
-        return 500 + (i - 25) * 500
+        return 100 + (i - 15) * 50
 
 def closed_lt(kvname, warmuptime, runtime, valuesize, outfilename, readprop, updateprop, recordcount, thread_fn, cpuconfig):
     i = 0
-    last_good_index = i
+    last_good_index = 0
     peak_thruput = 0
-
     while True:
         if i > last_good_index + 5:
             break
@@ -45,9 +44,6 @@ def closed_lt(kvname, warmuptime, runtime, valuesize, outfilename, readprop, upd
             last_good_index = i
         if thput > peak_thruput:
             peak_thruput = thput
-
-        # last_thruput = int(thput + 1)
-        last_threads = threads
 
         i = i + 1
 
