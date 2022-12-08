@@ -128,9 +128,17 @@ func (s *Server) ApplyAsBackup(args *ApplyAsBackupArgs) e.Error {
 		s.opAppliedConds[args.index] = cond
 
 		// FIXME: deal with EnterNewEpoch
-		for args.index > s.nextIndex {
+		for args.index > s.nextIndex && s.epoch == args.epoch && !s.sealed {
 			cond.Wait()
 		}
+	}
+	if s.sealed {
+		s.mu.Unlock()
+		return e.Stale
+	}
+	if s.isEpochStale(args.epoch) {
+		s.mu.Unlock()
+		return e.Stale
 	}
 
 	// this operation has already been applied, nothing to do.
@@ -169,6 +177,11 @@ func (s *Server) SetState(args *SetStateArgs) e.Error {
 		s.nextIndex = args.NextIndex
 		s.sm.SetStateAndUnseal(args.State, args.Epoch, args.NextIndex)
 
+		for _, cond := range s.opAppliedConds {
+			cond.Signal()
+		}
+		s.opAppliedConds = make(map[uint64]*sync.Cond)
+
 		s.mu.Unlock()
 		return e.None
 	}
@@ -185,6 +198,12 @@ func (s *Server) GetState(args *GetStateArgs) *GetStateReply {
 	s.sealed = true
 	ret := s.sm.GetStateAndSeal()
 	nextIndex := s.nextIndex
+
+	for _, cond := range s.opAppliedConds {
+		cond.Signal()
+	}
+	s.opAppliedConds = make(map[uint64]*sync.Cond)
+
 	s.mu.Unlock()
 
 	return &GetStateReply{Err: e.None, State: ret, NextIndex: nextIndex}
