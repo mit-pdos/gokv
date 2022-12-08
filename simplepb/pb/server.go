@@ -3,8 +3,6 @@ package pb
 import (
 	"log"
 	"sync"
-	"sync/atomic"
-	"time"
 
 	"github.com/goose-lang/std"
 	"github.com/mit-pdos/gokv/grove_ffi"
@@ -22,21 +20,104 @@ type Server struct {
 	nextIndex uint64
 
 	isPrimary bool
-	clerks    []*Clerk
+	// clerks    []*Clerk
+
+	durableIndex   uint64
+	backgroundCond *sync.Cond // either entered a new epoch or made something new durable
+	memlogIndex    uint64
+	memlog         [][]byte
+
+	acceptedIndex []uint64
+
+	commitIndex uint64
+	commitConds []*sync.Cond
 }
 
-var total = int64(0)
-var num = int64(0)
+func min(l []uint64) uint64 {
+	var m = l[0]
+	i := 1
+	for i < len(l) {
+		if l[i] < m {
+			m = l[i]
+		}
+		i++
+	}
+	return m
+}
+
+// precondition: operations through opIndex have been accepted by server serverIndex
+func (s *Server) handleNewAcceptedOp(epoch uint64, serverIndex uint64, opIndex uint64) {
+	s.mu.Lock()
+	if s.epoch == epoch {
+		prevIndex := s.acceptedIndex[serverIndex]
+		if opIndex > prevIndex {
+			s.acceptedIndex[serverIndex] = opIndex
+
+			newCommitIndex := min(s.acceptedIndex)
+			doneCommitConds := s.commitConds[:newCommitIndex-s.commitIndex]
+
+			s.commitConds = s.commitConds[newCommitIndex-s.commitIndex:]
+
+			var i = uint64(0)
+			for i < uint64(len(doneCommitConds)) {
+				doneCommitConds[i].Signal()
+				i++
+			}
+		}
+	}
+	s.mu.Unlock()
+}
+
+func (s *Server) backgroundThread(epoch uint64, i uint64, backupServer grove_ffi.Address) {
+	clerk := MakeClerk(backupServer)
+	for {
+		s.mu.Lock()
+		for s.epoch == epoch && s.durableIndex > s.memlogIndex {
+			s.backgroundCond.Wait()
+		}
+		if s.epoch != epoch {
+			s.mu.Unlock()
+			break
+		}
+		// else, s.durableIndex > 0
+
+		op := s.memlog[0]
+		index := s.memlogIndex
+		s.memlogIndex = std.SumAssumeNoOverflow(s.memlogIndex, 1)
+		s.memlog = s.memlog[1:]
+		s.mu.Unlock()
+
+		args := &ApplyAsBackupArgs{
+			epoch: epoch,
+			index: index,
+			op:    op,
+		}
+
+		for {
+			err := clerk.ApplyAsBackup(args)
+			if err == e.None {
+				break
+			}
+			if err == e.OutOfOrder || err == e.Timeout {
+				continue
+			} else {
+				// FIXME: this should signal to the main thread that we're no
+				// longer the primary.
+				log.Fatalf("Got error %+v", err)
+			}
+		}
+
+		s.handleNewAcceptedOp(epoch, i, index)
+	}
+}
 
 // called on the primary server to apply a new operation.
 func (s *Server) Apply(op Op) *ApplyReply {
 	reply := new(ApplyReply)
 	reply.Reply = nil
-	// reply.Err = e.ENone
-	// return reply
+
+	opCommitCond := sync.NewCond(s.mu)
 	s.mu.Lock()
-	start := time.Now()
-	// begin := machine.TimeNow()
 	if !s.isPrimary {
 		// log.Println("Got request while not being primary")
 		s.mu.Unlock()
@@ -53,61 +134,30 @@ func (s *Server) Apply(op Op) *ApplyReply {
 	ret, waitForDurable := s.sm.StartApply(op)
 	reply.Reply = ret
 
-	nextIndex := s.nextIndex
-	s.nextIndex = std.SumAssumeNoOverflow(s.nextIndex, 1)
-	epoch := s.epoch
-	clerks := s.clerks
-	s.mu.Unlock()
-	elapsed := time.Since(start)
-	if machine.RandomUint64()%50000 == 1 {
-		t := atomic.AddInt64(&total, int64(elapsed))
-		n := atomic.AddInt64(&num, 1)
-		log.Println("Average mu time:", t/n)
-	}
+	// add to memlog
+	s.memlog = append(s.memlog, op)
+	s.commitConds = append(s.commitConds, opCommitCond)
 
-	// end := machine.TimeNow()
-	// if machine.RandomUint64()%1024 == 0 {
-	// log.Printf("replica.mu crit section: %d ns", end-begin)
-	// }
+	s.nextIndex = std.SumAssumeNoOverflow(s.nextIndex, 1)
+	nextIndex := s.nextIndex
+	s.mu.Unlock()
+
 	waitForDurable()
 
-	// tell backups to apply it
-	wg := new(sync.WaitGroup)
-	errs := make([]e.Error, len(clerks))
-	args := &ApplyAsBackupArgs{
-		epoch: epoch,
-		index: nextIndex,
-		op:    op,
+	// increase durableIndex if someone else hasn't already increased it
+	s.mu.Lock()
+	if s.durableIndex < nextIndex {
+		s.durableIndex = nextIndex
+
+		// tell backup background threads that there's a new op they can send
+		s.backgroundCond.Broadcast()
 	}
-	for i, clerk := range clerks {
-		clerk := clerk
-		i := i
-		wg.Add(1)
-		go func() {
-			// retry if we get OutOfOrder errors
-			for {
-				err := clerk.ApplyAsBackup(args)
-				if err == e.OutOfOrder || err == e.Timeout {
-					continue
-				} else {
-					errs[i] = err
-					break
-				}
-			}
-			wg.Done()
-		}()
+
+	// wait for op to be committed or for us to no longer be leader
+	for s.commitIndex < nextIndex {
+		opCommitCond.Wait()
 	}
-	wg.Wait()
-	var err = e.None
-	var i = uint64(0)
-	for i < uint64(len(clerks)) {
-		err2 := errs[i]
-		if err2 != e.None {
-			err = err2
-		}
-		i += 1
-	}
-	reply.Err = err
+	s.mu.Unlock()
 
 	// log.Println("Apply() returned ", err)
 	return reply
@@ -207,10 +257,9 @@ func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {
 
 	// XXX: should probably not bother doing this if we are already the primary
 	// in this epoch
-	s.clerks = make([]*Clerk, len(args.Replicas)-1)
 	var i = uint64(0)
-	for i < uint64(len(s.clerks)) {
-		s.clerks[i] = MakeClerk(args.Replicas[i+1])
+	for i < uint64(len(args.Replicas)-1) {
+		go s.backgroundThread(args.Epoch, i, args.Replicas[i+1])
 		i++
 	}
 
