@@ -47,7 +47,7 @@ func min(l []uint64) uint64 {
 
 // precondition: operations through opIndex have been accepted by server serverIndex
 func (s *Server) handleNewAcceptedOp(epoch uint64, serverIndex uint64, opIndex uint64) {
-	// log.Printf("Handling new operation acceptance")
+	log.Printf("Handling new operation acceptance")
 	s.mu.Lock()
 	if s.epoch == epoch {
 		prevIndex := s.acceptedIndex[serverIndex]
@@ -71,12 +71,12 @@ func (s *Server) handleNewAcceptedOp(epoch uint64, serverIndex uint64, opIndex u
 
 func (s *Server) backgroundThread(epoch uint64, i uint64, backupServer grove_ffi.Address) {
 	clerk := MakeClerk(backupServer)
-	// log.Printf("Background thread made clerk")
+	log.Printf("Background thread made clerk")
 	for {
 		s.mu.Lock()
-		// log.Printf("Background thread got lock")
+		log.Printf("Background thread got lock")
 		for s.epoch == epoch && s.durableIndex <= s.memlogIndex {
-			// log.Printf("background thread waiting")
+			log.Printf("background thread waiting")
 			s.backgroundCond.Wait()
 		}
 		if s.epoch != epoch {
@@ -99,21 +99,35 @@ func (s *Server) backgroundThread(epoch uint64, i uint64, backupServer grove_ffi
 			op:    op,
 		}
 
-		for {
-			err := clerk.ApplyAsBackup(args)
-			if err == e.None {
-				break
-			}
-			if err == e.OutOfOrder || err == e.Timeout {
-				continue
-			} else {
-				// FIXME: this should signal to the main thread that we're no
-				// longer the primary.
-				log.Fatalf("Got error %+v", err)
-			}
-		}
+		waitFn := clerk.StartApplyAsBackup(args)
 
-		s.handleNewAcceptedOp(epoch, i, index)
+		// go func() {
+			err := waitFn()
+			log.Printf("Get %+v", err)
+			if err == e.None {
+				s.handleNewAcceptedOp(epoch, i, index)
+				continue
+				// return
+			}
+
+			log.Printf("Looping")
+			for {
+				err := clerk.ApplyAsBackup(args)
+
+				if err == e.None {
+					break
+				}
+				if err == e.OutOfOrder || err == e.Timeout {
+					continue
+				} else {
+					// FIXME: this should signal to the main thread that we're no
+					// longer the primary.
+					log.Fatalf("Got error %+v", err)
+				}
+			}
+			s.handleNewAcceptedOp(epoch, i, index)
+		// }()
+
 	}
 }
 
@@ -160,13 +174,14 @@ func (s *Server) Apply(op Op) *ApplyReply {
 
 	// wait for op to be committed or for us to no longer be leader
 	for s.commitIndex < nextIndex {
-		// log.Printf("Waiting for op to be committed")
+		log.Printf("Waiting for op to be committed")
 		opCommitCond.Wait()
 	}
 	s.mu.Unlock()
-	// log.Printf("Op committed")
+	log.Printf("Op committed")
 
 	// log.Println("Apply() returned ", err)
+	reply.Err = e.None
 	return reply
 }
 

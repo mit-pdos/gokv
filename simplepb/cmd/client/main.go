@@ -4,10 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strconv"
 
 	"github.com/mit-pdos/gokv/grove_ffi"
-	"github.com/mit-pdos/gokv/simplepb/apps/kvfaa"
+	"github.com/mit-pdos/gokv/simplepb/apps/kv"
 )
 
 func main() {
@@ -19,7 +18,7 @@ func main() {
 		if !b {
 			flag.PrintDefaults()
 			fmt.Println("Must provide command in form:")
-			fmt.Println(" faa key value")
+			fmt.Println(" put key value")
 			fmt.Println(" get key")
 			os.Exit(1)
 		}
@@ -31,24 +30,21 @@ func main() {
 	}
 
 	conf := grove_ffi.MakeAddress(confStr)
-	ck := kvfaa.MakeClerk(conf)
+	ck := kv.MakeClerk(conf)
 
 	a := flag.Args()
 	usage_assert(len(a) > 0)
 	if a[0] == "faa" {
 		usage_assert(len(a) == 3)
-		k, err := strconv.ParseUint(a[1], 10, 64)
-		usage_assert(err == nil)
 
+		k := []byte(a[1])
 		v := []byte(a[2])
-		oldv := ck.FetchAndAppend(k, v)
-		fmt.Printf("FAA %d %v, old was %v\n", k, v, oldv)
+		ck.Put(k, v)
+		fmt.Printf("Put %d ↦ %v\n", k, v)
 	} else if a[0] == "get" {
 		usage_assert(len(a) == 2)
-		k, err := strconv.ParseUint(a[1], 10, 64)
-		usage_assert(err == nil)
-
-		v := ck.FetchAndAppend(k, make([]byte, 0))
+		k := []byte(a[1])
+		v := ck.Get(k)
 		fmt.Printf("GET %d ↦ %v\n", k, v)
 	}
 }
