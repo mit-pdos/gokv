@@ -27,7 +27,7 @@ type Server struct {
 	memlogIndex    uint64
 	memlog         [][]byte
 
-	acceptedIndex []uint64
+	backupNextIndex []uint64
 
 	commitIndex uint64
 	commitConds []*sync.Cond
@@ -46,15 +46,16 @@ func min(l []uint64) uint64 {
 }
 
 // precondition: operations through opIndex have been accepted by server serverIndex
-func (s *Server) handleNewAcceptedOp(epoch uint64, serverIndex uint64, opIndex uint64) {
-	log.Printf("Handling new operation acceptance")
+func (s *Server) handleNewAcceptedOp(epoch uint64, serverIndex uint64, nextIndex uint64) {
+	// log.Printf("Handling new operation acceptance")
 	s.mu.Lock()
 	if s.epoch == epoch {
-		prevIndex := s.acceptedIndex[serverIndex]
-		if opIndex > prevIndex {
-			s.acceptedIndex[serverIndex] = opIndex
+		oldIndex := s.backupNextIndex[serverIndex]
+		if nextIndex > oldIndex {
+			s.backupNextIndex[serverIndex] = nextIndex
 
-			newCommitIndex := min(s.acceptedIndex)
+			newCommitIndex := min(s.backupNextIndex)
+			// log.Printf("Committed %d from %d", newCommitIndex, s.commitIndex)
 			doneCommitConds := s.commitConds[:newCommitIndex-s.commitIndex]
 			s.commitConds = s.commitConds[newCommitIndex-s.commitIndex:]
 			s.commitIndex = newCommitIndex
@@ -71,16 +72,16 @@ func (s *Server) handleNewAcceptedOp(epoch uint64, serverIndex uint64, opIndex u
 
 func (s *Server) backgroundThread(epoch uint64, i uint64, backupServer grove_ffi.Address) {
 	clerk := MakeClerk(backupServer)
-	log.Printf("Background thread made clerk")
+	// log.Printf("Background thread made clerk")
 	for {
 		s.mu.Lock()
-		log.Printf("Background thread got lock")
+		// log.Printf("Background thread got lock")
 		for s.epoch == epoch && s.durableIndex <= s.memlogIndex {
-			log.Printf("background thread waiting")
+			// log.Printf("background thread waiting")
 			s.backgroundCond.Wait()
 		}
 		if s.epoch != epoch {
-			log.Printf("Background thread in epoch %d dying in epoch %d", epoch, s.epoch)
+			// log.Printf("Background thread in epoch %d dying in epoch %d", epoch, s.epoch)
 			s.mu.Unlock()
 			break
 		}
@@ -101,13 +102,11 @@ func (s *Server) backgroundThread(epoch uint64, i uint64, backupServer grove_ffi
 
 		waitFn := clerk.StartApplyAsBackup(args)
 
-		// go func() {
+		go func() {
 			err := waitFn()
-			log.Printf("Get %+v", err)
 			if err == e.None {
-				s.handleNewAcceptedOp(epoch, i, index)
-				continue
-				// return
+				s.handleNewAcceptedOp(epoch, i, index + 1)
+				return
 			}
 
 			log.Printf("Looping")
@@ -125,8 +124,8 @@ func (s *Server) backgroundThread(epoch uint64, i uint64, backupServer grove_ffi
 					log.Fatalf("Got error %+v", err)
 				}
 			}
-			s.handleNewAcceptedOp(epoch, i, index)
-		// }()
+			s.handleNewAcceptedOp(epoch, i, index + 1)
+		}()
 
 	}
 }
@@ -174,11 +173,11 @@ func (s *Server) Apply(op Op) *ApplyReply {
 
 	// wait for op to be committed or for us to no longer be leader
 	for s.commitIndex < nextIndex {
-		log.Printf("Waiting for op to be committed")
+		// log.Printf("Waiting for op to be committed")
 		opCommitCond.Wait()
 	}
 	s.mu.Unlock()
-	log.Printf("Op committed")
+	// log.Printf("Op committed")
 
 	// log.Println("Apply() returned ", err)
 	reply.Err = e.None
@@ -197,7 +196,8 @@ var backupApplies = uint64(0)
 // called on backup servers to apply an operation so it is replicated and
 // can be considered committed by primary.
 func (s *Server) ApplyAsBackup(args *ApplyAsBackupArgs) e.Error {
-	s.mu.Lock()
+	// FIXME: terrible hack in urpc gets the lock for us
+	// s.mu.Lock()
 	if s.isEpochStale(args.epoch) {
 		s.mu.Unlock()
 		return e.Stale
@@ -282,7 +282,7 @@ func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {
 	s.durableIndex = s.nextIndex
 	s.commitIndex = s.nextIndex
 
-	s.acceptedIndex = make([]uint64, len(args.Replicas) - 1)
+	s.backupNextIndex = make([]uint64, len(args.Replicas) - 1)
 
 	// XXX: should probably not bother doing this if we are already the primary
 	// in this epoch
@@ -333,5 +333,6 @@ func (s *Server) Serve(me grove_ffi.Address) {
 	}
 
 	rs := urpc.MakeServer(handlers)
+	rs.Mu = s.mu
 	rs.Serve(me)
 }

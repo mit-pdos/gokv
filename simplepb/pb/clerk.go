@@ -1,7 +1,7 @@
 package pb
 
 import (
-	"log"
+	// "log"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/reconnectclient"
 	"github.com/mit-pdos/gokv/simplepb/e"
@@ -78,7 +78,7 @@ func (ck *Clerk) BecomePrimary(args *BecomePrimaryArgs) e.Error {
 func (ck *Clerk) Apply(op []byte) (e.Error, []byte) {
 	reply := new([]byte)
 	err := ck.cl.Call(RPC_PRIMARYAPPLY, op, reply, 5000 /* ms */)
-	log.Printf("urpc.Call(PrimaryApply) returned %d", err)
+	// log.Printf("urpc.Call(PrimaryApply) returned %d", err)
 	if err == 0 {
 		r := DecodeApplyReply(*reply)
 		return r.Err, r.Reply

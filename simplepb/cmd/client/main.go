@@ -34,7 +34,7 @@ func main() {
 
 	a := flag.Args()
 	usage_assert(len(a) > 0)
-	if a[0] == "faa" {
+	if a[0] == "put" {
 		usage_assert(len(a) == 3)
 
 		k := []byte(a[1])
@@ -47,4 +47,5 @@ func main() {
 		v := ck.Get(k)
 		fmt.Printf("GET %d ↦ %v\n", k, v)
 	}
+	usage_assert(false)
 }

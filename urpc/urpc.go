@@ -12,6 +12,7 @@ import (
 )
 
 type Server struct {
+	Mu *sync.Mutex
 	handlers map[uint64]func([]byte, *[]byte)
 }
 
@@ -49,6 +50,10 @@ func (srv *Server) readThread(conn grove_ffi.Connection) {
 		// log.Printf("urpc time between RPCs: %v\n", thisRpcTime.Sub(lastRpcTime))
 		// }
 		// lastRpcTime = thisRpcTime
+
+		if rpcid == uint64(0) && srv.Mu != nil { // FIXME: terrible hack for pb
+			srv.Mu.Lock() // lock on behalf of RPC handler, to ensure correct ordering.
+		}
 		go func() { srv.rpcHandle(conn, rpcid, seqno, req) }() // XXX: this could (and probably should) be in a goroutine YYY: but readThread is already its own goroutine, so that seems redundant?
 		continue
 	}
