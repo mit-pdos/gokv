@@ -13,15 +13,15 @@ import (
 func InitializeSystem(configHost grove_ffi.Address, servers []grove_ffi.Address) e.Error {
 	configCk := config.MakeClerk(configHost)
 	// Get new epoch number from config service.
-	epoch, _ := configCk.GetEpochAndConfig()
+	// epoch, _ := configCk.GetEpochAndConfig()
 
 	// Write to config service saying the new servers have up-to-date state.
-	configCk.WriteConfig(epoch, servers)
+	err := configCk.WriteConfig(0, servers)
 
 	// Tell one of the servers to become primary.
 	clerk := pb.MakeClerk(servers[0])
-	clerk.BecomePrimary(&pb.BecomePrimaryArgs{Epoch: epoch, Replicas: servers})
-	return e.None
+	clerk.BecomePrimary(&pb.BecomePrimaryArgs{Epoch: 0, Replicas: servers})
+	return err
 }
 
 func EnterNewConfig(configHost grove_ffi.Address, servers []grove_ffi.Address) e.Error {

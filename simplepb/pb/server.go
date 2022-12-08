@@ -47,6 +47,7 @@ func min(l []uint64) uint64 {
 
 // precondition: operations through opIndex have been accepted by server serverIndex
 func (s *Server) handleNewAcceptedOp(epoch uint64, serverIndex uint64, opIndex uint64) {
+	// log.Printf("Handling new operation acceptance")
 	s.mu.Lock()
 	if s.epoch == epoch {
 		prevIndex := s.acceptedIndex[serverIndex]
@@ -55,8 +56,8 @@ func (s *Server) handleNewAcceptedOp(epoch uint64, serverIndex uint64, opIndex u
 
 			newCommitIndex := min(s.acceptedIndex)
 			doneCommitConds := s.commitConds[:newCommitIndex-s.commitIndex]
-
 			s.commitConds = s.commitConds[newCommitIndex-s.commitIndex:]
+			s.commitIndex = newCommitIndex
 
 			var i = uint64(0)
 			for i < uint64(len(doneCommitConds)) {
@@ -70,17 +71,22 @@ func (s *Server) handleNewAcceptedOp(epoch uint64, serverIndex uint64, opIndex u
 
 func (s *Server) backgroundThread(epoch uint64, i uint64, backupServer grove_ffi.Address) {
 	clerk := MakeClerk(backupServer)
+	// log.Printf("Background thread made clerk")
 	for {
 		s.mu.Lock()
-		for s.epoch == epoch && s.durableIndex > s.memlogIndex {
+		// log.Printf("Background thread got lock")
+		for s.epoch == epoch && s.durableIndex <= s.memlogIndex {
+			// log.Printf("background thread waiting")
 			s.backgroundCond.Wait()
 		}
 		if s.epoch != epoch {
+			log.Printf("Background thread in epoch %d dying in epoch %d", epoch, s.epoch)
 			s.mu.Unlock()
 			break
 		}
 		// else, s.durableIndex > 0
 
+		// log.Printf("background thread about to send RPC")
 		op := s.memlog[0]
 		index := s.memlogIndex
 		s.memlogIndex = std.SumAssumeNoOverflow(s.memlogIndex, 1)
@@ -148,16 +154,17 @@ func (s *Server) Apply(op Op) *ApplyReply {
 	s.mu.Lock()
 	if s.durableIndex < nextIndex {
 		s.durableIndex = nextIndex
-
 		// tell backup background threads that there's a new op they can send
 		s.backgroundCond.Broadcast()
 	}
 
 	// wait for op to be committed or for us to no longer be leader
 	for s.commitIndex < nextIndex {
+		// log.Printf("Waiting for op to be committed")
 		opCommitCond.Wait()
 	}
 	s.mu.Unlock()
+	// log.Printf("Op committed")
 
 	// log.Println("Apply() returned ", err)
 	return reply
@@ -186,15 +193,11 @@ func (s *Server) ApplyAsBackup(args *ApplyAsBackupArgs) e.Error {
 	}
 
 	backupApplies += 1
+	ratio := float32(outOfOrder) / float32(backupApplies)
 	if args.index != s.nextIndex {
 		outOfOrder += 1
-		ratio := float32(outOfOrder) / float32(backupApplies)
 		log.Printf("Expected %d got %d", s.nextIndex, args.index)
 		s.mu.Unlock()
-
-		if machine.RandomUint64()%50000 == 1 {
-			log.Println("Ratio of e.OutOfOrder:", ratio)
-		}
 
 		return e.OutOfOrder
 	}
@@ -204,6 +207,10 @@ func (s *Server) ApplyAsBackup(args *ApplyAsBackupArgs) e.Error {
 	s.nextIndex += 1
 
 	s.mu.Unlock()
+	if machine.RandomUint64()%50000 == 1 {
+		log.Println("Ratio of e.OutOfOrder:", ratio)
+	}
+
 	waitFn()
 
 	return e.None
@@ -255,10 +262,18 @@ func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {
 	log.Println("Became Primary")
 	s.isPrimary = true
 
+	s.memlog = make([][]byte, 0)
+	s.memlogIndex = s.nextIndex
+	s.durableIndex = s.nextIndex
+	s.commitIndex = s.nextIndex
+
+	s.acceptedIndex = make([]uint64, len(args.Replicas) - 1)
+
 	// XXX: should probably not bother doing this if we are already the primary
 	// in this epoch
 	var i = uint64(0)
-	for i < uint64(len(args.Replicas)-1) {
+	s.backgroundCond = sync.NewCond(s.mu)
+	for i < uint64(len(args.Replicas) - 1) {
 		go s.backgroundThread(args.Epoch, i, args.Replicas[i+1])
 		i++
 	}
@@ -274,6 +289,7 @@ func MakeServer(sm *StateMachine, nextIndex uint64, epoch uint64, sealed bool) *
 	s.sealed = sealed
 	s.sm = sm
 	s.nextIndex = nextIndex
+
 	s.isPrimary = false
 	return s
 }

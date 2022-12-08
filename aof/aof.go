@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"github.com/goose-lang/std"
-	"github.com/mit-pdos/gokv/grove_ffi"
+	// "github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/tchajed/marshal"
 )
 
@@ -41,7 +41,7 @@ func CreateAppendOnlyFile(fname string) *AppendOnlyFile {
 			if a.closeRequested {
 				// Write the remaining stuff so that we can wake up anyone
 				// that's already waiting
-				grove_ffi.FileAppend(fname, a.membuf)
+				// grove_ffi.FileAppend(fname, a.membuf)
 				a.membuf = make([]byte, 0)
 				a.durableLength = a.length
 				a.durableCond.Broadcast()
@@ -52,13 +52,13 @@ func CreateAppendOnlyFile(fname string) *AppendOnlyFile {
 				break
 			}
 
-			l := a.membuf
+			// l := a.membuf
 			newLength := a.length
 			a.membuf = make([]byte, 0)
 
 			a.mu.Unlock()
 
-			grove_ffi.FileAppend(fname, l)
+			// grove_ffi.FileAppend(fname, l)
 
 			a.mu.Lock()
 			a.durableLength = newLength
