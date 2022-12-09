@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"log"
 	"sync"
 
 	"github.com/mit-pdos/gokv/grove_ffi"
@@ -26,6 +27,7 @@ func InitializeSystem(configHost grove_ffi.Address, servers []grove_ffi.Address)
 
 func EnterNewConfig(configHost grove_ffi.Address, servers []grove_ffi.Address) e.Error {
 	if len(servers) == 0 {
+		log.Println("Tried creating empty config")
 		return e.EmptyConfig
 	}
 
@@ -43,6 +45,7 @@ func EnterNewConfig(configHost grove_ffi.Address, servers []grove_ffi.Address) e
 	oldClerk := pb.MakeClerk(oldServers[id])
 	reply := oldClerk.GetState(&pb.GetStateArgs{Epoch: epoch})
 	if reply.Err != e.None {
+		log.Printf("Error while getting state and sealing in epoch %d", epoch)
 		return reply.Err
 	}
 
@@ -79,11 +82,13 @@ func EnterNewConfig(configHost grove_ffi.Address, servers []grove_ffi.Address) e
 		i += 1
 	}
 	if err != e.None {
+		log.Println("Error while setting state and entering new epoch")
 		return err
 	}
 
 	// Write to config service saying the new servers have up-to-date state.
 	if configCk.WriteConfig(epoch, servers) != e.None {
+		log.Println("Error while writing to config service")
 		return e.Stale
 	}
 

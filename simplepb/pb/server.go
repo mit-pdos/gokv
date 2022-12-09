@@ -192,7 +192,7 @@ func (s *Server) SetState(args *SetStateArgs) e.Error {
 // XXX: probably should rename to GetStateAndSeal
 func (s *Server) GetState(args *GetStateArgs) *GetStateReply {
 	s.mu.Lock()
-	if s.isEpochStale(args.Epoch) {
+	if args.Epoch < s.epoch {
 		s.mu.Unlock()
 		return &GetStateReply{Err: e.Stale, State: nil}
 	}
