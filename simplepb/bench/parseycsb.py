@@ -12,6 +12,7 @@ def parse_ycsb_output_totalops(output):
     ops = 0
     time = None
     numMatches = 0
+    latency = 0
     for m in ms:
         ops += int(m.group('count'))
         time = float(m.group('time'))
