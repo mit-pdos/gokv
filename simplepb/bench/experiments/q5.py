@@ -25,7 +25,8 @@ ENDSSH
 
     time.sleep(10) # let it run for 10 seconds
     do(f"./reconfig.py 1 2") # servers are numbered starting at 0, so this is turning the old backup into a primary and adding a new server
-    time.sleep(20) # let it run for another 10 seconds
-    o.close() # exit benchmark
-    do("./stop-pb.sh")
+    time.sleep(20) # let it run for another 20 seconds
+    do("./stop-pb.py")
+    # Analyze the file
+    do("./get-inst-thruput.py")
     sys.exit(0)

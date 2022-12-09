@@ -17,5 +17,5 @@ def parse_ycsb_output_totalops(output):
         time = float(m.group('time'))
         latency = float(m.group('avg_latency'))
         numMatches += 1
-    assert numMatches == 1, "expected only one kind of operation, but got " + str(numMatches)
+    assert numMatches <= 1, "expected only one kind of operation, but got " + str(numMatches)
     return (time, ops, latency)
