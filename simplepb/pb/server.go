@@ -117,25 +117,19 @@ func (s *Server) isEpochStale(epoch uint64) bool {
 // can be considered committed by primary.
 func (s *Server) ApplyAsBackup(args *ApplyAsBackupArgs) e.Error {
 	s.mu.Lock()
-	if s.isEpochStale(args.epoch) {
-		s.mu.Unlock()
-		return e.Stale
-	}
-	if s.sealed {
-		s.mu.Unlock()
-		return e.Stale
-	}
 
 	// operation sequencing
-	if args.index > s.nextIndex {
-		cond := sync.NewCond(s.mu)
-		s.opAppliedConds[args.index] = cond
-
-		// FIXME: deal with EnterNewEpoch
-		for args.index > s.nextIndex && s.epoch == args.epoch && !s.sealed {
+	for args.index > s.nextIndex && s.epoch == args.epoch && !s.sealed {
+		cond, ok := s.opAppliedConds[args.index]
+		if !ok {
+			cond := sync.NewCond(s.mu)
+			s.opAppliedConds[args.index] = cond
+		} else {
 			cond.Wait()
 		}
 	}
+	// By this point, if the server is unsealed and in the right epoch, then
+	// args.index <= s.nextIndex.
 	if s.sealed {
 		s.mu.Unlock()
 		return e.Stale
@@ -145,8 +139,13 @@ func (s *Server) ApplyAsBackup(args *ApplyAsBackupArgs) e.Error {
 		return e.Stale
 	}
 
+	// XXX: Because of the above waiting for args.index to be at most
+	// s.nextIndex, if args.index != s.nextIndex, then actually args.index <
+	// s.nextIndex and the op has already been accepted. We don't need to prove
+	// that, though.
+	//
 	// this operation has already been applied, nothing to do.
-	if args.index < s.nextIndex {
+	if args.index != s.nextIndex {
 		s.mu.Unlock()
 		return e.OutOfOrder
 	}
@@ -155,7 +154,7 @@ func (s *Server) ApplyAsBackup(args *ApplyAsBackupArgs) e.Error {
 	_, waitFn := s.sm.StartApply(args.op)
 	s.nextIndex += 1
 
-	cond, ok := s.opAppliedConds[s.nextIndex];
+	cond, ok := s.opAppliedConds[s.nextIndex]
 	if ok {
 		cond.Signal()
 		delete(s.opAppliedConds, s.nextIndex)
@@ -236,18 +235,18 @@ func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {
 
 	// TODO: multiple sockets
 	/*
-	s.clerks = make([][]*Clerk, numClerks)
-		numClerks := 32 // XXX: 32 clients per backup; this should probably be a configuration parameter
 		s.clerks = make([][]*Clerk, numClerks)
-		for j := 0; j < numClerks; j++ {
-			clerks := make([]*Clerk, len(args.Replicas)-1)
-			var i = uint64(0)
-			for i < uint64(len(clerks)) {
-				clerks[i] = MakeClerk(args.Replicas[i+1])
-				i++
-			}
-			s.clerks[j] = clerks
-		} */
+			numClerks := 32 // XXX: 32 clients per backup; this should probably be a configuration parameter
+			s.clerks = make([][]*Clerk, numClerks)
+			for j := 0; j < numClerks; j++ {
+				clerks := make([]*Clerk, len(args.Replicas)-1)
+				var i = uint64(0)
+				for i < uint64(len(clerks)) {
+					clerks[i] = MakeClerk(args.Replicas[i+1])
+					i++
+				}
+				s.clerks[j] = clerks
+			} */
 
 	s.mu.Unlock()
 	return e.None
