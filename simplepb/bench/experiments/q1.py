@@ -18,10 +18,11 @@ args = parser.parse_args()
 warmup = 10
 runtime = 10
 
+os.chdir("/users/upamanyu/gokv/simplepb/bench")
+do("./set-cores 8")
 writeout(f"# average latency with {args.threads} client threads and increasing replicas ")
 writeout("nreplicas, avglatency")
 for nreplicas in [1, 2, 3, 4]:
-    os.chdir("/users/upamanyu/gokv/simplepb/bench")
     do(f"./start-pb.py --ncores 8 {nreplicas} > /tmp/ephemeral.out 2>/tmp/ephemeral.err")
     benchoutput = os.popen(f"./bench-put.py {args.threads} --warmup {warmup}", 'r', 100)
     ret = ''

@@ -2,8 +2,15 @@
 
 from os import system as do
 import time
+import argparse
 
-ncores = 1
+parser = argparse.ArgumentParser()
+parser.add_argument('--ncores', metavar='ncores', type=int,
+                    default=8,
+                    help='number of cores per redis server')
+args = parser.parse_args()
+
+ncores = args.ncores
 
 do(f"ssh upamanyu@node0 'killall go kvsrv config redis-server 2>/dev/null' ")
 do(f"ssh upamanyu@node0 'rm -f /users/upamanyu/gokv/simplepb/durable/*'")

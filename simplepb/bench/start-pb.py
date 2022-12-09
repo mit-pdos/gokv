@@ -33,9 +33,10 @@ for i in range(4):
 ENDSSH
     """)
 
-# Start config server, on the last machine that isn't the client
+# Start config server, on the last machine that isn't the client, with all 8 cores
 do(f"""ssh upamanyu@node3 <<ENDSSH
     cd /users/upamanyu/gokv/simplepb/;
+    ./bench/set-cores.py 8;
     nohup {gobin} run ./cmd/config -port 12000 1>/tmp/config.out 2>/tmp/config.err &
 ENDSSH
     """)
