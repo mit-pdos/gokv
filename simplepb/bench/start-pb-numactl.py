@@ -20,20 +20,19 @@ gobin='/usr/local/go/bin/go'
 nreplicas = args.nreplicas
 ncores = args.ncores
 
-if nreplicas > 4:
-    print("too many replicas; can start at most 4")
+if nreplicas > 3:
+    print("too many replicas; can start at most 3")
     sys.exit(1)
 
 # Start all replicas
-for i in range(4):
+for i in range(5):
     do(f"""ssh upamanyu@node{str(i)} <<ENDSSH
     cd /users/upamanyu/gokv/simplepb/;
-    ./bench/set-cores.py {ncores};
     nohup {gobin} run ./cmd/kvsrv -filename kv.data -port 12100 1>/tmp/replica.out 2>/tmp/replica.err &
 ENDSSH
     """)
 
-# Start config server, on the last machine that isn't the client
+# Start config server, on the next machine
 do(f"""ssh upamanyu@node3 <<ENDSSH
     cd /users/upamanyu/gokv/simplepb/;
     nohup {gobin} run ./cmd/config -port 12000 1>/tmp/config.out 2>/tmp/config.err &
