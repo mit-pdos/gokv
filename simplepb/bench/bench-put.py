@@ -7,6 +7,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('threads', metavar='nthread', type=int,
                     help='number of threads')
 parser.add_argument('--warmup', type=int, default=10)
+parser.add_argument('--interval', type=int, default=100)
 args = parser.parse_args()
 
 gobin='/usr/local/go/bin/go'
@@ -15,7 +16,7 @@ do(f"""{gobin} run ./cmd/go-ycsb run pbkv
     -P /users/upamanyu/gokv/simplepb/bench/pbkv_workload
     --threads {str(args.threads)}
     --target -1
-    --interval 100
+    --interval {str(args.interval)}
     -p operationcount={str(2**32 - 1)}
     -p fieldlength=128
     -p requestdistribution=uniform
