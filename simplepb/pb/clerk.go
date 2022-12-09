@@ -44,7 +44,9 @@ func (ck *Clerk) SetState(args *SetStateArgs) e.Error {
 
 func (ck *Clerk) GetState(args *GetStateArgs) *GetStateReply {
 	reply := new([]byte)
-	err := ck.cl.Call(RPC_GETSTATE, EncodeGetStateArgs(args), reply, 1000 /* ms */)
+	// XXX: high timeout for this, because if the state is large, it will take a
+	// long time to get.
+	err := ck.cl.Call(RPC_GETSTATE, EncodeGetStateArgs(args), reply, 10000 /* ms */)
 	if err != 0 {
 		return &GetStateReply{Err: e.Timeout}
 	} else {

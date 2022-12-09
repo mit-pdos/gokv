@@ -11,7 +11,7 @@ gobin='/usr/local/go/bin/go'
 for ncores in range(1,9):
     do(f"./start-pb.py 2 --ncores 8 > /tmp/ephemeral.out 2>/tmp/ephemeral.err")
 
-    o = os.popen("./bench-put.py --interval 1000 --warmup 0 100 1>/tmp/reconfig_raw.txt")
+    o = os.popen("./bench-put.py --recordcount 1000000 --interval 200 --warmup 0 100 1>/tmp/reconfig_raw.txt")
     time.sleep(10) # let it run for 10 seconds
 
     print("Killing server")
