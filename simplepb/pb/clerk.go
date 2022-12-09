@@ -2,12 +2,12 @@ package pb
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
+	"github.com/mit-pdos/gokv/reconnectclient"
 	"github.com/mit-pdos/gokv/simplepb/e"
-	"github.com/mit-pdos/gokv/urpc"
 )
 
 type Clerk struct {
-	cl *urpc.Client
+	cl *reconnectclient.ReconnectingClient
 }
 
 const (
@@ -19,7 +19,7 @@ const (
 )
 
 func MakeClerk(host grove_ffi.Address) *Clerk {
-	return &Clerk{cl: urpc.MakeClient(host)}
+	return &Clerk{cl: reconnectclient.MakeReconnectingClient(host)}
 }
 
 func (ck *Clerk) ApplyAsBackup(args *ApplyAsBackupArgs) e.Error {

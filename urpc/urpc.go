@@ -136,6 +136,25 @@ func MakeClient(host_name grove_ffi.Address) *Client {
 	return cl
 }
 
+func TryMakeClient(host_name grove_ffi.Address) (uint64, *Client) {
+	host := grove_ffi.Address(host_name)
+	a := grove_ffi.Connect(host)
+	if a.Err {
+		return 1, nil
+	}
+
+	cl := &Client{
+		conn:    a.Connection,
+		mu:      new(sync.Mutex),
+		seq:     1,
+		pending: make(map[uint64]*Callback)}
+
+	go func() {
+		cl.replyThread() // Goose doesn't support parameters in a go statement
+	}()
+	return 0, cl
+}
+
 const ErrTimeout uint64 = 1
 const ErrDisconnect uint64 = 2
 
