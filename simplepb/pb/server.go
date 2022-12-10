@@ -64,17 +64,17 @@ func (s *Server) Apply(op Op) *ApplyReply {
 
 	// tell backups to apply it
 	wg := new(sync.WaitGroup)
-	errs := make([]e.Error, len(clerks))
 	args := &ApplyAsBackupArgs{
 		epoch: epoch,
 		index: nextIndex,
 		op:    op,
 	}
-	// FIXME: multiple clerks
-	for i := range clerks[0] {
+
+	clerks_inner := clerks[machine.RandomUint64()%uint64(len(clerks))]
+	errs := make([]e.Error, len(clerks_inner))
+	for i, clerk := range clerks_inner {
 		// use a random socket
-		clerk := clerks[machine.RandomUint64()%uint64(len(clerks))][i]
-		// clerk := clerk
+		clerk := clerk
 		i := i
 		wg.Add(1)
 		go func() {
@@ -94,7 +94,7 @@ func (s *Server) Apply(op Op) *ApplyReply {
 	wg.Wait()
 	var err = e.None
 	var i = uint64(0)
-	for i < uint64(len(clerks)) {
+	for i < uint64(len(clerks_inner)) {
 		err2 := errs[i]
 		if err2 != e.None {
 			err = err2
