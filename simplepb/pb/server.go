@@ -8,7 +8,7 @@ import (
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/simplepb/e"
 	"github.com/mit-pdos/gokv/urpc"
-	// "github.com/tchajed/goose/machine"
+	"github.com/tchajed/goose/machine"
 )
 
 type Server struct {
@@ -19,8 +19,8 @@ type Server struct {
 	nextIndex uint64
 
 	isPrimary bool
-	// clerks    [][]*Clerk
-	clerks []*Clerk
+	clerks    [][]*Clerk
+	// clerks []*Clerk
 
 	// only on backups
 	// opAppliedConds[j] is the condvariable for the op with nextIndex == j.
@@ -71,10 +71,10 @@ func (s *Server) Apply(op Op) *ApplyReply {
 		op:    op,
 	}
 	// FIXME: multiple clerks
-	for i, clerk := range clerks {
+	for i := range clerks[0] {
 		// use a random socket
-		// clerk := clerks[machine.RandomUint64()%uint64(len(clerks))][i]
-		clerk := clerk
+		clerk := clerks[machine.RandomUint64()%uint64(len(clerks))][i]
+		// clerk := clerk
 		i := i
 		wg.Add(1)
 		go func() {
@@ -226,27 +226,28 @@ func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {
 	// XXX: should probably not bother doing this if we are already the primary
 	// in this epoch
 
-	s.clerks = make([]*Clerk, len(args.Replicas)-1)
-	var i = uint64(0)
-	for i < uint64(len(s.clerks)) {
-		s.clerks[i] = MakeClerk(args.Replicas[i+1])
-		i++
-	}
+	/*
+		s.clerks = make([]*Clerk, len(args.Replicas)-1)
+		var i = uint64(0)
+		for i < uint64(len(s.clerks)) {
+			s.clerks[i] = MakeClerk(args.Replicas[i+1])
+			i++
+		}
+	*/
 
 	// TODO: multiple sockets
-	/*
-		s.clerks = make([][]*Clerk, numClerks)
-			numClerks := 32 // XXX: 32 clients per backup; this should probably be a configuration parameter
-			s.clerks = make([][]*Clerk, numClerks)
-			for j := 0; j < numClerks; j++ {
-				clerks := make([]*Clerk, len(args.Replicas)-1)
-				var i = uint64(0)
-				for i < uint64(len(clerks)) {
-					clerks[i] = MakeClerk(args.Replicas[i+1])
-					i++
-				}
-				s.clerks[j] = clerks
-			} */
+	numClerks := 32 // XXX: 32 clients per backup; this should probably be a configuration parameter
+	s.clerks = make([][]*Clerk, numClerks)
+	s.clerks = make([][]*Clerk, numClerks)
+	for j := 0; j < numClerks; j++ {
+		clerks := make([]*Clerk, len(args.Replicas)-1)
+		var i = uint64(0)
+		for i < uint64(len(clerks)) {
+			clerks[i] = MakeClerk(args.Replicas[i+1])
+			i++
+		}
+		s.clerks[j] = clerks
+	}
 
 	s.mu.Unlock()
 	return e.None
