@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 from os import system as do
-import time
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -31,6 +30,3 @@ do(f""" ssh upamanyu@node0 <<ENDSSH
      /users/upamanyu/redis/redis/src/redis-cli -h 0.0.0.0 -p 5001 raft.cluster init
 ENDSSH
 """)
-
-time.sleep(2)
-

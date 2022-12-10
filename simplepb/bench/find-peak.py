@@ -17,8 +17,8 @@ args = parser.parse_args()
 
 threadcounts = [100] + [200 * (i + 1) for i in range(10)]
 
-runtime = 5
-warmuptime = 5
+runtime = 20
+warmuptime = 20
 fullwarmuptime = 20
 fullruntime = 120
 

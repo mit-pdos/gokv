@@ -27,8 +27,8 @@ parser.add_argument(
     action="store_true",
 )
 parser.add_argument(
-    "--outdir",
-    help="output directory for benchmark results",
+    "--outfile",
+    help="output file for benchmark results",
     required=True,
     default=None,
 )
@@ -45,12 +45,11 @@ goycsbdir = ''
 
 procs = []
 
-os.makedirs(global_args.outdir, exist_ok=True)
+# os.makedirs(global_args.outdir, exist_ok=True)
 scriptdir = os.path.dirname(os.path.abspath(__file__))
 simplepbdir = os.path.dirname(scriptdir)
 goycsbdir = os.path.join(os.path.dirname(os.path.dirname(simplepbdir)), "go-ycsb")
 
-os.makedirs(global_args.outdir, exist_ok=True)
 resource.setrlimit(resource.RLIMIT_NOFILE, (100000, 100000))
 
 def run_command(args, cwd=None, shell=False):
@@ -120,28 +119,27 @@ def parse_ycsb_output(output):
         a[m.group('opname').strip()] = {'thruput': float(m.group('ops')), 'avg_latency': float(m.group('avg_latency')), 'raw': output}
     return a
 
-
-def goycsb_bench(kvname:str, threads:int, warmuptime:int, runtime:int, valuesize:int, readprop:float, updateprop:float, keys:int, cpuconfig, extra_args=[]):
+def goycsb_bench(kvname:str, threads:int, warmuptime:int, runtime:int, valuesize:int, readprop:float, updateprop:float, keys:int, extra_args=[]):
     """
     Returns a dictionary of the form
     { 'UPDATE': {'thruput': 1000, 'avg_latency': 12345', 'raw': 'blah'},...}
     """
 
-    p = start_command(many_cpus(['go', 'run',
+    p = start_command(['go', 'run',
                                   path.join(goycsbdir, './cmd/go-ycsb'),
                                   'run', kvname,
                                   '-P', path.join(simplepbdir, "bench", kvname + '_workload'),
                                   '--threads', str(threads),
                                   '--target', '-1',
-                                  '--interval', '1',
+                                  '--interval', '100',
                                   '-p', 'operationcount=' + str(2**32 - 1),
                                   '-p', 'fieldlength=' + str(valuesize),
                                   '-p', 'requestdistribution=uniform',
                                   '-p', 'readproportion=' + str(readprop),
                                   '-p', 'updateproportion=' + str(updateprop),
-                                  '-p', 'warmup=' + str(warmuptime), # TODO: increase warmup
-                                  '-p', 'recordcount=', str(keys),
-                                  ] + extra_args, cpuconfig), cwd=goycsbdir)
+                                  '-p', 'warmuptime=' + str(warmuptime), # TODO: increase warmup
+                                  '-p', 'recordcount=' + str(keys),
+                                  ] + extra_args, cwd=goycsbdir)
 
     if p is None:
         return ''
@@ -187,7 +185,7 @@ def goycsb_bench_inst(kvname:str, threads:int, runtime:int, valuesize:int, readp
                                   '-p', 'readproportion=' + str(readprop),
                                   '-p', 'updateproportion=' + str(updateprop),
                                   '-p', 'warmup=10', # TODO: increase warmup
-                                  '-p', 'recordcount=', str(keys),
+                                  '-p', 'recordcount=' + str(keys),
                                   ], benchcpus), cwd=goycsbdir)
     if p is None:
         return ''

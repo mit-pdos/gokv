@@ -15,6 +15,11 @@ from datetime import datetime
 from common import *
 
 def num_threads(i):
+    if i < 10:
+        return 5 + i * 5
+    i = i - 10
+    return 100 * (i + 1)
+
     if i < 5:
         return i + 1
     elif i < 25:
@@ -22,7 +27,7 @@ def num_threads(i):
     else:
         return 500 + (i - 25) * 500
 
-def closed_lt(kvname, warmuptime, runtime, valuesize, outfilename, readprop, updateprop, recordcount, thread_fn, benchcpus):
+def closed_lt(kvname, warmuptime, runtime, valuesize, outfilename, readprop, updateprop, recordcount, thread_fn):
     data = []
     i = 0
     last_good_index = i
@@ -35,7 +40,7 @@ def closed_lt(kvname, warmuptime, runtime, valuesize, outfilename, readprop, upd
 
         cleanup_procs()
         start_fresh_single_node_redisraft()
-        a = goycsb_bench(kvname, threads, warmuptime, runtime, valuesize, readprop, updateprop, recordcount, benchcpus,
+        a = goycsb_bench(kvname, threads, warmuptime, runtime, valuesize, readprop, updateprop, recordcount,
                          ['-p', f"redis.addr={config['serverhost']}:5001"])
 
         p = {'service': kvname, 'num_threads': threads, 'lts': a}
@@ -61,70 +66,25 @@ def closed_lt(kvname, warmuptime, runtime, valuesize, outfilename, readprop, upd
 config = {}
 
 def start_fresh_single_node_redisraft():
-    durable_dir = os.path.join(simplepbdir, 'durable')
-    dbfilename = 'raft1.rdb'
-    logfilename = 'raftlog1.db'
-
-    # clean up old processes
-    os.system(f"ssh upamanyu@{config['serverhost']} 'killall go kvsrv config redis-server'")
-
-    # clean up old files
-    start_shell_command(' '.join(remote_cmd(config['serverhost'],
-                                            ["rm", "-f", dbfilename,
-                                             logfilename, logfilename + ".meta",
-                                             logfilename + ".idx"], durable_dir)
-                                 )).wait()
-
-
-    start_shell_command(' '.join(remote_cmd(config['serverhost'],
-                                            ["cp", os.path.join(redisdir, "redisraft", "redisraft.so"), durable_dir], cwd=redisdir))).wait()
-    time.sleep(4)
-
-    start_shell_command(' '.join(remote_cmd(config['serverhost'],
-                                           many_cpus(["./redis/src/redis-server",
-                                                      "--port", "5001", "--dbfilename", dbfilename,
-                                                      "--protected-mode", "no",
-                                                      "--loadmodule", "./redisraft.so",
-                                                      "--raft.log-filename", logfilename,
-                                                      "--dir", durable_dir,
-                                                      "--raft.log-fsync", "yes",
-                                                      "--raft.addr", "0.0.0.0:5001",], config['rediscpus']),
-                                           redisdir))
-                        )
-
-    time.sleep(2)
-    start_shell_command(' '.join(remote_cmd(config['serverhost'],
-                                            ["./redis/src/redis-cli",
-                                             "-h", config['serverhost'],
-                                             "-p",
-                                             "5001", "raft.cluster", "init"],
-                                            cwd=redisdir))).wait()
-    time.sleep(1)
-
-redisdir = ''
+    os.system("./start-redis.py --ncores 1")
 
 def main():
     atexit.register(cleanup_procs)
     resource.setrlimit(resource.RLIMIT_NOFILE, (100000, 100000))
     global config
-    global redisdir
-    redisdir = os.path.join(os.path.dirname(goycsbdir), 'redis')
 
     config = {
         'read': 0,
         'write': 1.0,
         'keys': 1000,
-        'clientcpus': ['-C', '0-7'],
-        'rediscpus': ['-C', '0'],
-        'serverhost': '10.10.1.2',
-        'warmuptime': 10,
-        'runtime': 10,
+        'serverhost': '10.10.1.1',
+        'warmuptime': 20,
+        'runtime': 60,
     }
 
-    filename = datetime.now().strftime("%m-%d-%H-%M-%S") + "-redis-kvs.jsons"
-    outfilepath = path.join(global_args.outdir, filename)
+    outfilepath = global_args.outfile
 
-    closed_lt('rediskv', config['warmuptime'], config['runtime'], 128, outfilepath, config['read'], config['write'], config['keys'], num_threads, config['clientcpus'])
+    closed_lt('rediskv', config['warmuptime'], config['runtime'], 128, outfilepath, config['read'], config['write'], config['keys'], num_threads)
 
 if __name__=='__main__':
     main()
