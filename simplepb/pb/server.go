@@ -215,7 +215,10 @@ func (s *Server) GetState(args *GetStateArgs) *GetStateReply {
 
 func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {
 	s.mu.Lock()
-	if args.Epoch < s.epoch {
+	// XXX: technically, this != could be a <, and we'd be ok because
+	// BecomePrimary can only be called on args.Epoch if the server already
+	// entered epoch args.Epoch
+	if args.Epoch != s.epoch {
 		log.Println("Stale BecomePrimary request")
 		s.mu.Unlock()
 		return e.Stale
@@ -237,7 +240,6 @@ func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {
 
 	// TODO: multiple sockets
 	numClerks := uint64(32) // XXX: 32 clients per backup; this should probably be a configuration parameter
-	s.clerks = make([][]*Clerk, numClerks)
 	s.clerks = make([][]*Clerk, numClerks)
 	var j = uint64(0)
 	for j < numClerks {
