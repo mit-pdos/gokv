@@ -236,10 +236,11 @@ func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {
 	*/
 
 	// TODO: multiple sockets
-	numClerks := 32 // XXX: 32 clients per backup; this should probably be a configuration parameter
+	numClerks := uint64(32) // XXX: 32 clients per backup; this should probably be a configuration parameter
 	s.clerks = make([][]*Clerk, numClerks)
 	s.clerks = make([][]*Clerk, numClerks)
-	for j := 0; j < numClerks; j++ {
+	var j = uint64(0)
+	for j < numClerks {
 		clerks := make([]*Clerk, len(args.Replicas)-1)
 		var i = uint64(0)
 		for i < uint64(len(clerks)) {
@@ -247,6 +248,7 @@ func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {
 			i++
 		}
 		s.clerks[j] = clerks
+		j++
 	}
 
 	s.mu.Unlock()
