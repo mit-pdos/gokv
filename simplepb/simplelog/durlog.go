@@ -1,6 +1,7 @@
 package simplelog
 
 import (
+	"github.com/goose-lang/std"
 	"github.com/mit-pdos/gokv/aof"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/simplepb/pb"
@@ -63,28 +64,28 @@ func (s *StateMachine) truncateAndMakeDurable() {
 
 func (s *StateMachine) apply(op []byte) ([]byte, func()) {
 	ret := s.smMem.ApplyVolatile(op) // apply op in-memory
-	s.nextIndex += 1
+	s.nextIndex = std.SumAssumeNoOverflow(s.nextIndex, 1)
 
 	s.logsize += uint64(len(op))
 
-	if s.logsize > MAX_LOG_SIZE {
-		panic("unsupported when using aof")
-		// s.logsize = 0
-		// s.truncateAndMakeDurable()
-	} else {
-		var opWithLen = make([]byte, 0, 8+uint64(len(op)))
-		opWithLen = marshal.WriteInt(opWithLen, uint64(len(op)))
-		opWithLen = marshal.WriteBytes(opWithLen, op)
-		l := s.logFile.Append(opWithLen)
+	// if s.logsize > MAX_LOG_SIZE {
+	// panic("unsupported when using aof")
+	// s.logsize = 0
+	// s.truncateAndMakeDurable()
+	// } else {
+	var opWithLen = make([]byte, 0, 8+uint64(len(op)))
+	opWithLen = marshal.WriteInt(opWithLen, uint64(len(op)))
+	opWithLen = marshal.WriteBytes(opWithLen, op)
+	l := s.logFile.Append(opWithLen)
 
-		// XXX: need to read this outside the goroutine because the logFile
-		// might be deleted and a new one take it place.
-		f := s.logFile
-		waitFn := func() {
-			f.WaitAppend(l)
-		}
-		return ret, waitFn
+	// XXX: need to read this outside the goroutine because the logFile
+	// might be deleted and a new one take it place.
+	f := s.logFile
+	waitFn := func() {
+		f.WaitAppend(l)
 	}
+	return ret, waitFn
+	// }
 }
 
 // TODO: make the nextIndex and epoch argument order consistent with pb.StateMachine
@@ -134,8 +135,9 @@ func recoverStateMachine(smMem *InMemoryStateMachine, fname string) *StateMachin
 	var snapLen uint64
 	var snap []byte
 	snapLen, enc = marshal.ReadInt(enc)
-	snap = enc[:snapLen]
-	enc = enc[snapLen:]
+	snap = enc[0:snapLen]
+	n := len(enc) // For `make check`
+	enc = enc[snapLen:n]
 	s.smMem.SetState(snap)
 
 	// load protocol state
@@ -150,10 +152,11 @@ func recoverStateMachine(smMem *InMemoryStateMachine, fname string) *StateMachin
 		if len(enc) > 1 {
 			var opLen uint64
 			opLen, enc = marshal.ReadInt(enc)
-			op := enc[:opLen]
-			enc = enc[opLen:]
+			op := enc[0:opLen]
+			n := len(enc)
+			enc = enc[opLen:n]
 			s.smMem.ApplyVolatile(op)
-			s.nextIndex += 1
+			s.nextIndex = std.SumAssumeNoOverflow(s.nextIndex, 1)
 		} else {
 			break
 		}

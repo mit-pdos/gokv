@@ -80,9 +80,7 @@ func (s *KVState) apply(args []byte) []byte {
 		return s.put(decodePutArgs(args[1:]))
 	} else if args[0] == OP_GET {
 		return s.get(decodeGetArgs(args[1:]))
-	} // else if args[0] == OP_CONDITIONALPUT {
-	//return s.Put(args[1:])
-	//}
+	}
 	panic("unexpected op type")
 }
 
