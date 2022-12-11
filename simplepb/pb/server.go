@@ -225,7 +225,7 @@ func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {
 	// BecomePrimary can only be called on args.Epoch if the server already
 	// entered epoch args.Epoch
 	if args.Epoch != s.epoch {
-		log.Println("Stale BecomePrimary request")
+		log.Printf("Stale BecomePrimary request (in %d, got %d)", s.epoch, args.Epoch)
 		s.mu.Unlock()
 		return e.Stale
 	}
