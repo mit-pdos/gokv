@@ -25,7 +25,7 @@ func kv_replica_main2() {
 }
 
 func sysinit_main() {
-	servers := make([]uint64, 0)
+	var servers = make([]uint64, 0)
 	servers = append(servers, r1)
 	servers = append(servers, r2)
 	admin.InitializeSystem(configHost, servers)
