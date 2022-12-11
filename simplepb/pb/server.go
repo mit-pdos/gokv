@@ -179,7 +179,7 @@ func (s *Server) SetState(args *SetStateArgs) e.Error {
 		s.epoch = args.Epoch
 		s.sealed = false
 		s.nextIndex = args.NextIndex
-		s.sm.SetStateAndUnseal(args.State, args.Epoch, args.NextIndex)
+		s.sm.SetStateAndUnseal(args.State, args.NextIndex, args.Epoch)
 
 		for _, cond := range s.opAppliedConds {
 			cond.Signal()
