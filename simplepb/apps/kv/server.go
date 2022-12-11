@@ -25,35 +25,35 @@ const (
 )
 
 // begin arg structs and marshalling
-type putArgs struct {
-	key []byte
-	val []byte
+type PutArgs struct {
+	Key []byte
+	Val []byte
 }
 
-func encodePutArgs(args *putArgs) []byte {
-	var enc = make([]byte, 1, 1+8+uint64(len(args.key))+uint64(len(args.val)))
+func EncodePutArgs(args *PutArgs) []byte {
+	var enc = make([]byte, 1, 1+8+uint64(len(args.Key))+uint64(len(args.Val)))
 	enc[0] = OP_PUT
-	enc = marshal.WriteInt(enc, uint64(len(args.key)))
-	enc = marshal.WriteBytes(enc, args.key)
-	enc = marshal.WriteBytes(enc, args.val)
+	enc = marshal.WriteInt(enc, uint64(len(args.Key)))
+	enc = marshal.WriteBytes(enc, args.Key)
+	enc = marshal.WriteBytes(enc, args.Val)
 	return enc
 }
 
-func decodePutArgs(raw_args []byte) *putArgs {
+func DecodePutArgs(raw_args []byte) *PutArgs {
 	var enc = raw_args
-	args := new(putArgs)
+	args := new(PutArgs)
 
 	var l uint64
 	l, enc = marshal.ReadInt(enc)
-	args.key = enc[:l]
-	args.val = enc[l:]
+	args.Key = enc[:l]
+	args.Val = enc[l:]
 
 	return args
 }
 
 type getArgs []byte
 
-func encodeGetArgs(args getArgs) []byte {
+func EncodeGetArgs(args getArgs) []byte {
 	var enc = make([]byte, 1, 1+uint64(len(args)))
 	enc[0] = OP_GET
 	enc = marshal.WriteBytes(enc, args)
@@ -66,8 +66,8 @@ func decodeGetArgs(raw_args []byte) getArgs {
 
 // end of marshalling
 
-func (s *KVState) put(args *putArgs) []byte {
-	s.kvs[string(args.key)] = args.val
+func (s *KVState) put(args *PutArgs) []byte {
+	s.kvs[string(args.Key)] = args.Val
 	return make([]byte, 0)
 }
 
@@ -77,7 +77,7 @@ func (s *KVState) get(args getArgs) []byte {
 
 func (s *KVState) apply(args []byte) []byte {
 	if args[0] == OP_PUT {
-		return s.put(decodePutArgs(args[1:]))
+		return s.put(DecodePutArgs(args[1:]))
 	} else if args[0] == OP_GET {
 		return s.get(decodeGetArgs(args[1:]))
 	}
@@ -96,7 +96,7 @@ func (s *KVState) setState(snap []byte) {
 	}
 }
 
-func makeKVStateMachine() *simplelog.InMemoryStateMachine {
+func MakeKVStateMachine() *simplelog.InMemoryStateMachine {
 	s := new(KVState)
 	s.kvs = make(map[string][]byte, 0)
 
@@ -108,6 +108,6 @@ func makeKVStateMachine() *simplelog.InMemoryStateMachine {
 }
 
 func Start(fname string, me grove_ffi.Address) {
-	r := simplelog.MakePbServer(makeKVStateMachine(), fname)
+	r := simplelog.MakePbServer(MakeKVStateMachine(), fname)
 	r.Serve(me)
 }

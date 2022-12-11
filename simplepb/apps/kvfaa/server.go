@@ -39,7 +39,7 @@ func RecoverKVState(fname string) *KVState {
 		sealedInt, encState = marshal.ReadInt(encState)
 		s.sealed = (sealedInt == 0)
 		log.Println("Decoding encoded state of length: ", len(encState))
-		s.kvs = map_marshal.DecodeMapU64ToBytes(encState)
+		s.kvs, _ = map_marshal.DecodeMapU64ToBytes(encState)
 	}
 	return s
 }
@@ -74,7 +74,7 @@ func (s *KVState) Apply(op Op) ([]byte, func()) {
 }
 
 func (s *KVState) SetStateAndUnseal(snap_in []byte, epoch uint64, nextIndex uint64) {
-	s.kvs = map_marshal.DecodeMapU64ToBytes(snap_in)
+	s.kvs, _ = map_marshal.DecodeMapU64ToBytes(snap_in)
 	s.epoch = epoch
 	s.sealed = false
 	s.nextIndex = nextIndex

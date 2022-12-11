@@ -2,6 +2,8 @@ package kv
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
+	"github.com/mit-pdos/gokv/simplepb/apps/eesm"
+	"github.com/mit-pdos/gokv/simplepb/apps/kv"
 	"github.com/mit-pdos/gokv/simplepb/clerk"
 )
 
@@ -14,13 +16,13 @@ func MakeClerk(confHost grove_ffi.Address) *Clerk {
 }
 
 func (ck *Clerk) Put(key []byte, val []byte) {
-	putArgs := &PutArgs{
+	putArgs := &kv.PutArgs{
 		Key: key,
 		Val: val,
 	}
-	ck.cl.Apply(EncodePutArgs(putArgs))
+	ck.cl.Apply(kv.EncodePutArgs(putArgs))
 }
 
 func (ck *Clerk) Get(key []byte) []byte {
-	return ck.cl.Apply(EncodeGetArgs(key))
+	return ck.cl.Apply(eesm.MakeRequest(kv.EncodeGetArgs(key)))
 }
