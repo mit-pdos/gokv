@@ -15,10 +15,10 @@ parser.add_argument('--benchcmd',
                     default='./bench-put.py')
 args = parser.parse_args()
 
-threadcounts = [100] + [200 * (i + 1) for i in range(12)]
+threadcounts = [50, 100, 150, 200, 250] + [200 * (i + 2) for i in range(12)]
 
-runtime = 20
-warmuptime = 20
+runtime = 60
+warmuptime = 30
 fullwarmuptime = 20
 fullruntime = 120
 
