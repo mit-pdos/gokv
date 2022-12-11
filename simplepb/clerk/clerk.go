@@ -41,7 +41,9 @@ func (ck *Clerk) Apply(op []byte) []byte {
 			// log.Println("Error during apply(): ", err)
 			machine.Sleep(uint64(100) * uint64(1_000_000)) // throttle retries to config server
 			config := ck.confCk.GetConfig()
-			ck.primaryCk = pb.MakeClerk(config[0])
+			if len(config) > 0 {
+				ck.primaryCk = pb.MakeClerk(config[0])
+			}
 			continue
 		}
 	}

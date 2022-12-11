@@ -134,6 +134,12 @@ func (s *Server) ApplyAsBackup(args *ApplyAsBackupArgs) e.Error {
 		s.mu.Unlock()
 		return e.Stale
 	}
+
+	// FIXME: if we get an index that's smaller nextIndex, we should just wait
+	// for nextIndex to be made durable. That requires saving the waitFn in the
+	// server state and making sure that we can call waitFn more than once when
+	// its postcondition is persistent.
+
 	if s.isEpochStale(args.epoch) {
 		s.mu.Unlock()
 		return e.Stale
