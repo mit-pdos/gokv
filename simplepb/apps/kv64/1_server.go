@@ -97,7 +97,7 @@ func MakeKVStateMachine() *simplelog.InMemoryStateMachine {
 
 	return &simplelog.InMemoryStateMachine{
 		ApplyVolatile: s.apply,
-		GetState:      s.getState,
+		GetState:      func() []byte { return s.getState() },
 		SetState:      s.setState,
 	}
 }
