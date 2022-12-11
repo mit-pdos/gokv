@@ -122,7 +122,14 @@ func recoverStateMachine(smMem *InMemoryStateMachine, fname string) *StateMachin
 	if len(enc) == 0 {
 		// this means the file represents an empty snapshot, epoch 0, and nextIndex 0
 		// write that in the file to start
-		initialContents := make([]byte, 8+8+8)
+		initState := smMem.GetState()
+
+		var initialContents = make([]byte, 0, 8+uint64(len(initState))+8+8)
+		initialContents = marshal.WriteInt(initialContents, uint64(len(initState)))
+		initialContents = marshal.WriteBytes(initialContents, initState)
+		initialContents = marshal.WriteInt(initialContents, 0)
+		initialContents = marshal.WriteInt(initialContents, 0)
+
 		grove_ffi.FileWrite(s.fname, initialContents)
 
 		s.logFile = aof.CreateAppendOnlyFile(fname)
