@@ -176,9 +176,15 @@ func recoverStateMachine(smMem *InMemoryStateMachine, fname string) *StateMachin
 func MakePbServer(smMem *InMemoryStateMachine, fname string) *pb.Server {
 	s := recoverStateMachine(smMem, fname)
 	sm := &pb.StateMachine{
-		StartApply:        s.apply,
-		SetStateAndUnseal: s.setStateAndUnseal,
-		GetStateAndSeal:   s.getStateAndSeal,
+		StartApply: func(op []byte) ([]byte, func()) {
+			return s.apply(op)
+		},
+		SetStateAndUnseal: func(snap []byte, nextIndex uint64, epoch uint64) {
+			s.setStateAndUnseal(snap, nextIndex, epoch)
+		},
+		GetStateAndSeal: func() []byte {
+			return s.getStateAndSeal()
+		},
 	}
 	return pb.MakeServer(sm, s.nextIndex, s.epoch, s.sealed)
 }
