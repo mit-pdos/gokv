@@ -1,4 +1,4 @@
-package kv
+package kv64
 
 // Replicated KV server using simplelog for durability.
 // This does not use a reply table for deduplication.
@@ -30,7 +30,7 @@ type PutArgs struct {
 	Val []byte
 }
 
-func EncodePut(args *PutArgs) []byte {
+func EncodePutArgs(args *PutArgs) []byte {
 	var enc = make([]byte, 1, 8+uint64(len(args.Val)))
 	enc[0] = OP_PUT
 	enc = marshal.WriteInt(enc, args.Key)
@@ -54,7 +54,7 @@ func EncodeGetArgs(args getArgs) []byte {
 	return enc
 }
 
-func decodeGetArgs(raw_args []byte) getArgs {
+func DecodeGetArgs(raw_args []byte) getArgs {
 	key, _ := marshal.ReadInt(raw_args)
 	return key
 }
@@ -75,7 +75,7 @@ func (s *KVState) apply(args []byte) []byte {
 	if args[0] == OP_PUT {
 		ret = s.put(DecodePutArgs(args[1:]))
 	} else if args[0] == OP_GET {
-		ret = s.get(decodeGetArgs(args[1:]))
+		ret = s.get(DecodeGetArgs(args[1:]))
 	} else {
 		panic("unexpected op type")
 	}

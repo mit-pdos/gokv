@@ -1,4 +1,4 @@
-package kv
+package kv64
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
