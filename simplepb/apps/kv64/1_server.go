@@ -72,10 +72,11 @@ func (s *KVState) get(args getArgs) []byte {
 
 func (s *KVState) apply(args []byte) []byte {
 	var ret []byte
+	n := len(args)
 	if args[0] == OP_PUT {
-		ret = s.put(DecodePutArgs(args[1:]))
+		ret = s.put(DecodePutArgs(args[1:n]))
 	} else if args[0] == OP_GET {
-		ret = s.get(DecodeGetArgs(args[1:]))
+		ret = s.get(DecodeGetArgs(args[1:n]))
 	} else {
 		panic("unexpected op type")
 	}
