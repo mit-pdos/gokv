@@ -5,13 +5,13 @@ package kv
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
-	"github.com/mit-pdos/gokv/map_string_marshal"
+	"github.com/mit-pdos/gokv/map_marshal"
 	"github.com/mit-pdos/gokv/simplepb/simplelog"
 	"github.com/tchajed/marshal"
 )
 
 type KVState struct {
-	kvs map[string][]byte
+	kvs map[uint64][]byte
 }
 
 // Ops include:
@@ -26,15 +26,14 @@ const (
 
 // begin arg structs and marshalling
 type PutArgs struct {
-	Key []byte
+	Key uint64
 	Val []byte
 }
 
-func EncodePutArgs(args *PutArgs) []byte {
-	var enc = make([]byte, 1, 1+8+uint64(len(args.Key))+uint64(len(args.Val)))
+func EncodePut(args *PutArgs) []byte {
+	var enc = make([]byte, 1, 8+uint64(len(args.Val)))
 	enc[0] = OP_PUT
-	enc = marshal.WriteInt(enc, uint64(len(args.Key)))
-	enc = marshal.WriteBytes(enc, args.Key)
+	enc = marshal.WriteInt(enc, args.Key)
 	enc = marshal.WriteBytes(enc, args.Val)
 	return enc
 }
@@ -42,63 +41,62 @@ func EncodePutArgs(args *PutArgs) []byte {
 func DecodePutArgs(raw_args []byte) *PutArgs {
 	var enc = raw_args
 	args := new(PutArgs)
-
-	var l uint64
-	l, enc = marshal.ReadInt(enc)
-	args.Key = enc[:l]
-	args.Val = enc[l:]
-
+	args.Key, args.Val = marshal.ReadInt(enc)
 	return args
 }
 
-type getArgs []byte
+type getArgs = uint64
 
 func EncodeGetArgs(args getArgs) []byte {
-	var enc = make([]byte, 1, 1+uint64(len(args)))
+	var enc = make([]byte, 1, 8)
 	enc[0] = OP_GET
-	enc = marshal.WriteBytes(enc, args)
+	enc = marshal.WriteInt(enc, args)
 	return enc
 }
 
 func decodeGetArgs(raw_args []byte) getArgs {
-	return raw_args
+	key, _ := marshal.ReadInt(raw_args)
+	return key
 }
 
 // end of marshalling
 
 func (s *KVState) put(args *PutArgs) []byte {
-	s.kvs[string(args.Key)] = args.Val
+	s.kvs[args.Key] = args.Val
 	return make([]byte, 0)
 }
 
 func (s *KVState) get(args getArgs) []byte {
-	return s.kvs[string(args)]
+	return s.kvs[args]
 }
 
 func (s *KVState) apply(args []byte) []byte {
+	var ret []byte
 	if args[0] == OP_PUT {
-		return s.put(DecodePutArgs(args[1:]))
+		ret = s.put(DecodePutArgs(args[1:]))
 	} else if args[0] == OP_GET {
-		return s.get(decodeGetArgs(args[1:]))
+		ret = s.get(decodeGetArgs(args[1:]))
+	} else {
+		panic("unexpected op type")
 	}
-	panic("unexpected op type")
+	return ret
 }
 
 func (s *KVState) getState() []byte {
-	return map_string_marshal.EncodeMapStringToBytes(s.kvs)
+	return map_marshal.EncodeMapU64ToBytes(s.kvs)
 }
 
 func (s *KVState) setState(snap []byte) {
 	if len(snap) == 0 {
-		s.kvs = make(map[string][]byte, 0)
+		s.kvs = make(map[uint64][]byte, 0)
 	} else {
-		s.kvs = map_string_marshal.DecodeMapStringToBytes(snap)
+		s.kvs, _ = map_marshal.DecodeMapU64ToBytes(snap)
 	}
 }
 
 func MakeKVStateMachine() *simplelog.InMemoryStateMachine {
 	s := new(KVState)
-	s.kvs = make(map[string][]byte, 0)
+	s.kvs = make(map[uint64][]byte, 0)
 
 	return &simplelog.InMemoryStateMachine{
 		ApplyVolatile: s.apply,

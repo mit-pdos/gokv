@@ -14,18 +14,20 @@ type EEStateMachine struct {
 }
 
 func (s *EEStateMachine) applyVolatile(op []byte) []byte {
+	var ret []byte
 	// op[0] is 1 for a GetFreshCID request, and 0 for a normal client op.
 	if op[0] == 1 {
 		// get fresh cid
 		s.nextCID += 1
-		var ret = make([]byte, 0, 8)
+		ret = make([]byte, 0, 8)
 		ret = marshal.WriteInt(ret, s.nextCID)
-		return ret
 	} else if op[0] == 0 {
 		n := len(op)
-		return s.sm.ApplyVolatile(op[1:n])
+		ret = s.sm.ApplyVolatile(op[1:n])
+	} else {
+		panic("unexpected ee op type")
 	}
-	panic("unexpected ee op type")
+	return ret
 }
 
 func (s *EEStateMachine) getState() []byte {
