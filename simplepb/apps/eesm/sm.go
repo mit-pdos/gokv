@@ -18,12 +18,22 @@ func (s *EEStateMachine) applyVolatile(op []byte) []byte {
 	// op[0] is 1 for a GetFreshCID request, and 0 for a normal client op.
 	if op[0] == 1 {
 		// get fresh cid
-		s.nextCID += 1
 		ret = make([]byte, 0, 8)
 		ret = marshal.WriteInt(ret, s.nextCID)
+		s.nextCID += 1
 	} else if op[0] == 0 {
 		n := len(op)
-		ret = s.sm.ApplyVolatile(op[1:n])
+		enc := op[1:n]
+		cid, enc2 := marshal.ReadInt(enc)
+		seq, realOp := marshal.ReadInt(enc2)
+
+		if s.lastSeq[cid] >= seq {
+			ret = s.lastReply[cid]
+		} else {
+			ret = s.sm.ApplyVolatile(realOp)
+			s.lastReply[cid] = ret
+			s.lastSeq[cid] = seq
+		}
 	} else {
 		panic("unexpected ee op type")
 	}
