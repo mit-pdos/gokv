@@ -1,6 +1,7 @@
 package closed
 
 import (
+	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/simplepb/apps/kv64"
 	"github.com/mit-pdos/gokv/simplepb/config"
 )
@@ -18,14 +19,8 @@ func config_main() {
 	config.MakeServer(servers).Serve(configHost)
 }
 
-func kv_replica_main1() {
+func kv_replica_main(fname string, me grove_ffi.Address) {
 	x := new(uint64)
 	*x = uint64(1)
-	kv64.Start("kv.data", r1)
-}
-
-func kv_replica_main2() {
-	x := new(uint64)
-	*x = uint64(1)
-	kv64.Start("kv.data", r2)
+	kv64.Start(fname, me)
 }
