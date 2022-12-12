@@ -15,7 +15,8 @@ func EncodeMapU64ToU64(kvs map[uint64]uint64) []byte {
 func DecodeMapU64ToU64(enc_in []byte) (map[uint64]uint64, []byte) {
 	var enc = enc_in
 	kvs := make(map[uint64]uint64, 0)
-	numEntries, enc := marshal.ReadInt(enc)
+	numEntries, enc2 := marshal.ReadInt(enc)
+	enc = enc2
 	for i := uint64(0); i < numEntries; i++ {
 		var key uint64
 		var val uint64
@@ -41,7 +42,8 @@ func EncodeMapU64ToBytes(kvs map[uint64][]byte) []byte {
 func DecodeMapU64ToBytes(enc_in []byte) (map[uint64][]byte, []byte) {
 	var enc = enc_in
 	kvs := make(map[uint64][]byte, 0)
-	numEntries, enc := marshal.ReadInt(enc)
+	numEntries, enc2 := marshal.ReadInt(enc)
+	enc = enc2
 	for i := uint64(0); i < numEntries; i++ {
 		var key uint64
 		var valLen uint64
