@@ -49,11 +49,11 @@ func (s *Server) WriteConfig(args []byte, reply *[]byte) {
 	s.mu.Unlock()
 }
 
-func MakeServer() *Server {
+func MakeServer(initconfig []grove_ffi.Address) *Server {
 	s := new(Server)
 	s.mu = new(sync.Mutex)
 	s.epoch = 0
-	s.config = make([]grove_ffi.Address, 0)
+	s.config = initconfig
 	return s
 }
 

@@ -19,7 +19,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	s := config.MakeServer()
+	a := flag.Args()
+	servers := make([]grove_ffi.Address, 0)
+	for _, srvStr := range a[1:] {
+		servers = append(servers, grove_ffi.MakeAddress(srvStr))
+	}
+
+	s := config.MakeServer(servers)
 	me := grove_ffi.MakeAddress(fmt.Sprintf("0.0.0.0:%d", port))
 	s.Serve(me)
 	log.Printf("Started config server on port %d; id %d", port, me)
