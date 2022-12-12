@@ -17,6 +17,8 @@ func config_main() {
 }
 
 func kv_replica_main1() {
+	x := new(uint64)
+	*x = uint64(1)
 	kv64.Start("kv.data", r1)
 }
 
