@@ -17,6 +17,8 @@ github.com/google/pprof v0.0.0-20200615235658-03e1cf38a040/go.mod h1:ZgVRPoUq/hf
 github.com/google/pprof v0.0.0-20211214055906-6f57359322fd/go.mod h1:KgnwoLYCZ8IQu3XUZ8Nc/bM9CCZFOyjUNOSygVozoDg=
 github.com/google/pprof v0.0.0-20221118152302-e6195bd50e26 h1:Xim43kblpZXfIBQsbuBVKCudVG457BR2GZFIz3uw3hQ=
 github.com/google/pprof v0.0.0-20221118152302-e6195bd50e26/go.mod h1:dDKJzRmX4S37WGHujM7tX//fmj1uioxKzKxz3lo4HJo=
+github.com/google/pprof v0.0.0-20221212185716-aee1124e3a93 h1:D5iJJZKAi0rU4e/5E58BkrnN+xeCDjAIqcm1GGxAGSI=
+github.com/google/pprof v0.0.0-20221212185716-aee1124e3a93/go.mod h1:dDKJzRmX4S37WGHujM7tX//fmj1uioxKzKxz3lo4HJo=
 github.com/goose-lang/std v0.0.0-20210910024443-21c4593d3dec/go.mod h1:eBTA88cbxhdegtDJayt+ns0Y9jjXsAwxv3CbH+62cKE=
 github.com/goose-lang/std v0.0.0-20220414201102-c41554454045 h1:2djI+j4CTlxbg4FcWT2n4rvnBqccNVCOvLm6oaHaUDc=
 github.com/goose-lang/std v0.0.0-20220414201102-c41554454045/go.mod h1:eBTA88cbxhdegtDJayt+ns0Y9jjXsAwxv3CbH+62cKE=
@@ -74,6 +76,8 @@ github.com/tchajed/marshal v0.0.0-20210312145633-4d998c90d194/go.mod h1:TPo3bTYJ
 github.com/tchajed/marshal v0.2.0/go.mod h1:jq2B5uP+QvY51sZB57Td/OsareaZEzm3HVuvVKhC22I=
 github.com/tchajed/marshal v0.4.2 h1:y4dWV+IABXtdIYJzchs3vjnBHzeuVof4P56NvnFbg78=
 github.com/tchajed/marshal v0.4.2/go.mod h1:tdiYzC42jUHdvBWrJYa7LytEbHEV2zA+nI3TLLb/nvU=
+github.com/tchajed/marshal v0.4.3 h1:dnLvl3JDzWMAj2xyCSWxiOr5PcZlu++KdPdl1/Ts51g=
+github.com/tchajed/marshal v0.4.3/go.mod h1:tdiYzC42jUHdvBWrJYa7LytEbHEV2zA+nI3TLLb/nvU=
 github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
 github.com/yuin/goldmark v1.4.1/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
 github.com/zeldovich/go-rpcgen v0.1.0/go.mod h1:CaF7Ys1EaK+D18PEYCmjISruqU1z98Cw+F/fwNUj4KQ=

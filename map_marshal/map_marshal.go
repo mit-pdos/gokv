@@ -47,14 +47,9 @@ func DecodeMapU64ToBytes(enc_in []byte) (map[uint64][]byte, []byte) {
 	for i := uint64(0); i < numEntries; i++ {
 		key, enc3 := marshal.ReadInt(enc)
 		valLen, enc4 := marshal.ReadInt(enc3)
-		enc = enc4
 
-		// XXX: this would keep the whole original encoded slice around in
-		// memory. We probably don't want that, so making a copy instead.
-		// val = enc[:valLen]
-		val := make([]byte, valLen)
-		copy(val, enc[:valLen])
-		enc = enc[valLen:]
+		val, enc5 := marshal.ReadBytesCopy(enc4, valLen)
+		enc = enc5
 
 		kvs[key] = val
 	}
