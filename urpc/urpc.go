@@ -117,30 +117,17 @@ func (cl *Client) replyThread() {
 }
 
 func MakeClient(host_name grove_ffi.Address) *Client {
-	host := grove_ffi.Address(host_name)
-	a := grove_ffi.Connect(host)
-	// Assume no error
-	// FIXME: shouldn't assume that this is error-free when we try to reconnect
-	// because of a temporary network failure
-	machine.Assume(!a.Err)
-
-	cl := &Client{
-		conn:    a.Connection,
-		mu:      new(sync.Mutex),
-		seq:     1,
-		pending: make(map[uint64]*Callback)}
-
-	go func() {
-		cl.replyThread() // Goose doesn't support parameters in a go statement
-	}()
+	err, cl := TryMakeClient(host_name)
+	machine.Assume(err == 0)
 	return cl
 }
 
 func TryMakeClient(host_name grove_ffi.Address) (uint64, *Client) {
 	host := grove_ffi.Address(host_name)
 	a := grove_ffi.Connect(host)
+	var nilClient *Client
 	if a.Err {
-		return 1, nil
+		return 1, nilClient
 	}
 
 	cl := &Client{

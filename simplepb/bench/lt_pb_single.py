@@ -30,8 +30,8 @@ def closed_lt(kvname, warmuptime, runtime, valuesize, outfilename, readprop, upd
             break
         threads = thread_fn(i)
 
-        if i % 5 == 0: # restart the system every few runs
-            start_single_core_single_node_kv_system()
+        # restart every single time
+        start_single_core_single_node_kv_system()
 
         # start_single_core_single_node_kv_system()
         a = goycsb_bench(kvname, threads, warmuptime, runtime, valuesize, readprop, updateprop, recordcount,
@@ -70,7 +70,7 @@ def main():
         'keys': 1000,
         'serverhost': '10.10.1.4',
         'warmuptime': 20,
-        'runtime': 60,
+        'runtime': 120,
     }
 
     outfilepath = global_args.outfile

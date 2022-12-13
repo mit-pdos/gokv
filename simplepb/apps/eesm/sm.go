@@ -1,7 +1,9 @@
 package eesm
 
 import (
+	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/map_marshal"
+	"github.com/mit-pdos/gokv/simplepb/clerk"
 	"github.com/mit-pdos/gokv/simplepb/simplelog"
 	"github.com/tchajed/marshal"
 )
@@ -70,15 +72,30 @@ func MakeEEKVStateMachine(sm *simplelog.InMemoryStateMachine) *simplelog.InMemor
 	}
 }
 
-func MakeRequest(req []byte) []byte {
-	var enc = make([]byte, 1+len(req))
-	enc = marshal.WriteBytes(enc, make([]byte, 1))
-	enc = marshal.WriteBytes(enc, req)
-	return enc
+type Clerk struct {
+	ck *clerk.Clerk
+	cid uint64
+	seq uint64
 }
 
-func GetCIDRequest() []byte {
+func MakeClerk(confHost grove_ffi.Address) *Clerk {
+	ck := new(Clerk)
+	ck.ck = clerk.Make(confHost)
+
 	v := make([]byte, 1)
 	v[0] = 1
-	return v
+	cidEnc := ck.ck.Apply(v)
+	ck.cid, _ = marshal.ReadInt(cidEnc)
+	ck.seq = 1
+	return ck
+}
+
+func (ck *Clerk) ApplyExactlyOnce(req []byte) []byte {
+	var enc = make([]byte, 1, 1) // XXX: reservation causes potential overflow in proof
+	enc = marshal.WriteInt(enc, ck.cid)
+	enc = marshal.WriteInt(enc, ck.seq)
+	enc = marshal.WriteBytes(enc, req)
+	ck.seq += 1
+
+	return ck.ck.Apply(enc)
 }
