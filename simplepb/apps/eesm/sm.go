@@ -1,6 +1,7 @@
 package eesm
 
 import (
+	"github.com/goose-lang/std"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/map_marshal"
 	"github.com/mit-pdos/gokv/simplepb/clerk"
@@ -44,11 +45,12 @@ func (s *EEStateMachine) applyVolatile(op []byte) []byte {
 
 func (s *EEStateMachine) getState() []byte {
 	appState := s.sm.GetState()
-	var enc = make([]byte, 0, uint64(8)+uint64(8)*uint64(len(s.lastSeq))+uint64(len(appState)))
+	// var enc = make([]byte, 0, uint64(8)+uint64(8)*uint64(len(s.lastSeq))+uint64(len(appState)))
+	var enc = make([]byte, 0, 0) // XXX: reservation causes potential overflow in proof
 
 	enc = marshal.WriteInt(enc, s.nextCID)
-	enc = map_marshal.EncodeMapU64ToU64(s.lastSeq)
-	enc = map_marshal.EncodeMapU64ToBytes(s.lastReply)
+	enc = marshal.WriteBytes(enc, map_marshal.EncodeMapU64ToU64(s.lastSeq))
+	enc = marshal.WriteBytes(enc, map_marshal.EncodeMapU64ToBytes(s.lastReply))
 	enc = marshal.WriteBytes(enc, appState)
 
 	return enc
@@ -64,16 +66,20 @@ func (s *EEStateMachine) setState(state []byte) {
 
 func MakeEEKVStateMachine(sm *simplelog.InMemoryStateMachine) *simplelog.InMemoryStateMachine {
 	s := new(EEStateMachine)
+	s.lastSeq = make(map[uint64]uint64)
+	s.lastReply = make(map[uint64][]byte)
+	s.nextCID = 0
+	s.sm = sm
 
 	return &simplelog.InMemoryStateMachine{
 		ApplyVolatile: s.applyVolatile,
-		GetState:      s.getState,
+		GetState:      func() []byte { return s.getState() },
 		SetState:      s.setState,
 	}
 }
 
 type Clerk struct {
-	ck *clerk.Clerk
+	ck  *clerk.Clerk
 	cid uint64
 	seq uint64
 }
@@ -95,7 +101,7 @@ func (ck *Clerk) ApplyExactlyOnce(req []byte) []byte {
 	enc = marshal.WriteInt(enc, ck.cid)
 	enc = marshal.WriteInt(enc, ck.seq)
 	enc = marshal.WriteBytes(enc, req)
-	ck.seq += 1
+	ck.seq = std.SumAssumeNoOverflow(ck.seq, 1)
 
 	return ck.ck.Apply(enc)
 }
