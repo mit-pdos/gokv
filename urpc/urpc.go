@@ -116,12 +116,6 @@ func (cl *Client) replyThread() {
 	}
 }
 
-func MakeClient(host_name grove_ffi.Address) *Client {
-	err, cl := TryMakeClient(host_name)
-	machine.Assume(err == 0)
-	return cl
-}
-
 func TryMakeClient(host_name grove_ffi.Address) (uint64, *Client) {
 	host := grove_ffi.Address(host_name)
 	a := grove_ffi.Connect(host)
@@ -140,6 +134,12 @@ func TryMakeClient(host_name grove_ffi.Address) (uint64, *Client) {
 		cl.replyThread() // Goose doesn't support parameters in a go statement
 	}()
 	return 0, cl
+}
+
+func MakeClient(host_name grove_ffi.Address) *Client {
+	err, cl := TryMakeClient(host_name)
+	machine.Assume(err == 0)
+	return cl
 }
 
 const ErrTimeout uint64 = 1
