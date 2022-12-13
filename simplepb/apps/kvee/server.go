@@ -10,5 +10,5 @@ import (
 )
 
 func Start(host grove_ffi.Address, fname string) {
-	simplelog.MakePbServer(eesm.MakeEEKVStateMachine(kv64.MakeKVStateMachine()), fname)
+	simplelog.MakePbServer(eesm.MakeEEKVStateMachine(kv64.MakeKVStateMachine()), fname).Serve(host)
 }
