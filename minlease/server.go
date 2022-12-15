@@ -75,3 +75,8 @@ func client(s *Server) {
 	v2 := s.Get()
 	machine.Assert(v2 == newv)
 }
+
+func main() {
+	s := StartServer()
+	client(s)
+}
