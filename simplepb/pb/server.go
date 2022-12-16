@@ -26,6 +26,9 @@ type Server struct {
 	// opAppliedConds[j] is the condvariable for the op with nextIndex == j.
 	opAppliedConds map[uint64]*sync.Cond
 
+	durableNextIndex      uint64
+	durableNextIndex_cond *sync.Cond
+
 	// for read-only operations
 	committedNextIndex  uint64
 	numOutstandingRoOps uint64
@@ -33,9 +36,17 @@ type Server struct {
 	roOpsDone           *sync.Cond
 }
 
-func (s *Server) RoApplyAsBackup(epoch uint64, reply *e.Error) {
+func (s *Server) RoApplyAsBackup(args *RoApplyAsBackupArgs, reply *e.Error) {
 	s.mu.Lock()
-	if s.epoch != epoch {
+	for {
+		if args.nextIndex > s.durableNextIndex &&
+			s.epoch == args.epoch &&
+			s.sealed == false {
+			s.durableNextIndex_cond.Wait()
+		}
+	}
+
+	if s.epoch != args.epoch {
 		s.mu.Unlock()
 		*reply = e.Stale
 		return
@@ -45,6 +56,10 @@ func (s *Server) RoApplyAsBackup(epoch uint64, reply *e.Error) {
 		*reply = e.Sealed
 		return
 	}
+	if args.nextIndex > s.durableNextIndex {
+		machine.Assert(false) // shouldn't happen
+	}
+
 	s.mu.Unlock()
 	*reply = e.None
 }
@@ -86,6 +101,7 @@ func (s *Server) ApplyRO(op Op) *ApplyReply {
 			break
 		}
 	}
+	return reply
 }
 
 // called on the primary server to apply a new operation.

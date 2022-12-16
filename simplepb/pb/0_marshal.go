@@ -142,6 +142,7 @@ func DecodeApplyReply(enc_reply []byte) *ApplyReply {
 	return reply
 }
 
-type RoApplyAsBackup struct {
-	epoch uint64
+type RoApplyAsBackupArgs struct {
+	epoch     uint64
+	nextIndex uint64
 }
