@@ -25,6 +25,67 @@ type Server struct {
 	// only on backups
 	// opAppliedConds[j] is the condvariable for the op with nextIndex == j.
 	opAppliedConds map[uint64]*sync.Cond
+
+	// for read-only operations
+	committedNextIndex  uint64
+	numOutstandingRoOps uint64
+	numCheckedRoOps     uint64
+	roOpsDone           *sync.Cond
+}
+
+func (s *Server) RoApplyAsBackup(epoch uint64, reply *e.Error) {
+	s.mu.Lock()
+	if s.epoch != epoch {
+		s.mu.Unlock()
+		*reply = e.Stale
+		return
+	}
+	if s.sealed {
+		s.mu.Unlock()
+		*reply = e.Sealed
+		return
+	}
+	s.mu.Unlock()
+	*reply = e.None
+}
+
+func (s *Server) ApplyRO(op Op) *ApplyReply {
+	// primary applying a read-only op
+	reply := new(ApplyReply)
+	reply.Reply = nil
+	// reply.Err = e.ENone
+	// return reply
+	s.mu.Lock()
+	// begin := machine.TimeNow()
+	if !s.isPrimary {
+		// log.Println("Got request while not being primary")
+		s.mu.Unlock()
+		reply.Err = e.Stale
+		return reply
+	}
+	if s.sealed {
+		s.mu.Unlock()
+		reply.Err = e.Stale
+		return reply
+	}
+
+	// apply it locally
+	reply.Reply = s.sm.ApplyReadonly(op)
+	roIndex := s.numOutstandingRoOps
+	nextIndex := s.nextIndex
+	epoch := s.epoch
+
+	s.numOutstandingRoOps += 1
+	for {
+		if epoch == s.epoch &&
+			nextIndex <= s.nextIndex &&
+			roIndex <= s.numCheckedRoOps {
+			s.roOpsDone.Wait()
+			continue
+		} else {
+			break
+		}
+	}
 }
 
 // called on the primary server to apply a new operation.

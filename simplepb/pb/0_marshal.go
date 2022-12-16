@@ -141,3 +141,7 @@ func DecodeApplyReply(enc_reply []byte) *ApplyReply {
 	// that will sit around until ApplyReply is deallocated
 	return reply
 }
+
+type RoApplyAsBackup struct {
+	epoch uint64
+}

@@ -13,6 +13,7 @@ const (
 	Timeout     = uint64(3)
 	EmptyConfig = uint64(4)
 	NotLeader   = uint64(5)
+	Sealed      = uint64(6)
 )
 
 func EncodeError(err Error) []byte {
