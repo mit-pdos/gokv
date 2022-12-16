@@ -11,12 +11,15 @@ import (
 type AppendOnlyFile struct {
 	mu *sync.Mutex
 
-	durableCond *sync.Cond
 	lengthCond  *sync.Cond
 
 	membuf        []byte
 	length        uint64 // logical length
 	durableLength uint64
+
+	// durableConds[0] is waiting for the data at index durableLength to be made
+	// durable.
+	durableConds []*sync.Cond
 
 	closeRequested bool
 	closed         bool
@@ -27,7 +30,8 @@ func CreateAppendOnlyFile(fname string) *AppendOnlyFile {
 	a := new(AppendOnlyFile)
 	a.mu = new(sync.Mutex)
 	a.lengthCond = sync.NewCond(a.mu)
-	a.durableCond = sync.NewCond(a.mu)
+	// FIXME:
+	// a.durableConds = make(map[uint64]*sync.Cond)
 	a.closedCond = sync.NewCond(a.mu)
 
 	go func() {
@@ -44,7 +48,7 @@ func CreateAppendOnlyFile(fname string) *AppendOnlyFile {
 				grove_ffi.FileAppend(fname, a.membuf)
 				a.membuf = make([]byte, 0)
 				a.durableLength = a.length
-				a.durableCond.Broadcast()
+				a.durableConds[a.durableLength].Broadcast()
 
 				a.closed = true
 				a.closedCond.Broadcast()
