@@ -11,11 +11,13 @@ type Clerk struct {
 }
 
 const (
-	RPC_APPLYASBACKUP = uint64(0)
-	RPC_SETSTATE      = uint64(1)
-	RPC_GETSTATE      = uint64(2)
-	RPC_BECOMEPRIMARY = uint64(3)
-	RPC_PRIMARYAPPLY  = uint64(4)
+	RPC_APPLYASBACKUP   = uint64(0)
+	RPC_SETSTATE        = uint64(1)
+	RPC_GETSTATE        = uint64(2)
+	RPC_BECOMEPRIMARY   = uint64(3)
+	RPC_PRIMARYAPPLY    = uint64(4)
+	RPC_ROAPPLYASBACKUP = uint64(5)
+	RPC_ROPRIMARYAPPLY  = uint64(6)
 )
 
 func MakeClerk(host grove_ffi.Address) *Clerk {
@@ -72,5 +74,15 @@ func (ck *Clerk) Apply(op []byte) (e.Error, []byte) {
 		return r.Err, r.Reply
 	} else {
 		return e.Timeout, nil
+	}
+}
+
+func (ck *Clerk) RoApplyAsBackup(args *RoApplyAsBackupArgs) e.Error {
+	reply := new([]byte)
+	err := ck.cl.Call(RPC_ROAPPLYASBACKUP, EncodeRoApplyAsBackupArgs(args), reply, 1000 /* ms */)
+	if err != 0 {
+		return e.Timeout
+	} else {
+		return e.DecodeError(*reply)
 	}
 }

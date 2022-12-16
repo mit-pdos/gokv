@@ -26,14 +26,16 @@ type Server struct {
 	// opAppliedConds[j] is the condvariable for the op with nextIndex == j.
 	opAppliedConds map[uint64]*sync.Cond
 
-	durableNextIndex      uint64
+	durableNextIndex uint64
+	// XXX: this might wake up all the threads at the same time
 	durableNextIndex_cond *sync.Cond
 
 	// for read-only operations
-	committedNextIndex  uint64
-	numOutstandingRoOps uint64
-	numCheckedRoOps     uint64
-	roOpsDone           *sync.Cond
+	numOutstandingRoOps_cond *sync.Cond
+	committedNextIndex       uint64
+	numCommittedRoOps        uint64
+	numOutstandingRoOps      uint64
+	numCommittedRoOps_cond   *sync.Cond
 }
 
 func (s *Server) RoApplyAsBackup(args *RoApplyAsBackupArgs, reply *e.Error) {
@@ -43,6 +45,7 @@ func (s *Server) RoApplyAsBackup(args *RoApplyAsBackupArgs, reply *e.Error) {
 			s.epoch == args.epoch &&
 			s.sealed == false {
 			s.durableNextIndex_cond.Wait()
+			// FIXME: is one condvar for everythiong good enough?
 		}
 	}
 
@@ -64,7 +67,79 @@ func (s *Server) RoApplyAsBackup(args *RoApplyAsBackupArgs, reply *e.Error) {
 	*reply = e.None
 }
 
-func (s *Server) ApplyRO(op Op) *ApplyReply {
+// This commits read-only operations. This is only necessary if RW operations
+// are not being applied. If they are being applied, they will implicitly commit
+// RO ops.
+func (s *Server) applyRoThread(epoch uint64) {
+	s.mu.Lock()
+	for {
+		for {
+			if s.epoch == epoch && s.numOutstandingRoOps == s.numCommittedRoOps {
+				s.numOutstandingRoOps_cond.Wait()
+			}
+		}
+
+		// the server is no longer in the epoch in which this thread is running
+		if s.epoch != epoch {
+			s.mu.Unlock()
+			return
+		}
+
+		// Else, we can prove that numOutstandingRoOps < numCommittedRoOps, not
+		// that it really matters for the following code.
+
+		nextIndex := s.committedNextIndex
+		numRoOps := s.numOutstandingRoOps
+		if s.epoch != epoch {
+			s.mu.Unlock()
+			break
+		}
+
+		clerks := s.clerks[machine.RandomUint64()%uint64(len(s.clerks))]
+		s.mu.Unlock()
+
+		// make a round of RoApplyAsBackup RPCs
+		args := &RoApplyAsBackupArgs{epoch: epoch, nextIndex: nextIndex}
+		errs := make([]e.Error, len(clerks))
+		for i, clerk := range clerks {
+			i := i
+			clerk := clerk
+			go func() {
+				for {
+					err := clerk.RoApplyAsBackup(args)
+					if err == e.OutOfOrder || err == e.Timeout {
+						continue
+					} else {
+						errs[i] = err
+						break
+					}
+				}
+			}()
+		}
+
+		// analyze errors
+		var err = e.None
+		var i = uint64(0)
+		for i < uint64(len(errs)) {
+			err2 := errs[i]
+			if err2 != e.None {
+				err = err2
+			}
+			i += 1
+		}
+		if err != e.None {
+			break
+		}
+
+		s.mu.Lock()
+		if s.epoch == epoch && s.nextIndex == nextIndex {
+			s.numCommittedRoOps = numRoOps
+			s.numCommittedRoOps_cond.Signal()
+		}
+	}
+}
+
+func (s *Server) ApplyRo(op Op) *ApplyReply {
 	// primary applying a read-only op
 	reply := new(ApplyReply)
 	reply.Reply = nil
@@ -73,7 +148,7 @@ func (s *Server) ApplyRO(op Op) *ApplyReply {
 	s.mu.Lock()
 	// begin := machine.TimeNow()
 	if !s.isPrimary {
-		// log.Println("Got request while not being primary")
+		// log.Println("Got read-only request while not being primary")
 		s.mu.Unlock()
 		reply.Err = e.Stale
 		return reply
@@ -84,16 +159,21 @@ func (s *Server) ApplyRO(op Op) *ApplyReply {
 		return reply
 	}
 
-	// apply it locally
-	reply.Reply = s.sm.ApplyReadonly(op)
+	// apply it locally, including waiting for the previous operation to be made
+	// durable
+	reply.Reply, waitFn = s.sm.ApplyReadonly(op)
 	roIndex := s.numOutstandingRoOps
 	nextIndex := s.nextIndex
 	epoch := s.epoch
-
 	s.numOutstandingRoOps += 1
+	// wait for nextIndex to be made durable.
+
+	s.mu.Unlock()
+	waitFn()
+
 	for {
 		if epoch == s.epoch &&
-			nextIndex <= s.nextIndex &&
+			s.committedNextIndex <= nextIndex &&
 			roIndex <= s.numCheckedRoOps {
 			s.roOpsDone.Wait()
 			continue
@@ -234,6 +314,7 @@ func (s *Server) ApplyAsBackup(args *ApplyAsBackupArgs) e.Error {
 	}
 
 	// apply it locally
+	opNextIndex := s.nextIndex
 	_, waitFn := s.sm.StartApply(args.op)
 	s.nextIndex += 1
 
@@ -245,6 +326,12 @@ func (s *Server) ApplyAsBackup(args *ApplyAsBackupArgs) e.Error {
 
 	s.mu.Unlock()
 	waitFn()
+	s.mu.Lock()
+	if opNextIndex > s.durableNextIndex {
+		s.durableNextIndex = opNextIndex
+		s.durableNextIndex_cond.Broadcast()
+	}
+	s.mu.Unlock()
 
 	return e.None
 }
@@ -290,7 +377,6 @@ func (s *Server) GetState(args *GetStateArgs) *GetStateReply {
 		cond.Signal()
 	}
 	s.opAppliedConds = make(map[uint64]*sync.Cond)
-
 	s.mu.Unlock()
 
 	return &GetStateReply{Err: e.None, State: ret, NextIndex: nextIndex}
@@ -311,17 +397,6 @@ func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {
 
 	// XXX: should probably not bother doing this if we are already the primary
 	// in this epoch
-
-	/*
-		s.clerks = make([]*Clerk, len(args.Replicas)-1)
-		var i = uint64(0)
-		for i < uint64(len(s.clerks)) {
-			s.clerks[i] = MakeClerk(args.Replicas[i+1])
-			i++
-		}
-	*/
-
-	// TODO: multiple sockets
 	numClerks := uint64(32) // XXX: 32 clients per backup; this should probably be a configuration parameter
 	s.clerks = make([][]*Clerk, numClerks)
 	var j = uint64(0)
