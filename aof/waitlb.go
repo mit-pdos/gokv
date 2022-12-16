@@ -38,7 +38,7 @@ func (wlb *WaitLowerbound) GetWaiter(lb uint64) func() {
 	wlb.mu.Unlock()
 	return func() {
 		wlb.mu.Lock()
-		for lb < wlb.v {
+		for wlb.v < lb {
 			cond.Wait()
 		}
 		wlb.mu.Unlock()
@@ -48,6 +48,8 @@ func (wlb *WaitLowerbound) GetWaiter(lb uint64) func() {
 // requires v to be greater than whatever was set previously
 func (wlb *WaitLowerbound) Set(v uint64) {
 	wlb.mu.Lock()
+	wlb.v = v
+
 	var i = uint64(0)
 	for i < uint64(len(wlb.waiters)) {
 		w := wlb.waiters[i]
@@ -59,8 +61,15 @@ func (wlb *WaitLowerbound) Set(v uint64) {
 
 		i += 1
 	}
-	// invariant: wlb.waiters[0:i] are below wlb.v, and we can get rid of those
+	// by now, wlb.waiters[0:i] are below wlb.v and have been signaled, and we can get rid of those
 	wlb.waiters = wlb.waiters[i:]
 
 	wlb.mu.Unlock()
+}
+
+func Make() *WaitLowerbound {
+	wlb := new(WaitLowerbound)
+	wlb.mu = new(sync.Mutex)
+	wlb.v = 0
+	return wlb
 }

@@ -13,8 +13,8 @@ type AppendOnlyFile struct {
 
 	lengthCond *sync.Cond
 
-	membuf []byte
-	length uint64 // logical length
+	membuf        []byte
+	length        uint64 // logical length
 	// durableLength uint64
 
 	// durableConds[0] is waiting for the data at index durableLength to be made
@@ -34,6 +34,7 @@ func CreateAppendOnlyFile(fname string) *AppendOnlyFile {
 	// FIXME:
 	// a.durableConds = make(map[uint64]*sync.Cond)
 	a.closedCond = sync.NewCond(a.mu)
+	a.wlb = Make()
 
 	go func() {
 		a.mu.Lock()
