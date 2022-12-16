@@ -11,15 +11,16 @@ import (
 type AppendOnlyFile struct {
 	mu *sync.Mutex
 
-	lengthCond  *sync.Cond
+	lengthCond *sync.Cond
 
-	membuf        []byte
-	length        uint64 // logical length
-	durableLength uint64
+	membuf []byte
+	length uint64 // logical length
+	// durableLength uint64
 
 	// durableConds[0] is waiting for the data at index durableLength to be made
 	// durable.
-	durableConds []*sync.Cond
+	// durableConds []*sync.Cond
+	wlb *WaitLowerbound
 
 	closeRequested bool
 	closed         bool
@@ -46,9 +47,8 @@ func CreateAppendOnlyFile(fname string) *AppendOnlyFile {
 				// Write the remaining stuff so that we can wake up anyone
 				// that's already waiting
 				grove_ffi.FileAppend(fname, a.membuf)
-				a.membuf = make([]byte, 0)
-				a.durableLength = a.length
-				a.durableConds[a.durableLength].Broadcast()
+
+				a.wlb.Set(a.length)
 
 				a.closed = true
 				a.closedCond.Broadcast()
@@ -65,8 +65,7 @@ func CreateAppendOnlyFile(fname string) *AppendOnlyFile {
 			grove_ffi.FileAppend(fname, l)
 
 			a.mu.Lock()
-			a.durableLength = newLength
-			a.durableCond.Broadcast()
+			a.wlb.Set(newLength)
 			continue
 		}
 	}()
@@ -86,7 +85,7 @@ func (a *AppendOnlyFile) Close() {
 }
 
 // NOTE: cannot be called concurrently with Close()
-func (a *AppendOnlyFile) Append(data []byte) uint64 {
+func (a *AppendOnlyFile) Append(data []byte) func() {
 	a.mu.Lock()
 
 	// XXX: using WriteBytes instead of append() because Goose has no reasoning
@@ -95,15 +94,11 @@ func (a *AppendOnlyFile) Append(data []byte) uint64 {
 	a.length = std.SumAssumeNoOverflow(a.length, uint64(len(data)))
 	r := a.length
 	a.lengthCond.Signal()
-
+	f := a.wlb.GetWaiter(r)
 	a.mu.Unlock()
-	return r
+	return f
 }
 
 func (a *AppendOnlyFile) WaitAppend(length uint64) {
-	a.mu.Lock()
-	for a.durableLength < length {
-		a.durableCond.Wait()
-	}
-	a.mu.Unlock()
+	panic("deprecated; use the waitFn returned from Append() instead")
 }

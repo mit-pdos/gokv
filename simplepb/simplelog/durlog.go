@@ -76,14 +76,8 @@ func (s *StateMachine) apply(op []byte) ([]byte, func()) {
 	var opWithLen = make([]byte, 0, 8+uint64(len(op)))
 	opWithLen = marshal.WriteInt(opWithLen, uint64(len(op)))
 	opWithLen = marshal.WriteBytes(opWithLen, op)
-	l := s.logFile.Append(opWithLen)
+	waitFn := s.logFile.Append(opWithLen)
 
-	// XXX: need to read this outside the goroutine because the logFile
-	// might be deleted and a new one take it place.
-	f := s.logFile
-	waitFn := func() {
-		f.WaitAppend(l)
-	}
 	return ret, waitFn
 	// }
 }
@@ -102,8 +96,8 @@ func (s *StateMachine) getStateAndSeal() []byte {
 	if !s.sealed {
 		// seal the file by writing a byte at the end
 		s.sealed = true
-		l := s.logFile.Append(make([]byte, 1))
-		s.logFile.WaitAppend(l)
+		waitFn := s.logFile.Append(make([]byte, 1))
+		waitFn()
 	}
 	// XXX: it might be faster to read the file from disk.
 	snap := s.smMem.GetState()
