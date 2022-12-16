@@ -17,15 +17,16 @@ print("Stopped pb (and deleted old files)")
 
 gobin='/usr/local/go/bin/go'
 
+totalreplicas = 2
 nreplicas = args.nreplicas
 ncores = args.ncores
 
-if nreplicas > 4:
-    print("too many replicas; can start at most 4")
+if nreplicas > totalreplicas:
+    print(f"too many replicas; can start at most {totalreplicas}")
     sys.exit(1)
 
 # Start all replicas
-for i in range(4):
+for i in range(totalreplicas):
     do(f"""ssh upamanyu@node{str(i)} <<ENDSSH
     cd /users/upamanyu/gokv/simplepb/;
     ./bench/set-cores.py {ncores};
@@ -34,7 +35,7 @@ ENDSSH
     """)
 
 # Start config server, on the last machine that isn't the client, with all 8 cores
-do(f"""ssh upamanyu@node3 <<ENDSSH
+do(f"""ssh upamanyu@node{totalreplicas} <<ENDSSH
     cd /users/upamanyu/gokv/simplepb/;
     ./bench/set-cores.py 8;
     nohup {gobin} run ./cmd/config -port 12000 1>/tmp/config.out 2>/tmp/config.err &
@@ -43,4 +44,4 @@ ENDSSH
 
 time.sleep(2.0)
 servers = ' '.join([f'10.10.1.{str(i + 1)}:12100' for i in range(nreplicas)])
-do(f"go run ../cmd/admin -conf 10.10.1.4:12000 init {servers}")
+do(f"go run ../cmd/admin -conf 10.10.1.{totalreplicas + 1}:12000 init {servers}")

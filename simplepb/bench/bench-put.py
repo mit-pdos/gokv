@@ -25,5 +25,5 @@ do(f"""{gobin} run ./cmd/go-ycsb run pbkv
     -p updateproportion=1.0
     -p warmuptime={args.warmup}
     -p recordcount={str(args.recordcount)}
-    -p pbkv.configAddr=10.10.1.4:12000
+    -p pbkv.configAddr=10.10.1.3:12000
 """.replace('\n', ' '))
