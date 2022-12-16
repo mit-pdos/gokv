@@ -55,14 +55,15 @@ func CreateAppendOnlyFile(fname string) *AppendOnlyFile {
 			l := a.membuf
 			newLength := a.length
 			a.membuf = make([]byte, 0)
-
+			cond := a.durableCond
+			a.durableCond = sync.NewCond(a.mu)
 			a.mu.Unlock()
 
 			grove_ffi.FileAppend(fname, l)
 
 			a.mu.Lock()
 			a.durableLength = newLength
-			a.durableCond.Broadcast()
+			cond.Broadcast()
 			continue
 		}
 	}()
