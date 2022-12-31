@@ -22,5 +22,5 @@ func (ck *Clerk) Put(key []byte, val []byte) {
 }
 
 func (ck *Clerk) Get(key []byte) []byte {
-	return ck.cl.Apply(EncodeGetArgs(key))
+	return ck.cl.ApplyRo(EncodeGetArgs(key))
 }

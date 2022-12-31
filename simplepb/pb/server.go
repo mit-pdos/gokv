@@ -30,7 +30,7 @@ type Server struct {
 	// XXX: this might wake up all the threads at the same time
 	durableNextIndex_cond *sync.Cond
 
-	// for read-only operations
+	// for read-only operations (primary only)
 	committedNextIndex        uint64
 	nextRoIndex               uint64
 	nextRoIndex_cond          *sync.Cond
@@ -38,7 +38,7 @@ type Server struct {
 	committedNextRoIndex_cond *sync.Cond
 }
 
-func (s *Server) RoApplyAsBackup(args *RoApplyAsBackupArgs, reply *e.Error) {
+func (s *Server) RoApplyAsBackup(args *RoApplyAsBackupArgs) e.Error {
 	s.mu.Lock()
 	for {
 		if args.nextIndex > s.durableNextIndex &&
@@ -53,20 +53,18 @@ func (s *Server) RoApplyAsBackup(args *RoApplyAsBackupArgs, reply *e.Error) {
 
 	if s.epoch != args.epoch {
 		s.mu.Unlock()
-		*reply = e.Stale
-		return
+		return e.Stale
 	}
 	if s.sealed {
 		s.mu.Unlock()
-		*reply = e.Sealed
-		return
+		return e.Sealed
 	}
 	if args.nextIndex > s.durableNextIndex {
 		machine.Assert(false) // shouldn't happen
 	}
 
 	s.mu.Unlock()
-	*reply = e.None
+	return e.None
 }
 
 // This commits read-only operations. This is only necessary if RW operations
@@ -146,7 +144,7 @@ func (s *Server) applyRoThread(epoch uint64) {
 		// invocation wait for that.
 		if s.epoch == epoch && s.nextIndex == nextIndex {
 			s.committedNextRoIndex = nextRoIndex
-			s.committedNextRoIndex_cond.Signal()
+			s.committedNextRoIndex_cond.Broadcast() // there could be many ApplyRo threads waiting
 		}
 	}
 }
@@ -282,6 +280,16 @@ func (s *Server) Apply(op Op) *ApplyReply {
 		i += 1
 	}
 	reply.Err = err
+
+	s.mu.Lock()
+	if nextIndex > s.committedNextIndex {
+		s.committedNextIndex = nextIndex
+		s.nextRoIndex = 0
+		s.committedNextRoIndex = 0
+		s.committedNextRoIndex_cond.Broadcast() // now that committedNextIndex
+		// has increased, the outstanding RO ops are implicitly committed.
+	}
+	s.mu.Unlock()
 
 	// log.Println("Apply() returned ", err)
 	return reply
@@ -436,6 +444,11 @@ func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {
 		j++
 	}
 
+	// Initialize read-only optimization state
+	s.nextRoIndex = 0
+	s.committedNextRoIndex = 0
+	s.committedNextIndex = 0
+
 	s.mu.Unlock()
 	return e.None
 }
@@ -447,8 +460,13 @@ func MakeServer(sm *StateMachine, nextIndex uint64, epoch uint64, sealed bool) *
 	s.sealed = sealed
 	s.sm = sm
 	s.nextIndex = nextIndex
+	s.durableNextIndex = nextIndex
 	s.isPrimary = false
 	s.opAppliedConds = make(map[uint64]*sync.Cond)
+	s.durableNextIndex_cond = sync.NewCond(s.mu)
+
+	s.nextRoIndex_cond = sync.NewCond(s.mu)
+	s.committedNextRoIndex_cond = sync.NewCond(s.mu)
 	return s
 }
 
@@ -473,6 +491,14 @@ func (s *Server) Serve(me grove_ffi.Address) {
 
 	handlers[RPC_PRIMARYAPPLY] = func(args []byte, reply *[]byte) {
 		*reply = EncodeApplyReply(s.Apply(args))
+	}
+
+	handlers[RPC_ROAPPLYASBACKUP] = func(args []byte, reply *[]byte) {
+		*reply = e.EncodeError(s.RoApplyAsBackup(DecodeRoApplyAsBackupArgs(args)))
+	}
+
+	handlers[RPC_ROPRIMARYAPPLY] = func(args []byte, reply *[]byte) {
+		*reply = EncodeApplyReply(s.ApplyRo(args))
 	}
 
 	rs := urpc.MakeServer(handlers)

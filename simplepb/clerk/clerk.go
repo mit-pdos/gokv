@@ -49,3 +49,23 @@ func (ck *Clerk) Apply(op []byte) []byte {
 	}
 	return ret
 }
+
+func (ck *Clerk) ApplyRo(op []byte) []byte {
+	var ret []byte
+	for {
+		var err e.Error
+		err, ret = ck.primaryCk.ApplyRo(op)
+		if err == e.None {
+			break
+		} else {
+			// log.Println("Error during applyRo(): ", err)
+			machine.Sleep(uint64(100) * uint64(1_000_000)) // throttle retries to config server
+			config := ck.confCk.GetConfig()
+			if len(config) > 0 {
+				ck.primaryCk = pb.MakeClerk(config[0])
+			}
+			continue
+		}
+	}
+	return ret
+}

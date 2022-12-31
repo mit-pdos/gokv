@@ -86,3 +86,14 @@ func (ck *Clerk) RoApplyAsBackup(args *RoApplyAsBackupArgs) e.Error {
 		return e.DecodeError(*reply)
 	}
 }
+
+func (ck *Clerk) ApplyRo(op []byte) (e.Error, []byte) {
+	reply := new([]byte)
+	err := ck.cl.Call(RPC_ROPRIMARYAPPLY, op, reply, 5000 /* ms */)
+	if err == 0 {
+		r := DecodeApplyReply(*reply)
+		return r.Err, r.Reply
+	} else {
+		return e.Timeout, nil
+	}
+}

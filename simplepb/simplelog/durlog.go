@@ -88,6 +88,10 @@ func (s *StateMachine) apply(op []byte) ([]byte, func()) {
 	// }
 }
 
+func (s *StateMachine) applyReadonly(op []byte) []byte {
+	return s.smMem.ApplyVolatile(op) // apply op in-memory
+}
+
 // TODO: make the nextIndex and epoch argument order consistent with pb.StateMachine
 func (s *StateMachine) setStateAndUnseal(snap []byte, nextIndex uint64, epoch uint64) {
 	s.epoch = epoch
@@ -185,6 +189,9 @@ func MakePbServer(smMem *InMemoryStateMachine, fname string) *pb.Server {
 	sm := &pb.StateMachine{
 		StartApply: func(op []byte) ([]byte, func()) {
 			return s.apply(op)
+		},
+		ApplyReadonly: func(op []byte) []byte {
+			return s.applyReadonly(op)
 		},
 		SetStateAndUnseal: func(snap []byte, nextIndex uint64, epoch uint64) {
 			s.setStateAndUnseal(snap, nextIndex, epoch)
