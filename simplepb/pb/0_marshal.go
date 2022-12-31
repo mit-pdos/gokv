@@ -148,7 +148,7 @@ type RoApplyAsBackupArgs struct {
 }
 
 func EncodeRoApplyAsBackupArgs(args *RoApplyAsBackupArgs) []byte {
-	var enc = make([]byte, 0, 8 + 8)
+	var enc = make([]byte, 0, 8+8)
 	enc = marshal.WriteInt(enc, args.epoch)
 	enc = marshal.WriteInt(enc, args.nextIndex)
 	return enc
@@ -157,7 +157,7 @@ func EncodeRoApplyAsBackupArgs(args *RoApplyAsBackupArgs) []byte {
 func DecodeRoApplyAsBackupArgs(enc_reply []byte) *RoApplyAsBackupArgs {
 	var enc = enc_reply
 	args := new(RoApplyAsBackupArgs)
-	args.epoch , enc = marshal.ReadInt(enc)
+	args.epoch, enc = marshal.ReadInt(enc)
 	args.nextIndex, enc = marshal.ReadInt(enc)
 	return args
 }

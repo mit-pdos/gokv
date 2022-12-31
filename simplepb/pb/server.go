@@ -31,11 +31,11 @@ type Server struct {
 	durableNextIndex_cond *sync.Cond
 
 	// for read-only operations
-	numOutstandingRoOps_cond *sync.Cond
-	committedNextIndex       uint64
-	numCommittedRoOps        uint64
-	numOutstandingRoOps      uint64
-	numCommittedRoOps_cond   *sync.Cond
+	committedNextIndex        uint64
+	nextRoIndex               uint64
+	nextRoIndex_cond          *sync.Cond
+	committedNextRoIndex      uint64
+	committedNextRoIndex_cond *sync.Cond
 }
 
 func (s *Server) RoApplyAsBackup(args *RoApplyAsBackupArgs, reply *e.Error) {
@@ -46,6 +46,8 @@ func (s *Server) RoApplyAsBackup(args *RoApplyAsBackupArgs, reply *e.Error) {
 			s.sealed == false {
 			s.durableNextIndex_cond.Wait()
 			// FIXME: is one condvar for everythiong good enough?
+		} else {
+			break
 		}
 	}
 
@@ -74,26 +76,26 @@ func (s *Server) applyRoThread(epoch uint64) {
 	s.mu.Lock()
 	for {
 		for {
-			if s.epoch == epoch && s.numOutstandingRoOps == s.numCommittedRoOps {
-				s.numOutstandingRoOps_cond.Wait()
+			if s.epoch == epoch &&
+				s.nextRoIndex == s.committedNextRoIndex {
+				s.nextRoIndex_cond.Wait()
+			} else {
+				break
 			}
 		}
 
-		// the server is no longer in the epoch in which this thread is running
-		if s.epoch != epoch {
-			s.mu.Unlock()
-			return
-		}
-
-		// Else, we can prove that numOutstandingRoOps < numCommittedRoOps, not
-		// that it really matters for the following code.
-
-		nextIndex := s.committedNextIndex
-		numRoOps := s.numOutstandingRoOps
+		// If the server is no longer in the epoch in which this thread is running,
+		// then stop this thread.
 		if s.epoch != epoch {
 			s.mu.Unlock()
 			break
 		}
+
+		// Else, we can prove that nextRoIndex < committedNextRoIndex, not
+		// that it really matters for the following code.
+
+		nextIndex := s.committedNextIndex
+		nextRoIndex := s.nextRoIndex
 
 		clerks := s.clerks[machine.RandomUint64()%uint64(len(s.clerks))]
 		s.mu.Unlock()
@@ -128,13 +130,23 @@ func (s *Server) applyRoThread(epoch uint64) {
 			i += 1
 		}
 		if err != e.None {
+			// FIXME: what to do in this case? The ApplyRo goroutines have to be
+			// woken up so they can return with an error.
+			// We should only end up in this case if a backup is sealed or has
+			// entered a new epoch. In that case, we could seal this server as a
+			// means of keeping track of the fact that the backups are no longer
+			// active in this epoch.
 			break
 		}
 
 		s.mu.Lock()
+		// If s.nextIndex != nextIndex, then there's a new RW proposed operation
+		// in the middle of being replicated. Whenever that RW operation is
+		// committed, this RO op will also be committed, so let the ApplyRo
+		// invocation wait for that.
 		if s.epoch == epoch && s.nextIndex == nextIndex {
-			s.numCommittedRoOps = numRoOps
-			s.numCommittedRoOps_cond.Signal()
+			s.committedNextRoIndex = nextRoIndex
+			s.committedNextRoIndex_cond.Signal()
 		}
 	}
 }
@@ -159,28 +171,39 @@ func (s *Server) ApplyRo(op Op) *ApplyReply {
 		return reply
 	}
 
-	// apply it locally, including waiting for the previous operation to be made
-	// durable
-	reply.Reply, waitFn = s.sm.ApplyReadonly(op)
-	roIndex := s.numOutstandingRoOps
+	// apply it locally, without waiting for the previous op to be made durable
+	// FIXME: how much worse is it to wait for durability of the previous op?
+	// would have to wait for durableNextIndex to be big enough.
+	// FIXME: in the case of a primary with no backups, it is buggy to not wait
+	// for durability.
+	reply.Reply = s.sm.ApplyReadonly(op)
+	roIndex := s.nextRoIndex
 	nextIndex := s.nextIndex
 	epoch := s.epoch
-	s.numOutstandingRoOps += 1
-	// wait for nextIndex to be made durable.
-
+	s.nextRoIndex += 1
+	s.nextRoIndex_cond.Signal()
 	s.mu.Unlock()
-	waitFn()
 
 	for {
 		if epoch == s.epoch &&
 			s.committedNextIndex <= nextIndex &&
-			roIndex <= s.numCheckedRoOps {
-			s.roOpsDone.Wait()
+			roIndex < s.committedNextRoIndex {
+			s.committedNextRoIndex_cond.Wait()
 			continue
 		} else {
 			break
 		}
 	}
+
+	if epoch != s.epoch {
+		reply.Err = e.Stale
+		return reply
+	}
+
+	// FIXME: the applyRoThread should quit when getting a non-retryable error
+	// (e.g. backup sealed or in new epoch). Account for this case here.
+
+	reply.Err = e.None
 	return reply
 }
 
@@ -292,20 +315,22 @@ func (s *Server) ApplyAsBackup(args *ApplyAsBackupArgs) e.Error {
 		return e.Stale
 	}
 
-	// FIXME: if we get an index that's smaller nextIndex, we should just wait
-	// for nextIndex to be made durable. That requires saving the waitFn in the
-	// server state and making sure that we can call waitFn more than once when
-	// its postcondition is persistent.
+	// FIXME: if we get an index that's smaller than nextIndex, we should just
+	// wait for nextIndex to be made durable. That requires saving the waitFn in
+	// the server state and making sure that we can call waitFn more than once
+	// when its postcondition is persistent.
+	// OR: make use of durableNextIndex, which is there for read-only
+	// optimization.
 
 	if s.isEpochStale(args.epoch) {
 		s.mu.Unlock()
 		return e.Stale
 	}
 
-	// XXX: Because of the above waiting for args.index to be at most
+	// related to above: Because of the above waiting for args.index to be at most
 	// s.nextIndex, if args.index != s.nextIndex, then actually args.index <
-	// s.nextIndex and the op has already been accepted. We don't need to prove
-	// that, though.
+	// s.nextIndex and the op has already been accepted in memory, and is being
+	// made durable right now.
 	//
 	// this operation has already been applied, nothing to do.
 	if args.index != s.nextIndex {
