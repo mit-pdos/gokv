@@ -140,7 +140,7 @@ func TryMakeClient(host_name grove_ffi.Address) (uint64, *Client) {
 func MakeClient(host_name grove_ffi.Address) *Client {
 	err, cl := TryMakeClient(host_name)
 	if err != 0 {
-		log.Fatalf("Unable to connect to %s", grove_ffi.AddressToStr(host_name))
+		log.Printf("Unable to connect to %s", grove_ffi.AddressToStr(host_name))
 	}
 	machine.Assume(err == 0)
 	return cl
