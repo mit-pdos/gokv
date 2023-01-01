@@ -68,8 +68,8 @@ func (s *Server) RoApplyAsBackup(args *RoApplyAsBackupArgs) e.Error {
 }
 
 // This commits read-only operations. This is only necessary if RW operations
-// are not being applied. If they are being applied, they will implicitly commit
-// RO ops.
+// are not being applied. If RW ops are being applied, they will implicitly
+// commit RO ops.
 func (s *Server) applyRoThread(epoch uint64) {
 	s.mu.Lock()
 	for {
@@ -91,9 +91,19 @@ func (s *Server) applyRoThread(epoch uint64) {
 
 		// Else, we can prove that nextRoIndex < committedNextRoIndex, not
 		// that it really matters for the following code.
-
-		nextIndex := s.committedNextIndex
+		nextIndex := s.nextIndex
 		nextRoIndex := s.nextRoIndex
+
+		// XXX: it's possible that the server enters a new epoch and rolls its state
+		// back, and that durableNextIndex refers to the state of a different epoch
+		// now. Check for the server entering a new epoch. Don't need to worry about
+		// sealing within the epoch, because the in-memory state will still be
+		// made durable eventually.
+		for s.epoch == epoch && s.durableNextIndex < nextIndex {
+			// FIXME: trigger durableNextIndex_cond when entering new epoch
+			s.durableNextIndex_cond.Wait()
+		}
+		// FIXME: only send RPCs when nextIndex == durableNetIndex.
 
 		clerks := s.clerks[machine.RandomUint64()%uint64(len(s.clerks))]
 		s.mu.Unlock()
@@ -128,12 +138,9 @@ func (s *Server) applyRoThread(epoch uint64) {
 			i += 1
 		}
 		if err != e.None {
-			// FIXME: what to do in this case? The ApplyRo goroutines have to be
-			// woken up so they can return with an error.
-			// We should only end up in this case if a backup is sealed or has
-			// entered a new epoch. In that case, we could seal this server as a
-			// means of keeping track of the fact that the backups are no longer
-			// active in this epoch.
+			s.mu.Lock()
+			// FIXME: if still in the same epoch and unsealed, then seal
+			s.mu.Unlock()
 			break
 		}
 
@@ -169,11 +176,8 @@ func (s *Server) ApplyRo(op Op) *ApplyReply {
 		return reply
 	}
 
-	// apply it locally, without waiting for the previous op to be made durable
-	// FIXME: how much worse is it to wait for durability of the previous op?
-	// would have to wait for durableNextIndex to be big enough.
-	// FIXME: in the case of a primary with no backups, it is buggy to not wait
-	// for durability.
+	// Apply RO op, even though the nextIndex at which it's being applied may
+	// not be durable yet.
 	reply.Reply = s.sm.ApplyReadonly(op)
 	roIndex := s.nextRoIndex
 	nextIndex := s.nextIndex
