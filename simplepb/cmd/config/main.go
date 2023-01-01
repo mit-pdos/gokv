@@ -21,7 +21,7 @@ func main() {
 
 	a := flag.Args()
 	servers := make([]grove_ffi.Address, 0)
-	for _, srvStr := range a[1:] {
+	for _, srvStr := range a {
 		servers = append(servers, grove_ffi.MakeAddress(srvStr))
 	}
 
