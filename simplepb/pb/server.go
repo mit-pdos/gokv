@@ -361,9 +361,9 @@ func (s *Server) ApplyAsBackup(args *ApplyAsBackupArgs) e.Error {
 	}
 
 	// apply it locally
-	opNextIndex := s.nextIndex
 	_, waitFn := s.sm.StartApply(args.op)
 	s.nextIndex += 1
+	opNextIndex := s.nextIndex
 
 	cond, ok := s.opAppliedConds[s.nextIndex]
 	if ok {
@@ -374,7 +374,7 @@ func (s *Server) ApplyAsBackup(args *ApplyAsBackupArgs) e.Error {
 	s.mu.Unlock()
 	waitFn()
 	s.mu.Lock()
-	if opNextIndex > s.durableNextIndex {
+	if args.epoch == s.epoch && opNextIndex > s.durableNextIndex {
 		s.durableNextIndex = opNextIndex
 		s.durableNextIndex_cond.Broadcast()
 
