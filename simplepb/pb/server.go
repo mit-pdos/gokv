@@ -72,6 +72,7 @@ func (s *Server) RoApplyAsBackup(args *RoApplyAsBackupArgs) e.Error {
 // commit RO ops.
 func (s *Server) applyRoThread(epoch uint64) {
 	s.mu.Lock()
+	// log.Printf("Started applyRo thread")
 	for {
 		for {
 			if s.epoch != epoch ||
@@ -83,6 +84,7 @@ func (s *Server) applyRoThread(epoch uint64) {
 				s.roOpsToPropose_cond.Wait()
 			}
 		}
+		// log.Printf("About to propose RO ops in applyRo thread")
 
 		// If the server is no longer in the epoch in which this thread is running,
 		// then stop this thread.
@@ -101,11 +103,13 @@ func (s *Server) applyRoThread(epoch uint64) {
 		s.mu.Unlock()
 
 		// make a round of RoApplyAsBackup RPCs
+		wg := new(sync.WaitGroup)
 		args := &RoApplyAsBackupArgs{epoch: epoch, nextIndex: nextIndex}
 		errs := make([]e.Error, len(clerks))
 		for i, clerk := range clerks {
 			i := i
 			clerk := clerk
+			wg.Add(1)
 			go func() {
 				for {
 					err := clerk.RoApplyAsBackup(args)
@@ -116,9 +120,13 @@ func (s *Server) applyRoThread(epoch uint64) {
 						break
 					}
 				}
+				wg.Done()
 			}()
 		}
 
+		// log.Printf("Made RPCs")
+		wg.Wait()
+		// log.Printf("Done with RPCs")
 		// analyze errors
 		var err = e.None
 		var i = uint64(0)
@@ -144,6 +152,7 @@ func (s *Server) applyRoThread(epoch uint64) {
 		// committed, this RO op will also be committed, so let the ApplyRo
 		// invocation wait for that.
 		if s.epoch == epoch && s.nextIndex == nextIndex {
+			// log.Printf("New RO ops committed by applyRoThread()")
 			s.committedNextRoIndex = nextRoIndex
 			s.committedNextRoIndex_cond.Broadcast() // there could be many ApplyRo threads waiting
 		}
@@ -173,10 +182,10 @@ func (s *Server) ApplyRo(op Op) *ApplyReply {
 	// Apply RO op, even though the nextIndex at which it's being applied may
 	// not be durable yet.
 	reply.Reply = s.sm.ApplyReadonly(op)
-	roIndex := s.nextRoIndex
+	s.nextRoIndex = std.SumAssumeNoOverflow(s.nextRoIndex, 1)
+	nextRoIndex := s.nextRoIndex
 	nextIndex := s.nextIndex
 	epoch := s.epoch
-	s.nextRoIndex += 1
 	if s.nextIndex == s.durableNextIndex {
 		// Only signal if nextIndex == durableNextIndex; otherwise, let the
 		// thread `waitFn()`ing for durability wake up applyRoThread.
@@ -184,13 +193,12 @@ func (s *Server) ApplyRo(op Op) *ApplyReply {
 	}
 
 	for {
-		if epoch == s.epoch &&
-			s.committedNextIndex <= nextIndex &&
-			s.committedNextRoIndex <= roIndex {
-			s.committedNextRoIndex_cond.Wait()
-			continue
-		} else {
+		if epoch != s.epoch ||
+			s.committedNextIndex >= nextIndex ||
+			s.committedNextRoIndex >= nextRoIndex {
 			break
+		} else {
+			s.committedNextRoIndex_cond.Wait()
 		}
 	}
 	s.mu.Unlock()
@@ -461,6 +469,11 @@ func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {
 	s.committedNextIndex = 0
 
 	s.mu.Unlock()
+	epoch := args.Epoch
+	go func() {
+		s.applyRoThread(epoch)
+	}()
+
 	return e.None
 }
 
