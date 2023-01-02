@@ -401,6 +401,7 @@ func (s *Server) SetState(args *SetStateArgs) e.Error {
 		s.epoch = args.Epoch
 		s.sealed = false
 		s.nextIndex = args.NextIndex
+		s.durableNextIndex = s.nextIndex
 		s.sm.SetStateAndUnseal(args.State, args.NextIndex, args.Epoch)
 
 		for _, cond := range s.opAppliedConds {
