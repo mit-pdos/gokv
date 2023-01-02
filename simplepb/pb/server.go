@@ -33,7 +33,7 @@ type Server struct {
 	// for read-only operations (primary only)
 	committedNextIndex        uint64
 	nextRoIndex               uint64
-	nextRoIndex_cond          *sync.Cond
+	roOpsToPropose_cond       *sync.Cond
 	committedNextRoIndex      uint64
 	committedNextRoIndex_cond *sync.Cond
 }
@@ -45,7 +45,7 @@ func (s *Server) RoApplyAsBackup(args *RoApplyAsBackupArgs) e.Error {
 			s.epoch == args.epoch &&
 			s.sealed == false {
 			s.durableNextIndex_cond.Wait()
-			// FIXME: is one condvar for everythiong good enough?
+			// FIXME: is one condvar for everything good enough?
 		} else {
 			break
 		}
@@ -74,11 +74,13 @@ func (s *Server) applyRoThread(epoch uint64) {
 	s.mu.Lock()
 	for {
 		for {
-			if s.epoch == epoch &&
-				s.nextRoIndex == s.committedNextRoIndex {
-				s.nextRoIndex_cond.Wait()
-			} else {
+			if s.epoch != epoch ||
+				(s.nextRoIndex != s.committedNextRoIndex &&
+					s.nextIndex == s.durableNextIndex) {
 				break
+			} else {
+				// XXX: when increasing durableNextIndex, trigger roOpsToPropse_cond
+				s.roOpsToPropose_cond.Wait()
 			}
 		}
 
@@ -91,19 +93,9 @@ func (s *Server) applyRoThread(epoch uint64) {
 
 		// Else, we can prove that nextRoIndex < committedNextRoIndex, not
 		// that it really matters for the following code.
+		// Also, nextIndex == durableNextIndex
 		nextIndex := s.nextIndex
 		nextRoIndex := s.nextRoIndex
-
-		// XXX: it's possible that the server enters a new epoch and rolls its state
-		// back, and that durableNextIndex refers to the state of a different epoch
-		// now. Check for the server entering a new epoch. Don't need to worry about
-		// sealing within the epoch, because the in-memory state will still be
-		// made durable eventually.
-		for s.epoch == epoch && s.durableNextIndex < nextIndex {
-			// FIXME: trigger durableNextIndex_cond when entering new epoch
-			s.durableNextIndex_cond.Wait()
-		}
-		// FIXME: only send RPCs when nextIndex == durableNetIndex.
 
 		clerks := s.clerks[machine.RandomUint64()%uint64(len(s.clerks))]
 		s.mu.Unlock()
@@ -140,13 +132,15 @@ func (s *Server) applyRoThread(epoch uint64) {
 		if err != e.None {
 			s.mu.Lock()
 			// FIXME: if still in the same epoch and unsealed, then seal
+			log.Printf("applyRoThread() exited because of non-retryable RPC error")
+			machine.Assume(false)
 			s.mu.Unlock()
 			break
 		}
 
 		s.mu.Lock()
-		// If s.nextIndex != nextIndex, then there's a new RW proposed operation
-		// in the middle of being replicated. Whenever that RW operation is
+		// If s.nextIndex != nextIndex, then there's a new RW operation in the
+		// middle of being proposed/replicated. Whenever that RW operation is
 		// committed, this RO op will also be committed, so let the ApplyRo
 		// invocation wait for that.
 		if s.epoch == epoch && s.nextIndex == nextIndex {
@@ -183,19 +177,23 @@ func (s *Server) ApplyRo(op Op) *ApplyReply {
 	nextIndex := s.nextIndex
 	epoch := s.epoch
 	s.nextRoIndex += 1
-	s.nextRoIndex_cond.Signal()
-	s.mu.Unlock()
+	if s.nextIndex == s.durableNextIndex {
+		// Only signal if nextIndex == durableNextIndex; otherwise, let the
+		// thread `waitFn()`ing for durability wake up applyRoThread.
+		s.roOpsToPropose_cond.Signal()
+	}
 
 	for {
 		if epoch == s.epoch &&
 			s.committedNextIndex <= nextIndex &&
-			roIndex < s.committedNextRoIndex {
+			s.committedNextRoIndex <= roIndex {
 			s.committedNextRoIndex_cond.Wait()
 			continue
 		} else {
 			break
 		}
 	}
+	s.mu.Unlock()
 
 	if epoch != s.epoch {
 		reply.Err = e.Stale
@@ -237,6 +235,10 @@ func (s *Server) Apply(op Op) *ApplyReply {
 	s.nextIndex = std.SumAssumeNoOverflow(s.nextIndex, 1)
 	epoch := s.epoch
 	clerks := s.clerks
+
+	// now that nextIndex has increased, reset nextRoIndex and committedNextRoIndex
+	s.nextRoIndex = 0
+	s.committedNextRoIndex = 0
 	s.mu.Unlock()
 	// end := machine.TimeNow()
 	// if machine.RandomUint64()%1024 == 0 {
@@ -367,6 +369,11 @@ func (s *Server) ApplyAsBackup(args *ApplyAsBackupArgs) e.Error {
 	if opNextIndex > s.durableNextIndex {
 		s.durableNextIndex = opNextIndex
 		s.durableNextIndex_cond.Broadcast()
+
+		// after durability, there are some waiting RO ops that might be ok to send to backups
+		if s.durableNextIndex == s.nextIndex && s.nextRoIndex != s.committedNextRoIndex {
+			s.roOpsToPropose_cond.Signal()
+		}
 	}
 	s.mu.Unlock()
 
@@ -469,7 +476,7 @@ func MakeServer(sm *StateMachine, nextIndex uint64, epoch uint64, sealed bool) *
 	s.opAppliedConds = make(map[uint64]*sync.Cond)
 	s.durableNextIndex_cond = sync.NewCond(s.mu)
 
-	s.nextRoIndex_cond = sync.NewCond(s.mu)
+	s.roOpsToPropose_cond = sync.NewCond(s.mu)
 	s.committedNextRoIndex_cond = sync.NewCond(s.mu)
 	return s
 }
