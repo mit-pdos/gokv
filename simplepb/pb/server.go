@@ -239,8 +239,9 @@ func (s *Server) Apply(op Op) *ApplyReply {
 	ret, waitForDurable := s.sm.StartApply(op)
 	reply.Reply = ret
 
-	nextIndex := s.nextIndex
+	opIndex := s.nextIndex
 	s.nextIndex = std.SumAssumeNoOverflow(s.nextIndex, 1)
+	nextIndex := s.nextIndex
 	epoch := s.epoch
 	clerks := s.clerks
 
@@ -258,7 +259,7 @@ func (s *Server) Apply(op Op) *ApplyReply {
 	wg := new(sync.WaitGroup)
 	args := &ApplyAsBackupArgs{
 		epoch: epoch,
-		index: nextIndex,
+		index: opIndex,
 		op:    op,
 	}
 
