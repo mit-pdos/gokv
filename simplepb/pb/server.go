@@ -299,8 +299,6 @@ func (s *Server) Apply(op Op) *ApplyReply {
 		s.mu.Lock()
 		if nextIndex > s.committedNextIndex {
 			s.committedNextIndex = nextIndex
-			s.nextRoIndex = 0
-			s.committedNextRoIndex = 0
 			s.committedNextRoIndex_cond.Broadcast() // now that committedNextIndex
 			// has increased, the outstanding RO ops are implicitly committed.
 		}
