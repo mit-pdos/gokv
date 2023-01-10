@@ -295,15 +295,17 @@ func (s *Server) Apply(op Op) *ApplyReply {
 	}
 	reply.Err = err
 
-	s.mu.Lock()
-	if nextIndex > s.committedNextIndex {
-		s.committedNextIndex = nextIndex
-		s.nextRoIndex = 0
-		s.committedNextRoIndex = 0
-		s.committedNextRoIndex_cond.Broadcast() // now that committedNextIndex
-		// has increased, the outstanding RO ops are implicitly committed.
+	if err == e.None {
+		s.mu.Lock()
+		if nextIndex > s.committedNextIndex {
+			s.committedNextIndex = nextIndex
+			s.nextRoIndex = 0
+			s.committedNextRoIndex = 0
+			s.committedNextRoIndex_cond.Broadcast() // now that committedNextIndex
+			// has increased, the outstanding RO ops are implicitly committed.
+		}
+		s.mu.Unlock()
 	}
-	s.mu.Unlock()
 
 	// log.Println("Apply() returned ", err)
 	return reply
