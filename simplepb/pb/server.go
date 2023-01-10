@@ -297,8 +297,7 @@ func (s *Server) Apply(op Op) *ApplyReply {
 
 	if err == e.None {
 		s.mu.Lock()
-		sepoch := s.epoch
-		if sepoch == epoch && nextIndex > s.committedNextIndex {
+		if s.epoch == epoch && nextIndex > s.committedNextIndex {
 			s.committedNextIndex = nextIndex
 			s.committedNextRoIndex_cond.Broadcast() // now that committedNextIndex
 			// has increased, the outstanding RO ops are implicitly committed.
