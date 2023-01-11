@@ -153,6 +153,7 @@ func (s *Server) applyRoThread(epoch uint64) {
 		// invocation wait for that.
 		if s.epoch == epoch && s.nextIndex == nextIndex {
 			// log.Printf("New RO ops committed by applyRoThread()")
+			s.committedNextIndex = nextIndex
 			s.committedNextRoIndex = nextRoIndex
 			s.committedNextRoIndex_cond.Broadcast() // there could be many ApplyRo threads waiting
 		}
