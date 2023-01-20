@@ -202,12 +202,12 @@ func (s *Server) ApplyRo(op Op) *ApplyReply {
 			s.committedNextRoIndex_cond.Wait()
 		}
 	}
-	s.mu.Unlock()
 
 	if epoch != s.epoch {
 		reply.Err = e.Stale
 		return reply
 	}
+	s.mu.Unlock()
 
 	// FIXME: the applyRoThread should quit when getting a non-retryable error
 	// (e.g. backup sealed or in new epoch). Account for this case here.
@@ -380,6 +380,7 @@ func (s *Server) ApplyAsBackup(args *ApplyAsBackupArgs) e.Error {
 		s.durableNextIndex = opNextIndex
 		s.durableNextIndex_cond.Broadcast()
 
+		// FIXME: no point in doing the following, only the primary cares about this.
 		// after durability, there are some waiting RO ops that might be ok to send to backups
 		if s.durableNextIndex == s.nextIndex && s.nextRoIndex != s.committedNextRoIndex {
 			s.roOpsToPropose_cond.Signal()
