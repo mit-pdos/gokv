@@ -194,8 +194,11 @@ func (s *Server) ApplyRo(op Op) *ApplyReply {
 	}
 
 	for {
+		// XXX: this used to only require committedNextIndex >= nextIndex.
+		// By strengthening the requirement, the liveness argument becomes more
+		// difficult. I think it should still be live.
 		if epoch != s.epoch ||
-			s.committedNextIndex >= nextIndex ||
+			s.committedNextIndex > nextIndex ||
 			s.committedNextRoIndex >= nextRoIndex {
 			break
 		} else {
