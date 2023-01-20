@@ -204,6 +204,7 @@ func (s *Server) ApplyRo(op Op) *ApplyReply {
 	}
 
 	if epoch != s.epoch {
+		s.mu.Unlock()
 		reply.Err = e.Stale
 		return reply
 	}
