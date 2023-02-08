@@ -58,17 +58,25 @@ const (
 
 const GetPreferenceId uint64 = 0
 
+func prefToByte(pref bool) byte {
+	if pref {
+		return 1
+	} else {
+		return 0
+	}
+}
+
+func byteToPref(b byte) bool {
+	return b == 1
+}
+
 func (ck *ParticipantClerk) GetPreference() bool {
 	req := make([]byte, 0)
-	var reply = make([]byte, 1)
+	var reply = make([]byte, 0)
 	err := ck.client.Call(GetPreferenceId, req, &reply, 1000)
 	machine.Assume(err == 0) // no timeout or disconnect from participant
 	b := reply[0]
-	if b == 0 {
-		return false
-	} else {
-		return true
-	}
+	return byteToPref(b)
 }
 
 // make a decision once we have all the preferences
@@ -88,17 +96,19 @@ func (s *CoordinatorServer) makeDecision() {
 	s.m.Unlock()
 }
 
+func prefToDecision(pref bool) Decision {
+	if pref {
+		return Commit
+	} else {
+		return Abort
+	}
+}
+
 func (s *CoordinatorServer) backgroundLoop() {
 	for i, h := range s.participants {
 		pref := h.GetPreference()
-		var decision Decision
-		if pref {
-			decision = Commit
-		} else {
-			decision = Abort
-		}
 		s.m.Lock()
-		s.preferences[i] = decision
+		s.preferences[i] = prefToDecision(pref)
 		s.m.Unlock()
 	}
 	s.makeDecision()
@@ -163,11 +173,7 @@ func ParticipantMain(me grove_ffi.Address, pref bool) {
 	handlers[GetPreferenceId] = func(_req []byte, reply *[]byte) {
 		pref := participant.GetPreference()
 		replyData := make([]byte, 1)
-		if pref {
-			replyData[0] = 1
-		} else {
-			replyData[0] = 0
-		}
+		replyData[0] = prefToByte(pref)
 		*reply = replyData
 	}
 	server := urpc.MakeServer(handlers)
