@@ -1,8 +1,6 @@
 package txncoordinator
 
 import (
-	"fmt"
-
 	"github.com/mit-pdos/gokv/dmvcc/index"
 )
 
@@ -25,12 +23,10 @@ func (s *Server) TryCommit(tid uint64, writes map[uint64]string) bool {
 	}
 
 	if err != 0 {
-		fmt.Print("Error\n")
 		// FIXME: release locks
 		return false
 	}
 
-	fmt.Print("Updating\n")
 	// now that all "participants" are prepared, transaction can commit
 	s.indexCk.UpdateAndRelease(tid, writes)
 	return true

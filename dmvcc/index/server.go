@@ -1,8 +1,6 @@
 package index
 
 import (
-	"fmt"
-
 	"github.com/mit-pdos/go-mvcc/index"
 )
 
@@ -11,7 +9,6 @@ type Server struct {
 }
 
 func (s *Server) AcquireTuple(key uint64, tid uint64) uint64 {
-	fmt.Print("Acquiring\n")
 	return s.index.GetTuple(key).Own(tid)
 }
 
@@ -24,7 +21,9 @@ func (s *Server) Read(key uint64, tid uint64) string {
 
 func (s *Server) UpdateAndRelease(tid uint64, writes map[uint64]string) {
 	for key, val := range writes {
-		s.index.GetTuple(key).AppendVersion(tid, val)
+		t := s.index.GetTuple(key)
+		t.WriteLock()
+		t.AppendVersion(tid, val)
 	}
 }
 

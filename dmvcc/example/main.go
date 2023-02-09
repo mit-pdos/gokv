@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/mit-pdos/gokv/dmvcc/index"
 	"github.com/mit-pdos/gokv/dmvcc/txn"
@@ -21,21 +20,20 @@ func main() {
 		txnCk.DoTxn(func(t *txn.Clerk) bool {
 			t.Put(0, "hello")
 			t.Put(1, "world")
-			fmt.Print("Txn 1 done\n")
 			return true
 		})
 	}()
 
-	time.Sleep(2*time.Second)
-	func() {
+	go func() {
 		txnCk := txn.Begin(txnMgrHost, txnCoordHost, indexHost)
 		txnCk.DoTxn(func(t *txn.Clerk) bool {
 			if len(t.Get(0)) > 0 {
 				machine.Assert(len(t.Get(1)) > 0)
-				fmt.Print("Val: ", t.Get(1), "\n")
 			}
-			fmt.Print("Val: ", t.Get(1), "\n")
+			fmt.Print("Val on txn2: \"", t.Get(1), "\"\n")
 			return true
 		})
 	}()
+
+	machine.Sleep(1e8)
 }

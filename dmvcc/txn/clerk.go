@@ -1,7 +1,6 @@
 package txn
 
 import (
-	"fmt"
 
 	"github.com/mit-pdos/go-mvcc/trusted_proph"
 	"github.com/mit-pdos/gokv/dmvcc/index"
@@ -53,14 +52,12 @@ func (txnCk *Clerk) abort() {
 }
 
 func (txn *Clerk) DoTxn(body func(txn *Clerk) bool) bool {
-	fmt.Printf("Starting: %d\n", txn.tid)
 	wantToCommit := body(txn)
 	if !wantToCommit {
 		txn.abort()
 		return false
 	}
 
-	fmt.Printf("Trying to commit: %d\n", txn.tid)
 	tcCk := txncoordinator.MakeClerk(txn.txnCoordHost)
 	return tcCk.TryCommit(txn.tid, txn.writes)
 }
