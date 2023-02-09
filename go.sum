@@ -38,6 +38,8 @@ github.com/mattn/go-isatty v0.0.10/go.mod h1:qgIWMr58cqv1PHHyhnkY9lrL7etaEgOFcME
 github.com/mattn/go-isatty v0.0.11/go.mod h1:PhnuNfih5lzO57/f3n+odYbM4JtupLOxQOAqxQCu2WE=
 github.com/mattn/go-isatty v0.0.12/go.mod h1:cbi8OIDigv2wuxKPP5vlRcQ1OAZbq2CE4Kysco4FUpU=
 github.com/mattn/go-isatty v0.0.14/go.mod h1:7GGIvUiUoEMVVmxf/4nioHXj79iQHKdU27kJ6hsGG94=
+github.com/mit-pdos/go-mvcc v0.0.0-20221211005049-b5db4af452d8 h1:Wj27bllft0REnGpgDqkUS7cv8kzs1XChH4Yn8gfAt2o=
+github.com/mit-pdos/go-mvcc v0.0.0-20221211005049-b5db4af452d8/go.mod h1:hw013SsRaA5HE3ZkrItU3CcQ1RxUmcZ8eMrZKQ2AFNg=
 github.com/mit-pdos/goose-nfsd v0.0.0-20210314175046-2ab6d49307fb/go.mod h1:twTpJ5VWh2M6W9i00jgxuTqMwL+uAoMEpDChT05RMtk=
 github.com/mit-pdos/lockservice v0.0.0-20210503234304-8c6a5346c04f h1:F9UeKkQo+jNnTU4zoIm74gxaXmTfm1o2YYYQxCWfeck=
 github.com/mit-pdos/lockservice v0.0.0-20210503234304-8c6a5346c04f/go.mod h1:dDhQ55VvlWB2IUW84QMXnvtDNqKgWek2VKpsiRO9w1k=
