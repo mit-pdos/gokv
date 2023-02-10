@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 
 	"github.com/mit-pdos/gokv/dmvcc/index"
 	"github.com/mit-pdos/gokv/dmvcc/txn"
@@ -30,10 +30,10 @@ func main() {
 			if len(t.Get(0)) > 0 {
 				machine.Assert(len(t.Get(1)) > 0)
 			}
-			fmt.Print("Val on txn2: \"", t.Get(1), "\"\n")
+			log.Printf("Val on txn2: '%s'", t.Get(1))
 			return true
 		})
 	}()
 
-	machine.Sleep(1e8)
+	machine.Sleep(uint64(100_000_000))
 }

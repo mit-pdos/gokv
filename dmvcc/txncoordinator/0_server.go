@@ -16,9 +16,8 @@ func (s *Server) TryCommit(tid uint64, writes map[uint64]string) bool {
 
 	// This will deadlock.
 	for key, _ := range writes {
-		err = s.indexCk.AcquireTuple(key, tid)
-		if err != 0 {
-			break
+		if err == 0 {
+			err = s.indexCk.AcquireTuple(key, tid)
 		}
 	}
 
