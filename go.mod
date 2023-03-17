@@ -9,7 +9,7 @@ require (
 	github.com/mit-pdos/lockservice v0.0.0-20210503234304-8c6a5346c04f
 	github.com/tchajed/goose v0.5.2
 	github.com/tchajed/marshal v0.4.3
-	golang.org/x/text v0.3.7
+	golang.org/x/text v0.8.0
 )
 
-require github.com/google/pprof v0.0.0-20221212185716-aee1124e3a93 // indirect
+require github.com/google/pprof v0.0.0-20230309165930-d61513b1440d // indirect
