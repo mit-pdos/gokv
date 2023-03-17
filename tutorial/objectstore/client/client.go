@@ -23,11 +23,12 @@ type Writer struct {
 }
 
 func (ck *Clerk) PrepareWrite(keyname string) *Writer {
+	w := ck.dCk.PrepareWrite()
 	return &Writer{
-		writeId:    ck.dCk.PrepareWrite(),
+		writeId:    w.Id,
 		index:      0,
 		keyname:    keyname,
-		chunkAddrs: nil, // FIXME: get from dir
+		chunkAddrs: w.ChunkAddrs,
 	}
 }
 
