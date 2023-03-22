@@ -16,23 +16,24 @@ func MakeClerk(addr grove_ffi.Address) *Clerk {
 	}
 }
 
-type PreparedWrite struct {
-	Id         WriteID
-	ChunkAddrs []grove_ffi.Address
-}
-
 func (ck *Clerk) PrepareWrite() PreparedWrite {
-	panic("impl")
+	reply := new([]byte)
+	ck.client.Call(PrepareWriteId, []byte{}, reply, 100 /*ms*/)
+	return ParsePreparedWrite(*reply)
 }
 
 // From chunk
-func (ck *Clerk) RecordChunk(writeId WriteID, server grove_ffi.Address, content_hash string,
-	index uint64) {
-	panic("impl")
+func (ck *Clerk) RecordChunk(args RecordChunkArgs) {
+	req := MarshalRecordChunkArgs(args)
+	reply := new([]byte)
+	ck.client.Call(RecordChunkId, req, reply, 100 /*ms*/)
 }
 
 // From chunk
-func (ck *Clerk) FinishWrite(writeId WriteID, keyname string) {
+func (ck *Clerk) FinishWrite(args FinishWriteArgs) {
+	req := MarshalFinishWriteArgs(args)
+	reply := new([]byte)
+	ck.client.Call(FinishWriteId, req, reply, 100 /*ms*/)
 }
 
 type ChunkHandle struct {

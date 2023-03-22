@@ -65,7 +65,12 @@ func (s *Server) WriteChunk(args WriteChunkArgs) {
 	s.m.Lock()
 	s.chunks[content_hash] = args.Chunk
 	s.m.Unlock()
-	s.dir.RecordChunk(args.WriteId, s.me, content_hash, args.Index)
+	s.dir.RecordChunk(dir.RecordChunkArgs{
+		WriteId:     args.WriteId,
+		Server:      s.me,
+		ContentHash: content_hash,
+		Index:       args.Index,
+	})
 }
 
 func (s *Server) GetChunk(content_hash string) []byte {

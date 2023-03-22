@@ -51,7 +51,10 @@ func (w *Writer) AppendChunk(data []byte) {
 
 func (w *Writer) Done() {
 	w.wg.Wait()
-	w.ck.dCk.FinishWrite(w.writeId, w.keyname)
+	w.ck.dCk.FinishWrite(dir.FinishWriteArgs{
+		WriteId: w.writeId,
+		Keyname: w.keyname,
+	})
 }
 
 type Reader struct {

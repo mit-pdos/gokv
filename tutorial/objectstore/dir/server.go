@@ -30,11 +30,18 @@ const (
 	FinishWriteId  = 3
 )
 
-func ParseWriteID(data []byte) WriteID {
+// PrepareWriteArgs is empty
+
+type PreparedWrite struct {
+	Id         WriteID
+	ChunkAddrs []grove_ffi.Address
+}
+
+func ParsePreparedWrite(data []byte) PreparedWrite {
 	panic("TODO: marshaling")
 }
 
-func MarshalWriteID(id WriteID) []byte {
+func MarshalPreparedWrite(id PreparedWrite) []byte {
 	panic("TODO: marshaling")
 }
 
@@ -76,7 +83,7 @@ func StartServer(me grove_ffi.Address) {
 	handlers := make(map[uint64]func([]byte, *[]byte))
 	handlers[PrepareWriteId] = func(_req []byte, reply *[]byte) {
 		ret := s.PrepareWrite()
-		*reply = MarshalWriteID(ret)
+		*reply = MarshalPreparedWrite(ret)
 	}
 	handlers[RecordChunkId] = func(req []byte, reply *[]byte) {
 		args := ParseRecordChunkArgs(req)
@@ -93,13 +100,18 @@ func StartServer(me grove_ffi.Address) {
 }
 
 // From client
-func (s *Server) PrepareWrite() WriteID {
+func (s *Server) PrepareWrite() PreparedWrite {
 	s.m.Lock()
 	id := s.nextWriteId
 	s.nextWriteId += 1
 	s.ongoing[id] = Value{servers: make(map[uint64]ChunkHandle)}
 	s.m.Unlock()
-	return id
+	return PreparedWrite{
+		Id: id,
+		// TODO: come up with some chunk servers to return
+		// (writes will not work without this)
+		ChunkAddrs: []uint64{},
+	}
 }
 
 // From chunk
@@ -120,4 +132,8 @@ func (s *Server) FinishWrite(args FinishWriteArgs) {
 	// TODO: do we want to forget ongoing writes?
 	s.data[args.Keyname] = v
 	s.m.Unlock()
+}
+
+func (s *Server) PrepareRead(keyname string) []ChunkHandle {
+	panic("impl")
 }
