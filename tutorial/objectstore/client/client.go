@@ -32,12 +32,18 @@ func (ck *Clerk) PrepareWrite(keyname string) *Writer {
 	}
 }
 
-func (w *Writer) AppendChunk(chunk []byte) {
+func (w *Writer) AppendChunk(data []byte) {
 	w.wg.Add(1)
 	index := w.index
 	w.index = w.index + 1
 	go func() {
-		w.ck.chCk.WriteChunk(w.chunkAddrs[index%uint64(len(w.chunkAddrs))], w.writeId, chunk, index)
+		addr := w.chunkAddrs[index%uint64(len(w.chunkAddrs))]
+		args := chunk.WriteChunkArgs{
+			WriteId: w.writeId,
+			Chunk:   data,
+			Index:   index,
+		}
+		w.ck.chCk.WriteChunk(addr, args)
 		// XXX: do we want this? w.ck.dCK.RecordChunk(...)
 		w.wg.Done()
 	}()

@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/mit-pdos/gokv/grove_ffi"
+	"github.com/mit-pdos/gokv/urpc"
 )
 
 type WriteID = uint64
@@ -23,14 +24,72 @@ type Server struct {
 	nextWriteId WriteID
 }
 
+const (
+	PrepareWriteId = 1
+	RecordChunkId  = 2
+	FinishWriteId  = 3
+)
+
+func ParseWriteID(data []byte) WriteID {
+	panic("TODO: marshaling")
+}
+
+func MarshalWriteID(id WriteID) []byte {
+	panic("TODO: marshaling")
+}
+
+type RecordChunkArgs struct {
+	WriteId     WriteID
+	Server      grove_ffi.Address
+	ContentHash string
+	Index       uint64
+}
+
+func MarshalRecordChunkArgs(args RecordChunkArgs) []byte {
+	panic("TODO: marshaling")
+}
+
+func ParseRecordChunkArgs(data []byte) RecordChunkArgs {
+	panic("TODO: marshaling")
+}
+
+type FinishWriteArgs struct {
+	WriteId WriteID
+	Keyname string
+}
+
+func MarshalFinishWriteArgs(args FinishWriteArgs) []byte {
+	panic("TODO: marshaling")
+}
+
+func ParseFinishWriteArgs(data []byte) FinishWriteArgs {
+	panic("TODO: marshaling")
+}
+
 func StartServer(me grove_ffi.Address) {
-	_ = &Server{
+	s := &Server{
 		m:           new(sync.Mutex),
 		ongoing:     make(map[WriteID]Value),
 		data:        make(map[string]Value),
 		nextWriteId: 1,
 	}
-	// TODO: start rpc server
+	handlers := make(map[uint64]func([]byte, *[]byte))
+	handlers[PrepareWriteId] = func(_req []byte, reply *[]byte) {
+		ret := s.PrepareWrite()
+		*reply = MarshalWriteID(ret)
+	}
+	handlers[RecordChunkId] = func(req []byte, reply *[]byte) {
+		args := ParseRecordChunkArgs(req)
+		s.RecordChunk(args)
+		*reply = []byte{}
+	}
+	handlers[FinishWriteId] = func(req []byte, reply *[]byte) {
+		args := ParseFinishWriteArgs(req)
+		s.FinishWrite(args)
+		*reply = []byte{}
+	}
+	server := urpc.MakeServer(handlers)
+	server.Serve(me)
 }
 
 // From client
@@ -44,19 +103,21 @@ func (s *Server) PrepareWrite() WriteID {
 }
 
 // From chunk
-func (s *Server) RecordChunk(writeId WriteID, server grove_ffi.Address, content_hash string,
-	index uint64) {
+func (s *Server) RecordChunk(args RecordChunkArgs) {
 	s.m.Lock()
 	// TODO: check if this write is still ongoing
-	s.ongoing[writeId].servers[index] = ChunkHandle{Addr: server, ContentHash: content_hash}
+	s.ongoing[args.WriteId].servers[args.Index] = ChunkHandle{
+		Addr:        args.Server,
+		ContentHash: args.ContentHash,
+	}
 	s.m.Unlock()
 }
 
 // From chunk
-func (s *Server) FinishWrite(writeId WriteID, keyname string) {
+func (s *Server) FinishWrite(args FinishWriteArgs) {
 	s.m.Lock()
-	v := s.ongoing[writeId]
+	v := s.ongoing[args.WriteId]
 	// TODO: do we want to forget ongoing writes?
-	s.data[keyname] = v
+	s.data[args.Keyname] = v
 	s.m.Unlock()
 }
