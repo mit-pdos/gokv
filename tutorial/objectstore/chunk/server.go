@@ -6,6 +6,7 @@ import (
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/trusted_hash"
 	"github.com/mit-pdos/gokv/tutorial/objectstore/dir"
+	"github.com/mit-pdos/gokv/urpc"
 )
 
 type Server struct {
@@ -15,35 +16,56 @@ type Server struct {
 	me     grove_ffi.Address
 }
 
+// rpc ids
+const (
+	WriteChunkId = 1
+	GetChunkId   = 2
+)
+
+type WriteChunkArgs struct {
+	WriteId WriteID
+	Chunk   []byte
+	Index   uint64
+}
+
+func MarshalWriteChunkArgs(args WriteChunkArgs) []byte {
+	panic("TODO: marshalling")
+}
+
+func ParseWriteChunkArgs(data []byte) WriteChunkArgs {
+	panic("TODO: marshalling")
+}
+
 func StartServer(me grove_ffi.Address, dir_addr grove_ffi.Address) {
 	dir := dir.MakeClerk(dir_addr)
-	_ = &Server{
+	s := &Server{
 		m:      new(sync.Mutex),
 		chunks: make(map[string][]byte),
 		dir:    dir,
 		me:     me,
 	}
-	// TODO: start rpc server
-	/*
-		handlers := make(map[uint64]func([]byte, *[]byte))
-		handlers[GetDecisionId] = func(_req []byte, reply *[]byte) {
-			decision := coordinator.GetDecision()
-			replyData := make([]byte, 1)
-			replyData[0] = decision
-			*reply = replyData
-		}
-		server := urpc.MakeServer(handlers)
-		server.Serve(me)
-	*/
-
+	handlers := make(map[uint64]func([]byte, *[]byte))
+	handlers[WriteChunkId] = func(req []byte, reply *[]byte) {
+		args := ParseWriteChunkArgs(req)
+		s.WriteChunk(args)
+		*reply = []byte{} // TODO: is this needed?
+	}
+	handlers[GetChunkId] = func(req []byte, reply *[]byte) {
+		// inline marshaling because types are so simple
+		args := string(req)
+		ret := s.GetChunk(args)
+		*reply = ret
+	}
+	server := urpc.MakeServer(handlers)
+	server.Serve(me)
 }
 
-func (s *Server) WriteChunk(writeId WriteID, chunk []byte, index uint64) {
-	content_hash := trusted_hash.Hash(chunk)
+func (s *Server) WriteChunk(args WriteChunkArgs) {
+	content_hash := trusted_hash.Hash(args.Chunk)
 	s.m.Lock()
-	s.chunks[content_hash] = chunk
+	s.chunks[content_hash] = args.Chunk
 	s.m.Unlock()
-	s.dir.RecordChunk(writeId, s.me, content_hash, index)
+	s.dir.RecordChunk(args.WriteId, s.me, content_hash, args.Index)
 }
 
 func (s *Server) GetChunk(content_hash string) []byte {
