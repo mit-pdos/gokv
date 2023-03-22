@@ -41,6 +41,9 @@ type ChunkHandle struct {
 	ContentHash string
 }
 
-func (ck *Clerk) PrepareRead(keyname string) []ChunkHandle {
-	panic("impl")
+func (ck *Clerk) PrepareRead(keyname string) PreparedRead {
+	req := []byte(keyname)
+	reply := new([]byte)
+	ck.client.Call(PrepareReadId, req, reply, 100 /*ms*/)
+	return ParsePreparedRead(*reply)
 }

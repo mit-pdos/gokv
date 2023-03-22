@@ -28,6 +28,7 @@ const (
 	PrepareWriteId = 1
 	RecordChunkId  = 2
 	FinishWriteId  = 3
+	PrepareReadId  = 4
 )
 
 // PrepareWriteArgs is empty
@@ -73,6 +74,18 @@ func ParseFinishWriteArgs(data []byte) FinishWriteArgs {
 	panic("TODO: marshaling")
 }
 
+type PreparedRead struct {
+	Handles []ChunkHandle
+}
+
+func MarshalPreparedRead(v PreparedRead) []byte {
+	panic("TODO: marshaling")
+}
+
+func ParsePreparedRead(data []byte) PreparedRead {
+	panic("TODO: marshaling")
+}
+
 func StartServer(me grove_ffi.Address) {
 	s := &Server{
 		m:           new(sync.Mutex),
@@ -94,6 +107,11 @@ func StartServer(me grove_ffi.Address) {
 		args := ParseFinishWriteArgs(req)
 		s.FinishWrite(args)
 		*reply = []byte{}
+	}
+	handlers[PrepareReadId] = func(req []byte, reply *[]byte) {
+		args := string(req)
+		ret := s.PrepareRead(args)
+		*reply = MarshalPreparedRead(ret)
 	}
 	server := urpc.MakeServer(handlers)
 	server.Serve(me)
@@ -134,6 +152,16 @@ func (s *Server) FinishWrite(args FinishWriteArgs) {
 	s.m.Unlock()
 }
 
-func (s *Server) PrepareRead(keyname string) []ChunkHandle {
-	panic("impl")
+func (s *Server) PrepareRead(keyname string) PreparedRead {
+	s.m.Lock()
+	// need to convert map to slice
+	// (the map should be total because it is in s.data)
+	indexHandleMap := s.data[keyname].servers
+	numChunks := uint64(len(indexHandleMap))
+	var servers = make([]ChunkHandle, 0)
+	for i := uint64(0); i < numChunks; i++ {
+		servers = append(servers, indexHandleMap[i])
+	}
+	s.m.Unlock()
+	return PreparedRead{Handles: servers}
 }

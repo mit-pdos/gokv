@@ -65,7 +65,7 @@ type Reader struct {
 
 func (ck *Clerk) PrepareRead(keyname string) *Reader {
 	return &Reader{
-		chunkHandles: ck.dCk.PrepareRead(keyname),
+		chunkHandles: ck.dCk.PrepareRead(keyname).Handles,
 		index:        0,
 	}
 }
