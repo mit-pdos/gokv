@@ -18,8 +18,8 @@ type Server struct {
 
 // rpc ids
 const (
-	WriteChunkId = 1
-	GetChunkId   = 2
+	WriteChunkId uint64 = 1
+	GetChunkId   uint64 = 2
 )
 
 type WriteChunkArgs struct {

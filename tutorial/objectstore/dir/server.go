@@ -25,10 +25,10 @@ type Server struct {
 }
 
 const (
-	PrepareWriteId = 1
-	RecordChunkId  = 2
-	FinishWriteId  = 3
-	PrepareReadId  = 4
+	PrepareWriteId uint64 = 1
+	RecordChunkId  uint64 = 2
+	FinishWriteId  uint64 = 3
+	PrepareReadId  uint64 = 4
 )
 
 // PrepareWriteArgs is empty
