@@ -33,6 +33,12 @@ parser.add_argument(
     default=None,
 )
 parser.add_argument(
+    "--reads",
+    help="percentage of ops that are reads (between 0.0 and 1.0)",
+    required=False,
+    default=0.0,
+)
+parser.add_argument(
     "-e",
     "--errors",
     help="print stderr from commands being run",
