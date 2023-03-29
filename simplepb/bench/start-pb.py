@@ -17,7 +17,7 @@ print("Stopped pb (and deleted old files)")
 
 gobin='/usr/local/go/bin/go'
 
-totalreplicas = 2
+totalreplicas = 3
 nreplicas = args.nreplicas
 ncores = args.ncores
 
