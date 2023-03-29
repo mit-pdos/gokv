@@ -5,6 +5,15 @@ import (
 	"github.com/mit-pdos/gokv/reconnectclient"
 )
 
+type WriteID = uint64
+
+const (
+	PrepareWriteId uint64 = 1
+	RecordChunkId  uint64 = 2
+	FinishWriteId  uint64 = 3
+	PrepareReadId  uint64 = 4
+)
+
 type Clerk struct {
 	client *reconnectclient.ReconnectingClient
 }
@@ -17,8 +26,9 @@ func MakeClerk(addr grove_ffi.Address) *Clerk {
 }
 
 func (ck *Clerk) PrepareWrite() PreparedWrite {
+	empty := make([]byte, 0)
 	reply := new([]byte)
-	ck.client.Call(PrepareWriteId, []byte{}, reply, 100 /*ms*/)
+	ck.client.Call(PrepareWriteId, empty, reply, 100 /*ms*/)
 	return ParsePreparedWrite(*reply)
 }
 
@@ -34,11 +44,6 @@ func (ck *Clerk) FinishWrite(args FinishWriteArgs) {
 	req := MarshalFinishWriteArgs(args)
 	reply := new([]byte)
 	ck.client.Call(FinishWriteId, req, reply, 100 /*ms*/)
-}
-
-type ChunkHandle struct {
-	Addr        grove_ffi.Address
-	ContentHash string
 }
 
 func (ck *Clerk) PrepareRead(keyname string) PreparedRead {

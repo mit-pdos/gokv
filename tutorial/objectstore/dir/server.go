@@ -7,8 +7,6 @@ import (
 	"github.com/mit-pdos/gokv/urpc"
 )
 
-type WriteID = uint64
-
 type PartialValue struct {
 	// map from chunk index to where the data lives
 	servers map[uint64]ChunkHandle
@@ -28,99 +26,6 @@ type Server struct {
 	nextWriteId WriteID
 }
 
-const (
-	PrepareWriteId uint64 = 1
-	RecordChunkId  uint64 = 2
-	FinishWriteId  uint64 = 3
-	PrepareReadId  uint64 = 4
-)
-
-// PrepareWriteArgs is empty
-
-type PreparedWrite struct {
-	Id         WriteID
-	ChunkAddrs []grove_ffi.Address
-}
-
-func ParsePreparedWrite(data []byte) PreparedWrite {
-	panic("TODO: marshaling")
-}
-
-func MarshalPreparedWrite(id PreparedWrite) []byte {
-	panic("TODO: marshaling")
-}
-
-type RecordChunkArgs struct {
-	WriteId     WriteID
-	Server      grove_ffi.Address
-	ContentHash string
-	Index       uint64
-}
-
-func MarshalRecordChunkArgs(args RecordChunkArgs) []byte {
-	panic("TODO: marshaling")
-}
-
-func ParseRecordChunkArgs(data []byte) RecordChunkArgs {
-	panic("TODO: marshaling")
-}
-
-type FinishWriteArgs struct {
-	WriteId WriteID
-	Keyname string
-}
-
-func MarshalFinishWriteArgs(args FinishWriteArgs) []byte {
-	panic("TODO: marshaling")
-}
-
-func ParseFinishWriteArgs(data []byte) FinishWriteArgs {
-	panic("TODO: marshaling")
-}
-
-type PreparedRead struct {
-	Handles []ChunkHandle
-}
-
-func MarshalPreparedRead(v PreparedRead) []byte {
-	panic("TODO: marshaling")
-}
-
-func ParsePreparedRead(data []byte) PreparedRead {
-	panic("TODO: marshaling")
-}
-
-func StartServer(me grove_ffi.Address) {
-	s := &Server{
-		m:           new(sync.Mutex),
-		ongoing:     make(map[WriteID]PartialValue),
-		data:        make(map[string]Value),
-		nextWriteId: 1,
-	}
-	handlers := make(map[uint64]func([]byte, *[]byte))
-	handlers[PrepareWriteId] = func(_req []byte, reply *[]byte) {
-		ret := s.PrepareWrite()
-		*reply = MarshalPreparedWrite(ret)
-	}
-	handlers[RecordChunkId] = func(req []byte, reply *[]byte) {
-		args := ParseRecordChunkArgs(req)
-		s.RecordChunk(args)
-		*reply = []byte{}
-	}
-	handlers[FinishWriteId] = func(req []byte, reply *[]byte) {
-		args := ParseFinishWriteArgs(req)
-		s.FinishWrite(args)
-		*reply = []byte{}
-	}
-	handlers[PrepareReadId] = func(req []byte, reply *[]byte) {
-		args := string(req)
-		ret := s.PrepareRead(args)
-		*reply = MarshalPreparedRead(ret)
-	}
-	server := urpc.MakeServer(handlers)
-	server.Serve(me)
-}
-
 // From client
 func (s *Server) PrepareWrite() PreparedWrite {
 	s.m.Lock()
@@ -132,7 +37,7 @@ func (s *Server) PrepareWrite() PreparedWrite {
 		Id: id,
 		// TODO: come up with some chunk servers to return
 		// (writes will not work without this)
-		ChunkAddrs: []uint64{},
+		ChunkAddrs: make([]uint64, 0),
 	}
 }
 
@@ -170,4 +75,35 @@ func (s *Server) PrepareRead(keyname string) PreparedRead {
 	servers := s.data[keyname].servers
 	s.m.Unlock()
 	return PreparedRead{Handles: servers}
+}
+
+func StartServer(me grove_ffi.Address) {
+	s := &Server{
+		m:           new(sync.Mutex),
+		ongoing:     make(map[WriteID]PartialValue),
+		data:        make(map[string]Value),
+		nextWriteId: 1,
+	}
+	handlers := make(map[uint64]func([]byte, *[]byte))
+	handlers[PrepareWriteId] = func(_req []byte, reply *[]byte) {
+		ret := s.PrepareWrite()
+		*reply = MarshalPreparedWrite(ret)
+	}
+	handlers[RecordChunkId] = func(req []byte, reply *[]byte) {
+		args := ParseRecordChunkArgs(req)
+		s.RecordChunk(args)
+		*reply = make([]byte, 0)
+	}
+	handlers[FinishWriteId] = func(req []byte, reply *[]byte) {
+		args := ParseFinishWriteArgs(req)
+		s.FinishWrite(args)
+		*reply = make([]byte, 0)
+	}
+	handlers[PrepareReadId] = func(req []byte, reply *[]byte) {
+		args := string(req)
+		ret := s.PrepareRead(args)
+		*reply = MarshalPreparedRead(ret)
+	}
+	server := urpc.MakeServer(handlers)
+	server.Serve(me)
 }

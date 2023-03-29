@@ -16,50 +16,6 @@ type Server struct {
 	me     grove_ffi.Address
 }
 
-// rpc ids
-const (
-	WriteChunkId uint64 = 1
-	GetChunkId   uint64 = 2
-)
-
-type WriteChunkArgs struct {
-	WriteId WriteID
-	Chunk   []byte
-	Index   uint64
-}
-
-func MarshalWriteChunkArgs(args WriteChunkArgs) []byte {
-	panic("TODO: marshalling")
-}
-
-func ParseWriteChunkArgs(data []byte) WriteChunkArgs {
-	panic("TODO: marshalling")
-}
-
-func StartServer(me grove_ffi.Address, dir_addr grove_ffi.Address) {
-	dir := dir.MakeClerk(dir_addr)
-	s := &Server{
-		m:      new(sync.Mutex),
-		chunks: make(map[string][]byte),
-		dir:    dir,
-		me:     me,
-	}
-	handlers := make(map[uint64]func([]byte, *[]byte))
-	handlers[WriteChunkId] = func(req []byte, reply *[]byte) {
-		args := ParseWriteChunkArgs(req)
-		s.WriteChunk(args)
-		*reply = []byte{} // TODO: is this needed?
-	}
-	handlers[GetChunkId] = func(req []byte, reply *[]byte) {
-		// inline marshaling because types are so simple
-		args := string(req)
-		ret := s.GetChunk(args)
-		*reply = ret
-	}
-	server := urpc.MakeServer(handlers)
-	server.Serve(me)
-}
-
 func (s *Server) WriteChunk(args WriteChunkArgs) {
 	content_hash := trusted_hash.Hash(args.Chunk)
 	s.m.Lock()
@@ -78,4 +34,28 @@ func (s *Server) GetChunk(content_hash string) []byte {
 	data := s.chunks[content_hash]
 	s.m.Unlock()
 	return data
+}
+
+func StartServer(me grove_ffi.Address, dir_addr grove_ffi.Address) {
+	dir := dir.MakeClerk(dir_addr)
+	s := &Server{
+		m:      new(sync.Mutex),
+		chunks: make(map[string][]byte),
+		dir:    dir,
+		me:     me,
+	}
+	handlers := make(map[uint64]func([]byte, *[]byte))
+	handlers[WriteChunkId] = func(req []byte, reply *[]byte) {
+		args := ParseWriteChunkArgs(req)
+		s.WriteChunk(args)
+		*reply = make([]byte, 0) // TODO: is this needed?
+	}
+	handlers[GetChunkId] = func(req []byte, reply *[]byte) {
+		// inline marshaling because types are so simple
+		args := string(req)
+		ret := s.GetChunk(args)
+		*reply = ret
+	}
+	server := urpc.MakeServer(handlers)
+	server.Serve(me)
 }

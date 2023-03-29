@@ -7,6 +7,12 @@ import (
 
 type WriteID = uint64
 
+// rpc ids
+const (
+	WriteChunkId uint64 = 1
+	GetChunkId   uint64 = 2
+)
+
 type ClerkPool struct {
 	// TODO: connman for a bunch of chunk servers
 	cm *connman.ConnMan
