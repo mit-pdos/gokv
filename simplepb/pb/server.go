@@ -84,7 +84,7 @@ func (s *Server) applyRoThread(epoch uint64) {
 				s.roOpsToPropose_cond.Wait()
 			}
 		}
-		// log.Printf("About to propose RO ops in applyRo thread")
+		log.Printf("About to propose RO ops in applyRo thread")
 
 		// If the server is no longer in the epoch in which this thread is running,
 		// then stop this thread.
@@ -124,9 +124,9 @@ func (s *Server) applyRoThread(epoch uint64) {
 			}()
 		}
 
-		// log.Printf("Made RPCs")
+		log.Printf("Made RPCs")
 		wg.Wait()
-		// log.Printf("Done with RPCs")
+		log.Printf("Done with RPCs")
 		// analyze errors
 		var err = e.None
 		var i = uint64(0)
@@ -152,12 +152,74 @@ func (s *Server) applyRoThread(epoch uint64) {
 		// committed, this RO op will also be committed, so let the ApplyRo
 		// invocation wait for that.
 		if s.epoch == epoch && s.nextIndex == nextIndex {
-			// log.Printf("New RO ops committed by applyRoThread()")
+			log.Printf("New RO ops committed by applyRoThread()")
 			s.committedNextIndex = nextIndex
 			s.committedNextRoIndex = nextRoIndex
 			s.committedNextRoIndex_cond.Broadcast() // there could be many ApplyRo threads waiting
 		}
 	}
+}
+
+// FIXME: incorrect, but suitable for benchmarking
+// Applies a read-only op without waiting
+func (s *Server) ApplyRoNoWait(op Op) *ApplyReply {
+	// primary applying a read-only op
+	reply := new(ApplyReply)
+	reply.Reply = nil
+	// reply.Err = e.ENone
+	// return reply
+	s.mu.Lock()
+	// begin := machine.TimeNow()
+	if !s.isPrimary {
+		// log.Println("Got read-only request while not being primary")
+		s.mu.Unlock()
+		reply.Err = e.Stale
+		return reply
+	}
+	if s.sealed {
+		s.mu.Unlock()
+		reply.Err = e.Stale
+		return reply
+	}
+
+	reply.Reply = s.sm.ApplyReadonly(op)
+	reply.Err = e.None
+	s.mu.Unlock()
+	return reply
+}
+
+// FIXME: incorrect, but suitable for benchmarking
+// Applies the RO op immediately, but then waits for it to be committed before
+// replying to client.
+func (s *Server) ApplyRoWaitForCommit(op Op) *ApplyReply {
+	reply := new(ApplyReply)
+	reply.Reply = nil
+	reply.Err = e.None
+
+	s.mu.Lock()
+	if !s.isPrimary {
+		s.mu.Unlock()
+		reply.Err = e.NotLeader
+		return reply
+	}
+	if s.sealed {
+		s.mu.Unlock()
+		reply.Err = e.Sealed
+		return reply
+	}
+
+	nextIndex := s.nextIndex
+	reply.Reply = s.sm.ApplyReadonly(op)
+
+	for nextIndex > s.committedNextIndex {
+		// FIXME: this should also check if the epoch number changes or if the
+		// server gets sealed. Without configuration changes, I think this
+		// should be ok and eventually make progress.
+		s.committedNextRoIndex_cond.Wait()
+	}
+	s.mu.Unlock()
+
+	return reply
 }
 
 func (s *Server) ApplyRo(op Op) *ApplyReply {
@@ -187,9 +249,11 @@ func (s *Server) ApplyRo(op Op) *ApplyReply {
 	nextRoIndex := s.nextRoIndex
 	nextIndex := s.nextIndex
 	epoch := s.epoch
+	log.Printf("RoIndex: %d, Index: %d, Durable index: %d", s.nextRoIndex, s.nextIndex, s.durableNextIndex)
 	if s.nextIndex == s.durableNextIndex {
 		// Only signal if nextIndex == durableNextIndex; otherwise, let the
 		// thread `waitFn()`ing for durability wake up applyRoThread.
+		log.Printf("Signalling applyRoThread")
 		s.roOpsToPropose_cond.Signal()
 	}
 
@@ -259,6 +323,8 @@ func (s *Server) Apply(op Op) *ApplyReply {
 	// log.Printf("replica.mu crit section: %d ns", end-begin)
 	// }
 	waitForDurable()
+
+	s.tryIncreaseDurableNextIndex(epoch, nextIndex)
 
 	// tell backups to apply it
 	wg := new(sync.WaitGroup)
@@ -379,20 +445,26 @@ func (s *Server) ApplyAsBackup(args *ApplyAsBackupArgs) e.Error {
 
 	s.mu.Unlock()
 	waitFn()
+	s.tryIncreaseDurableNextIndex(args.epoch, opNextIndex)
+
+	return e.None
+}
+
+func (s *Server) tryIncreaseDurableNextIndex(epoch uint64, durableNextIndex uint64) {
 	s.mu.Lock()
-	if args.epoch == s.epoch && opNextIndex > s.durableNextIndex {
-		s.durableNextIndex = opNextIndex
+	if epoch == s.epoch && durableNextIndex > s.durableNextIndex {
+		s.durableNextIndex = durableNextIndex
 		s.durableNextIndex_cond.Broadcast()
 
-		// FIXME: no point in doing the following, only the primary cares about this.
-		// after durability, there are some waiting RO ops that might be ok to send to backups
+		// FIXME: no point in doing the following on backups, only the primary
+		// cares about this. After durability, there are some waiting RO ops
+		// that might be ok to send to backups
 		if s.durableNextIndex == s.nextIndex && s.nextRoIndex != s.committedNextRoIndex {
 			s.roOpsToPropose_cond.Signal()
+			log.Printf("Signalling applyRoThread")
 		}
 	}
 	s.mu.Unlock()
-
-	return e.None
 }
 
 func (s *Server) SetState(args *SetStateArgs) e.Error {

@@ -64,14 +64,14 @@ def main():
     resource.setrlimit(resource.RLIMIT_NOFILE, (100000, 100000))
     global config
 
-    readratio = float(gloabl_args.reads)
+    readratio = float(global_args.reads)
     config = {
         'read': readratio,
         'write': 1 - readratio,
         'keys': 1000,
         'serverhost': '10.10.1.4',
-        'warmuptime': 20,
-        'runtime': 120,
+        'warmuptime': 10,
+        'runtime': 10,
     }
 
     outfilepath = global_args.outfile

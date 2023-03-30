@@ -64,7 +64,7 @@ def main():
     resource.setrlimit(resource.RLIMIT_NOFILE, (100000, 100000))
     global config
 
-    readratio = float(gloabl_args.reads)
+    readratio = float(global_args.reads)
     config = {
         'read': readratio,
         'write': 1 - readratio,
