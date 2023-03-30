@@ -150,6 +150,7 @@ def goycsb_bench(kvname:str, threads:int, warmuptime:int, runtime:int, valuesize
     if p is None:
         return ''
 
+    # FIXME: count multiple types of operations
     ret = ''
     for stdout_line in iter(p.stdout.readline, ""):
         if stdout_line.find('Takes(s): {0}.'.format(runtime)) != -1:

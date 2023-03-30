@@ -605,7 +605,9 @@ func (s *Server) Serve(me grove_ffi.Address) {
 	}
 
 	handlers[RPC_ROPRIMARYAPPLY] = func(args []byte, reply *[]byte) {
-		*reply = EncodeApplyReply(s.ApplyRo(args))
+		// *reply = EncodeApplyReply(s.ApplyRo(args))
+		// *reply = EncodeApplyReply(s.ApplyRoNoWait(args))
+		*reply = EncodeApplyReply(s.ApplyRoWaitForCommit(args))
 	}
 
 	rs := urpc.MakeServer(handlers)
