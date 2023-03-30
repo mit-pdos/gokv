@@ -110,7 +110,7 @@ func (a *AppendOnlyFile) WaitAppend(length uint64) {
 	a.mu.Lock()
 	var cond *sync.Cond
 
-	if length + uint64(len(a.membuf)) < a.length {
+	if length + uint64(len(a.membuf)) <= a.length {
 		cond = a.oldDurableCond // XXX: wait for data the FileAppend thread already started writing
 	} else {
 		cond = a.durableCond // wait for data that's still in membuf, associated with the new condvar
