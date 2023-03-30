@@ -81,6 +81,7 @@ func (s *Server) applyRoThread(epoch uint64) {
 				break
 			} else {
 				// XXX: when increasing durableNextIndex, trigger roOpsToPropse_cond
+				log.Printf("applyRoThread waiting to be signalled")
 				s.roOpsToPropose_cond.Wait()
 			}
 		}
@@ -249,7 +250,7 @@ func (s *Server) ApplyRo(op Op) *ApplyReply {
 	nextRoIndex := s.nextRoIndex
 	nextIndex := s.nextIndex
 	epoch := s.epoch
-	log.Printf("RoIndex: %d, Index: %d, Durable index: %d", s.nextRoIndex, s.nextIndex, s.durableNextIndex)
+	log.Printf("RoIndex: %d, CommittedRoIndex: %d, Index: %d, Durable index: %d", s.nextRoIndex, s.committedNextRoIndex, s.nextIndex, s.durableNextIndex)
 	if s.nextIndex == s.durableNextIndex {
 		// Only signal if nextIndex == durableNextIndex; otherwise, let the
 		// thread `waitFn()`ing for durability wake up applyRoThread.
@@ -322,7 +323,9 @@ func (s *Server) Apply(op Op) *ApplyReply {
 	// if machine.RandomUint64()%1024 == 0 {
 	// log.Printf("replica.mu crit section: %d ns", end-begin)
 	// }
+	log.Printf("wait durable: %d", nextIndex)
 	waitForDurable()
+	log.Printf("done durable: %d", nextIndex)
 
 	s.tryIncreaseDurableNextIndex(epoch, nextIndex)
 
