@@ -20,7 +20,11 @@ func EnterNewConfig(configHost grove_ffi.Address, servers []grove_ffi.Address) e
 	configCk := config.MakeClerk(configHost)
 	// Get new epoch number from config service.
 	// Read from config service, fenced with that epoch.
-	epoch, oldServers := configCk.GetEpochAndConfig()
+	err1, epoch, oldServers := configCk.GetEpochAndConfig()
+	if err1 != e.None {
+		log.Println("Can't start config change because of lease")
+		return err1
+	}
 
 	// Enter new epoch on one of the old servers.
 	// Get a copy of the state from that old server.

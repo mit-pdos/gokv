@@ -11,18 +11,34 @@ import (
 	"github.com/tchajed/marshal"
 )
 
+
+const LeaseInterval = uint64(1e9) // 1 second
+
 type Server struct {
-	mu     *sync.Mutex
-	epoch  uint64
-	config []grove_ffi.Address
+	mu              *sync.Mutex
+	epoch           uint64
+	leaseExpiration uint64
+	config          []grove_ffi.Address
 }
 
 func (s *Server) GetEpochAndConfig(args []byte, reply *[]byte) {
+	// check if lease is expired
+	_, h := grove_ffi.GetTimeRange()
 	s.mu.Lock()
+	if h < s.leaseExpiration {
+		// lease is not expired
+		s.mu.Unlock()
+		*reply = make([]byte, 0, 8+8+8)
+		*reply = marshal.WriteInt(*reply, e.Leased)
+		*reply = marshal.WriteInt(*reply, 0)
+		*reply = marshal.WriteBytes(*reply, EncodeConfig(nil))
+		return
+	}
 
 	s.epoch = std.SumAssumeNoOverflow(s.epoch, 1)
 
-	*reply = make([]byte, 0, 8+8*len(s.config))
+	*reply = make([]byte, 0, 8+8+8*len(s.config))
+	*reply = marshal.WriteInt(*reply, 0)
 	*reply = marshal.WriteInt(*reply, s.epoch)
 	*reply = marshal.WriteBytes(*reply, EncodeConfig(s.config))
 	s.mu.Unlock()
@@ -49,6 +65,24 @@ func (s *Server) WriteConfig(args []byte, reply *[]byte) {
 	s.mu.Unlock()
 }
 
+func (s *Server) GetLease(args []byte, reply *[]byte) {
+	epoch, _ := marshal.ReadInt(args)
+	s.mu.Lock()
+	if s.epoch != epoch {
+		s.mu.Unlock()
+		*reply = marshal.WriteInt(nil, e.Stale)
+		log.Println("Stale lease request", s.config)
+		return
+	}
+
+	l, _ := grove_ffi.GetTimeRange()
+	s.leaseExpiration = l + LeaseInterval
+
+	*reply = marshal.WriteInt(nil, e.None)
+	*reply = marshal.WriteInt(*reply, s.leaseExpiration)
+	s.mu.Unlock()
+}
+
 func MakeServer(initconfig []grove_ffi.Address) *Server {
 	s := new(Server)
 	s.mu = new(sync.Mutex)
@@ -63,6 +97,7 @@ func (s *Server) Serve(me grove_ffi.Address) {
 	handlers[RPC_GETEPOCH] = s.GetEpochAndConfig
 	handlers[RPC_GETCONFIG] = s.GetConfig
 	handlers[RPC_WRITECONFIG] = s.WriteConfig
+	handlers[RPC_GETLEASE] = s.GetLease
 
 	rs := urpc.MakeServer(handlers)
 	rs.Serve(me)

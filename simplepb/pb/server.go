@@ -45,6 +45,8 @@ func (s *Server) ApplyRoWaitForCommit(op Op) *ApplyReply {
 	reply.Reply = nil
 	reply.Err = e.None
 
+	log.Printf("Got read-only op")
+	defer log.Printf("Finished read-only op")
 	s.mu.Lock()
 	if !s.isPrimary {
 		s.mu.Unlock()
@@ -59,6 +61,7 @@ func (s *Server) ApplyRoWaitForCommit(op Op) *ApplyReply {
 	_, h := grove_ffi.GetTimeRange()
 	if s.leaseExpiration < h {
 		s.mu.Unlock()
+		log.Printf("Lease expired because %d < %d", s.leaseExpiration, h)
 		reply.Err = e.LeaseExpired
 		return reply
 	}
@@ -154,9 +157,9 @@ func (s *Server) Apply(op Op) *ApplyReply {
 	}
 	wg.Wait()
 
-	log.Printf("wait durable: %d", nextIndex)
+	// log.Printf("wait durable: %d", nextIndex)
 	waitForDurable()
-	log.Printf("done durable: %d", nextIndex)
+	// log.Printf("done durable: %d", nextIndex)
 
 	var err = e.None
 	var i = uint64(0)
@@ -187,11 +190,12 @@ func (s *Server) leaseRenewalThread(epoch uint64) {
 	for {
 		gotLease, leaseExpiration := s.confCk.GetLease(epoch)
 		if !gotLease {
-			break
+			continue
 		}
 		s.mu.Lock()
 		s.leaseExpiration = leaseExpiration
 		s.mu.Unlock()
+		machine.Sleep(250 * 1e6)
 	}
 }
 
@@ -317,7 +321,7 @@ func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {
 	// BecomePrimary can only be called on args.Epoch if the server already
 	// entered epoch args.Epoch
 	if args.Epoch != s.epoch || !s.canBecomePrimary {
-		log.Printf("Stale BecomePrimary request (in %d, got %d)", s.epoch, args.Epoch)
+		log.Printf("Wrong epoch in BecomePrimary request (in %d, got %d)", s.epoch, args.Epoch)
 		s.mu.Unlock()
 		return e.Stale
 	}
@@ -353,7 +357,7 @@ func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {
 	return e.None
 }
 
-func MakeServer(sm *StateMachine, nextIndex uint64, epoch uint64, sealed bool) *Server {
+func MakeServer(sm *StateMachine, confHost grove_ffi.Address, nextIndex uint64, epoch uint64, sealed bool) *Server {
 	s := new(Server)
 	s.mu = new(sync.Mutex)
 	s.epoch = epoch
@@ -362,7 +366,11 @@ func MakeServer(sm *StateMachine, nextIndex uint64, epoch uint64, sealed bool) *
 	s.nextIndex = nextIndex
 	s.isPrimary = false
 	s.canBecomePrimary = false
+	// FIXME: this is wrong, just makes it easier to test
+	s.canBecomePrimary = true
 	s.opAppliedConds = make(map[uint64]*sync.Cond)
+	s.confCk = config.MakeClerk(confHost)
+	s.committedNextIndex_cond = sync.NewCond(s.mu)
 
 	return s
 }

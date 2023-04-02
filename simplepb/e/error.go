@@ -15,6 +15,7 @@ const (
 	NotLeader    = uint64(5)
 	Sealed       = uint64(6)
 	LeaseExpired = uint64(7)
+	Leased       = uint64(8)
 )
 
 func EncodeError(err Error) []byte {

@@ -20,8 +20,10 @@ func main() {
 
 	var fname string
 	var port uint64
+	var confStr string
 	flag.StringVar(&fname, "filename", "", "name of file that holds durable state for this server")
 	flag.Uint64Var(&port, "port", 0, "port number to user for server")
+	flag.StringVar(&confStr, "conf", "", "address of config server")
 	flag.Parse()
 
 	if fname == "" {
@@ -32,9 +34,14 @@ func main() {
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
+	if confStr == "" {
+		flag.PrintDefaults()
+		os.Exit(1)
+	}
 
+	confHost := grove_ffi.MakeAddress(confStr)
 	me := grove_ffi.MakeAddress(fmt.Sprintf("0.0.0.0:%d", port))
-	kv.Start(fname, me)
+	kv.Start(fname, me, confHost)
 	log.Printf("Started kv server on port %d; id %d", port, me)
 	select {}
 }

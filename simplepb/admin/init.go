@@ -9,8 +9,6 @@ import (
 
 func InitializeSystem(configHost grove_ffi.Address, servers []grove_ffi.Address) e.Error {
 	configCk := config.MakeClerk(configHost)
-	// Get new epoch number from config service.
-	// epoch, _ := configCk.GetEpochAndConfig()
 
 	// Write to config service saying the new servers have up-to-date state.
 	configCk.WriteConfig(0, servers)
