@@ -102,7 +102,7 @@ func MakeKVStateMachine() *simplelog.InMemoryStateMachine {
 	}
 }
 
-func Start(fname string, me grove_ffi.Address) {
-	r := simplelog.MakePbServer(MakeKVStateMachine(), fname)
+func Start(fname string, me grove_ffi.Address, confHost grove_ffi.Address) {
+	r := simplelog.MakePbServer(MakeKVStateMachine(), fname, confHost)
 	r.Serve(me)
 }

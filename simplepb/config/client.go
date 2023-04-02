@@ -33,7 +33,8 @@ func (ck *Clerk) GetEpochAndConfig() (e.Error, uint64, []grove_ffi.Address) {
 		}
 	}
 
-	var epoch, err uint64
+	var epoch uint64
+	var err uint64
 	err, *reply = marshal.ReadInt(*reply)
 	epoch, *reply = marshal.ReadInt(*reply)
 	config := DecodeConfig(*reply)

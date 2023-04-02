@@ -11,8 +11,7 @@ import (
 	"github.com/tchajed/marshal"
 )
 
-
-const LeaseInterval = uint64(1e9) // 1 second
+const LeaseInterval = uint64(1_000_000_000) // 1 second
 
 type Server struct {
 	mu              *sync.Mutex

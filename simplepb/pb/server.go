@@ -45,8 +45,6 @@ func (s *Server) ApplyRoWaitForCommit(op Op) *ApplyReply {
 	reply.Reply = nil
 	reply.Err = e.None
 
-	log.Printf("Got read-only op")
-	defer log.Printf("Finished read-only op")
 	s.mu.Lock()
 	if !s.isPrimary {
 		s.mu.Unlock()
@@ -195,7 +193,7 @@ func (s *Server) leaseRenewalThread(epoch uint64) {
 		s.mu.Lock()
 		s.leaseExpiration = leaseExpiration
 		s.mu.Unlock()
-		machine.Sleep(250 * 1e6)
+		machine.Sleep(uint64(250) * 1_000_000)
 	}
 }
 
