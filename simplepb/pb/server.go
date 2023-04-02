@@ -6,6 +6,7 @@ import (
 
 	"github.com/goose-lang/std"
 	"github.com/mit-pdos/gokv/grove_ffi"
+	"github.com/mit-pdos/gokv/simplepb/config"
 	"github.com/mit-pdos/gokv/simplepb/e"
 	"github.com/mit-pdos/gokv/urpc"
 	"github.com/tchajed/goose/machine"
@@ -27,8 +28,10 @@ type Server struct {
 	opAppliedConds map[uint64]*sync.Cond
 
 	// for read-only operations (primary only)
+	leaseExpiration         uint64
 	committedNextIndex      uint64
 	committedNextIndex_cond *sync.Cond
+	confCk                  *config.Clerk
 }
 
 // FIXME: incorrect, but suitable for benchmarking
@@ -50,14 +53,28 @@ func (s *Server) ApplyRoWaitForCommit(op Op) *ApplyReply {
 		reply.Err = e.Sealed
 		return reply
 	}
+	_, h := grove_ffi.GetTimeRange()
+	if s.leaseExpiration < h {
+		s.mu.Unlock()
+		reply.Err = e.LeaseExpired
+		return reply
+	}
 
-	nextIndex := s.nextIndex
 	reply.Reply = s.sm.ApplyReadonly(op)
+	readNextIndex := s.nextIndex
+	epoch := s.epoch
 
-	for nextIndex > s.committedNextIndex {
-		// FIXME: this should also check if the epoch number changes or if the
-		// server gets sealed. Without configuration changes, I think this
-		// should be ok and eventually make progress.
+	for {
+		if s.epoch != epoch {
+			reply.Err = e.Stale
+			break
+		} else if readNextIndex <= s.committedNextIndex {
+			reply.Err = e.None
+			break
+		} else if s.sealed {
+			reply.Err = e.Sealed
+			break
+		}
 		s.committedNextIndex_cond.Wait()
 	}
 	s.mu.Unlock()
@@ -159,6 +176,18 @@ func (s *Server) Apply(op Op) *ApplyReply {
 	return reply
 }
 
+func (s *Server) leaseRenewalThread(epoch uint64) {
+	for {
+		gotLease, leaseExpiration := s.confCk.GetLease(epoch)
+		if !gotLease {
+			break
+		}
+		s.mu.Lock()
+		s.leaseExpiration = leaseExpiration
+		s.mu.Unlock()
+	}
+}
+
 // requires that we've already at least entered this epoch
 // returns true iff stale
 func (s *Server) isEpochStale(epoch uint64) bool {
@@ -244,6 +273,7 @@ func (s *Server) SetState(args *SetStateArgs) e.Error {
 		for _, cond := range s.opAppliedConds {
 			cond.Signal()
 		}
+		s.committedNextIndex_cond.Broadcast()
 		s.opAppliedConds = make(map[uint64]*sync.Cond)
 
 		s.mu.Unlock()
@@ -267,6 +297,7 @@ func (s *Server) GetState(args *GetStateArgs) *GetStateReply {
 		cond.Signal()
 	}
 	s.opAppliedConds = make(map[uint64]*sync.Cond)
+	s.committedNextIndex_cond.Broadcast()
 	s.mu.Unlock()
 
 	return &GetStateReply{Err: e.None, State: ret, NextIndex: nextIndex}
@@ -304,6 +335,11 @@ func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {
 	// Initialize read-only optimization state
 	s.committedNextIndex = 0
 	s.mu.Unlock()
+
+	epoch := args.Epoch
+	go func() {
+		s.leaseRenewalThread(epoch)
+	}()
 
 	return e.None
 }

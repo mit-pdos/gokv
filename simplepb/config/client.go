@@ -64,3 +64,9 @@ func (ck *Clerk) WriteConfig(epoch uint64, config []grove_ffi.Address) e.Error {
 		return err
 	}
 }
+
+// returns true if the lease was granted for the given epoch, and a conservative
+// guess on when the lease expires.
+func (ck *Clerk) GetLease(epoch uint64) (bool, uint64) {
+	panic("impl")
+}
