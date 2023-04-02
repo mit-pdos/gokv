@@ -74,8 +74,10 @@ func (s *Server) ApplyRoWaitForCommit(op Op) *ApplyReply {
 		} else if s.sealed {
 			reply.Err = e.Sealed
 			break
+		} else {
+			s.committedNextIndex_cond.Wait()
+			continue
 		}
-		s.committedNextIndex_cond.Wait()
 	}
 	s.mu.Unlock()
 
@@ -382,8 +384,6 @@ func (s *Server) Serve(me grove_ffi.Address) {
 
 	handlers[RPC_ROPRIMARYAPPLY] = func(args []byte, reply *[]byte) {
 		*reply = EncodeApplyReply(s.ApplyRoWaitForCommit(args))
-		// *reply = EncodeApplyReply(s.ApplyRoNoWait(args))
-		// *reply = EncodeApplyReply(s.ApplyRoWaitForCommit(args))
 	}
 
 	rs := urpc.MakeServer(handlers)
