@@ -19,9 +19,12 @@ type Server struct {
 	sm        *StateMachine
 	nextIndex uint64
 
-	isPrimary bool
-	clerks    [][]*Clerk
-	// clerks []*Clerk
+	// This prevents a primary from becoming primary in the same epoch again
+	// after a crash. This allows the primary to send RPCs to backups while
+	// still waiting for ops to be made locally durable.
+	canBecomePrimary bool
+	isPrimary        bool
+	clerks           [][]*Clerk
 
 	// only on backups
 	// opAppliedConds[j] is the condvariable for the op with nextIndex == j.
@@ -267,6 +270,7 @@ func (s *Server) SetState(args *SetStateArgs) e.Error {
 		return e.None
 	} else {
 		s.isPrimary = false
+		s.canBecomePrimary = true
 		s.epoch = args.Epoch
 		s.sealed = false
 		s.nextIndex = args.NextIndex
@@ -310,13 +314,14 @@ func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {
 	// XXX: technically, this != could be a <, and we'd be ok because
 	// BecomePrimary can only be called on args.Epoch if the server already
 	// entered epoch args.Epoch
-	if args.Epoch != s.epoch {
+	if args.Epoch != s.epoch || !s.canBecomePrimary {
 		log.Printf("Stale BecomePrimary request (in %d, got %d)", s.epoch, args.Epoch)
 		s.mu.Unlock()
 		return e.Stale
 	}
 	log.Println("Became Primary")
 	s.isPrimary = true
+	s.canBecomePrimary = false
 
 	// XXX: should probably not bother doing this if we are already the primary
 	// in this epoch
@@ -354,6 +359,7 @@ func MakeServer(sm *StateMachine, nextIndex uint64, epoch uint64, sealed bool) *
 	s.sm = sm
 	s.nextIndex = nextIndex
 	s.isPrimary = false
+	s.canBecomePrimary = false
 	s.opAppliedConds = make(map[uint64]*sync.Cond)
 
 	return s
