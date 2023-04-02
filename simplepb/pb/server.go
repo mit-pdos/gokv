@@ -122,9 +122,6 @@ func (s *Server) Apply(op Op) *ApplyReply {
 	// if machine.RandomUint64()%1024 == 0 {
 	// log.Printf("replica.mu crit section: %d ns", end-begin)
 	// }
-	log.Printf("wait durable: %d", nextIndex)
-	waitForDurable()
-	log.Printf("done durable: %d", nextIndex)
 
 	// tell backups to apply it
 	wg := new(sync.WaitGroup)
@@ -156,6 +153,11 @@ func (s *Server) Apply(op Op) *ApplyReply {
 		}()
 	}
 	wg.Wait()
+
+	log.Printf("wait durable: %d", nextIndex)
+	waitForDurable()
+	log.Printf("done durable: %d", nextIndex)
+
 	var err = e.None
 	var i = uint64(0)
 	for i < uint64(len(clerks_inner)) {
