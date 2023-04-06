@@ -186,8 +186,8 @@ func (s *Server) Apply(op Op) *ApplyReply {
 
 func (s *Server) leaseRenewalThread(epoch uint64) {
 	for {
-		gotLease, leaseExpiration := s.confCk.GetLease(epoch)
-		if !gotLease {
+		leaseErr, leaseExpiration := s.confCk.GetLease(epoch)
+		if leaseErr != e.None {
 			continue
 		}
 		s.mu.Lock()

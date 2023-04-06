@@ -76,11 +76,14 @@ func (s *Server) GetLease(args []byte, reply *[]byte) {
 	}
 
 	l, _ := grove_ffi.GetTimeRange()
-	s.leaseExpiration = l + LeaseInterval
+	newLeaseExpiration := l + LeaseInterval
+	if newLeaseExpiration > s.leaseExpiration {
+		s.leaseExpiration = newLeaseExpiration
+	}
+	s.mu.Unlock()
 
 	*reply = marshal.WriteInt(nil, e.None)
-	*reply = marshal.WriteInt(*reply, s.leaseExpiration)
-	s.mu.Unlock()
+	*reply = marshal.WriteInt(*reply, newLeaseExpiration)
 }
 
 func MakeServer(initconfig []grove_ffi.Address) *Server {

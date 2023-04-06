@@ -69,9 +69,9 @@ func (ck *Clerk) WriteConfig(epoch uint64, config []grove_ffi.Address) e.Error {
 	}
 }
 
-// returns true if the lease was granted for the given epoch, and a conservative
+// returns e.None if the lease was granted for the given epoch, and a conservative
 // guess on when the lease expires.
-func (ck *Clerk) GetLease(epoch uint64) (bool, uint64) {
+func (ck *Clerk) GetLease(epoch uint64) (e.Error, uint64) {
 	reply := new([]byte)
 	var args = make([]byte, 0, 8)
 	args = marshal.WriteInt(args, epoch)
@@ -79,8 +79,8 @@ func (ck *Clerk) GetLease(epoch uint64) (bool, uint64) {
 	if err == 0 {
 		err2, enc := marshal.ReadInt(*reply)
 		leaseExpiration, _ := marshal.ReadInt(enc)
-		return (err2 == 0), leaseExpiration
+		return err2, leaseExpiration
 	} else {
-		return (err == 0), 0
+		return err, 0
 	}
 }
