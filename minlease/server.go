@@ -23,7 +23,7 @@ type Server struct {
 func (s *Server) TryLocalIncrement() bool {
 	s.mu.Lock()
 	_, h := grove_ffi.GetTimeRange()
-	if h > s.leaseExpiration {
+	if h >= s.leaseExpiration {
 		s.mu.Unlock()
 		return false
 	}
