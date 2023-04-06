@@ -70,6 +70,7 @@ func (s *Server) GetLease(args []byte, reply *[]byte) {
 	if s.epoch != epoch {
 		s.mu.Unlock()
 		*reply = marshal.WriteInt(nil, e.Stale)
+		*reply = marshal.WriteInt(*reply, 0)
 		log.Println("Stale lease request", s.config)
 		return
 	}
