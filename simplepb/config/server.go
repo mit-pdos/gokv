@@ -22,9 +22,9 @@ type Server struct {
 
 func (s *Server) GetEpochAndConfig(args []byte, reply *[]byte) {
 	// check if lease is expired
-	_, h := grove_ffi.GetTimeRange()
+	l, _ := grove_ffi.GetTimeRange()
 	s.mu.Lock()
-	if h < s.leaseExpiration {
+	if l < s.leaseExpiration {
 		// lease is not expired
 		s.mu.Unlock()
 		*reply = make([]byte, 0, 8+8+8)
