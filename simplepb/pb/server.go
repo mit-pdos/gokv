@@ -32,6 +32,7 @@ type Server struct {
 
 	// for read-only operations (primary only)
 	leaseExpiration         uint64
+	leaseValid              bool
 	committedNextIndex      uint64
 	committedNextIndex_cond *sync.Cond
 	confCk                  *config.Clerk
@@ -54,6 +55,11 @@ func (s *Server) ApplyRoWaitForCommit(op Op) *ApplyReply {
 	if s.sealed {
 		s.mu.Unlock()
 		reply.Err = e.Sealed
+		return reply
+	}
+	if !s.leaseValid {
+		s.mu.Unlock()
+		reply.Err = e.LeaseExpired
 		return reply
 	}
 	_, h := grove_ffi.GetTimeRange()
@@ -191,9 +197,15 @@ func (s *Server) leaseRenewalThread(epoch uint64) {
 			continue
 		}
 		s.mu.Lock()
-		s.leaseExpiration = leaseExpiration
-		s.mu.Unlock()
-		machine.Sleep(uint64(250) * 1_000_000)
+		if s.epoch == epoch {
+			s.leaseExpiration = leaseExpiration
+			s.leaseValid = true
+			s.mu.Unlock()
+			machine.Sleep(uint64(250) * 1_000_000)
+		} else {
+			s.mu.Unlock()
+			break
+		}
 	}
 }
 
@@ -276,6 +288,7 @@ func (s *Server) SetState(args *SetStateArgs) e.Error {
 		s.isPrimary = false
 		s.canBecomePrimary = true
 		s.epoch = args.Epoch
+		s.leaseValid = false
 		s.sealed = false
 		s.nextIndex = args.NextIndex
 		s.sm.SetStateAndUnseal(args.State, args.NextIndex, args.Epoch)
@@ -364,6 +377,7 @@ func MakeServer(sm *StateMachine, confHost grove_ffi.Address, nextIndex uint64, 
 	s.nextIndex = nextIndex
 	s.isPrimary = false
 	s.canBecomePrimary = false
+	s.leaseValid = false
 	// FIXME: this is wrong, just makes it easier to test
 	s.canBecomePrimary = true
 	s.opAppliedConds = make(map[uint64]*sync.Cond)
