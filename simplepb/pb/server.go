@@ -63,7 +63,7 @@ func (s *Server) ApplyRoWaitForCommit(op Op) *ApplyReply {
 		return reply
 	}
 	_, h := grove_ffi.GetTimeRange()
-	if s.leaseExpiration < h {
+	if s.leaseExpiration <= h {
 		s.mu.Unlock()
 		log.Printf("Lease expired because %d < %d", s.leaseExpiration, h)
 		reply.Err = e.LeaseExpired
