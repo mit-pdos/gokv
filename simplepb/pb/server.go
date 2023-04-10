@@ -342,9 +342,6 @@ func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {
 		s.clerks[j] = clerks
 		j++
 	}
-
-	// Initialize read-only optimization state
-	s.committedNextIndex = 0
 	s.mu.Unlock()
 
 	epoch := args.Epoch
