@@ -47,16 +47,6 @@ func (s *Server) ApplyRoWaitForCommit(op Op) *ApplyReply {
 	reply.Err = e.None
 
 	s.mu.Lock()
-	if !s.isPrimary {
-		s.mu.Unlock()
-		reply.Err = e.NotLeader
-		return reply
-	}
-	if s.sealed {
-		s.mu.Unlock()
-		reply.Err = e.Sealed
-		return reply
-	}
 	if !s.leaseValid {
 		s.mu.Unlock()
 		reply.Err = e.LeaseExpired
@@ -80,9 +70,6 @@ func (s *Server) ApplyRoWaitForCommit(op Op) *ApplyReply {
 			break
 		} else if readNextIndex <= s.committedNextIndex {
 			reply.Err = e.None
-			break
-		} else if s.sealed {
-			reply.Err = e.Sealed
 			break
 		} else {
 			s.committedNextIndex_cond.Wait()
