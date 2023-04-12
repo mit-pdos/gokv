@@ -63,8 +63,11 @@ func (ck *Clerk) Apply(op []byte) []byte {
 func (ck *Clerk) ApplyRo(op []byte) []byte {
 	var ret []byte
 	for {
+		// pick a random server to read from
+		j := machine.RandomUint64() % uint64(len(ck.replicaClerks))
+
 		var err e.Error
-		err, ret = ck.replicaClerks[0].ApplyRo(op)
+		err, ret = ck.replicaClerks[j].ApplyRo(op)
 		if err == e.None {
 			break
 		} else {

@@ -142,22 +142,13 @@ func DecodeApplyReply(enc_reply []byte) *ApplyReply {
 	return reply
 }
 
-type RoApplyAsBackupArgs struct {
-	epoch     uint64
-	nextIndex uint64
+type IncreaseCommitArgs = uint64
+
+func EncodeIncreaseCommitArgs(args IncreaseCommitArgs) []byte {
+	return marshal.WriteInt(nil, args)
 }
 
-func EncodeRoApplyAsBackupArgs(args *RoApplyAsBackupArgs) []byte {
-	var enc = make([]byte, 0, 8+8)
-	enc = marshal.WriteInt(enc, args.epoch)
-	enc = marshal.WriteInt(enc, args.nextIndex)
-	return enc
-}
-
-func DecodeRoApplyAsBackupArgs(enc_reply []byte) *RoApplyAsBackupArgs {
-	var enc = enc_reply
-	args := new(RoApplyAsBackupArgs)
-	args.epoch, enc = marshal.ReadInt(enc)
-	args.nextIndex, enc = marshal.ReadInt(enc)
-	return args
+func DecodeIncreaseCommitArgs(args []byte) IncreaseCommitArgs {
+	a, _ := marshal.ReadInt(args)
+	return a
 }

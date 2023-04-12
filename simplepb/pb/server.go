@@ -26,6 +26,8 @@ type Server struct {
 	isPrimary        bool
 	clerks           [][]*Clerk
 
+	isPrimary_cond *sync.Cond
+
 	// only on backups
 	// opAppliedConds[j] is the condvariable for the op with nextIndex == j.
 	opAppliedConds map[uint64]*sync.Cond
@@ -38,7 +40,6 @@ type Server struct {
 	confCk                  *config.Clerk
 }
 
-// FIXME: incorrect, but suitable for benchmarking
 // Applies the RO op immediately, but then waits for it to be committed before
 // replying to client.
 func (s *Server) ApplyRoWaitForCommit(op Op) *ApplyReply {
@@ -164,17 +165,23 @@ func (s *Server) Apply(op Op) *ApplyReply {
 	reply.Err = err
 
 	if err == e.None {
-		s.mu.Lock()
-		if s.epoch == epoch && nextIndex > s.committedNextIndex {
-			s.committedNextIndex = nextIndex
-			s.committedNextIndex_cond.Broadcast() // now that committedNextIndex
-			// has increased, the outstanding RO ops are complete.
-		}
-		s.mu.Unlock()
+		s.IncreaseCommitIndex(nextIndex)
 	}
 
 	// log.Println("Apply() returned ", err)
 	return reply
+}
+
+// precondition:
+// is_epoch_lb epoch ∗ committed_by epoch log ∗ is_pb_log_lb log
+func (s *Server) IncreaseCommitIndex(newCommittedNextIndex uint64) {
+	s.mu.Lock()
+	if newCommittedNextIndex > s.committedNextIndex {
+		s.committedNextIndex = newCommittedNextIndex
+		s.committedNextIndex_cond.Broadcast() // now that committedNextIndex
+		// has increased, the outstanding RO ops are complete.
+	}
+	s.mu.Unlock()
 }
 
 func (s *Server) leaseRenewalThread() {
@@ -194,6 +201,45 @@ func (s *Server) leaseRenewalThread() {
 			latestEpoch = s.epoch
 			s.mu.Unlock()
 		}
+	}
+}
+
+func (s *Server) sendIncreaseCommitThread() {
+	// XXX: this will keep sending IncreaseCommitIndex RPCs.
+	// One might think that we could do this only when committedNextIndex
+	// increases, but a backup might crash and restart and forget what its
+	// committedNextIndex was before. In that case, with no writes going on,
+	// either we would need to add a mechanism for backups to ask the primary
+	// for the latest committedNextIndex, or else have the primary proactively
+	// push it to the backups. We chose option 2 here
+	for {
+		s.mu.Lock()
+		for !s.isPrimary {
+			s.isPrimary_cond.Wait()
+		}
+		newCommittedNextIndex := s.committedNextIndex
+		clerks := s.clerks
+		s.mu.Unlock()
+
+		clerks_inner := clerks[machine.RandomUint64()%uint64(len(clerks))] // use a random socket
+		wg := new(sync.WaitGroup)
+		for _, clerk := range clerks_inner {
+			clerk := clerk
+			wg.Add(1)
+			go func() {
+				// retry if we get error, to make sure every backup gets brought up to date
+				for {
+					err := clerk.IncreaseCommitIndex(newCommittedNextIndex)
+					if err == e.None {
+						break
+					} else {
+						continue
+					}
+				}
+				wg.Done()
+			}()
+		}
+		wg.Wait()
 	}
 }
 
@@ -326,6 +372,7 @@ func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {
 	}
 	log.Println("Became Primary")
 	s.isPrimary = true
+	s.isPrimary_cond.Signal()
 	s.canBecomePrimary = false
 
 	// XXX: should probably not bother doing this if we are already the primary
@@ -361,6 +408,7 @@ func MakeServer(sm *StateMachine, confHost grove_ffi.Address, nextIndex uint64, 
 	s.opAppliedConds = make(map[uint64]*sync.Cond)
 	s.confCk = config.MakeClerk(confHost)
 	s.committedNextIndex_cond = sync.NewCond(s.mu)
+	s.isPrimary_cond = sync.NewCond(s.mu)
 
 	return s
 }
@@ -392,8 +440,13 @@ func (s *Server) Serve(me grove_ffi.Address) {
 		*reply = EncodeApplyReply(s.ApplyRoWaitForCommit(args))
 	}
 
+	handlers[RPC_INCREASECOMMIT] = func(args []byte, reply *[]byte) {
+		s.IncreaseCommitIndex(DecodeIncreaseCommitArgs(args))
+	}
+
 	rs := urpc.MakeServer(handlers)
 	rs.Serve(me)
 
 	go s.leaseRenewalThread()
+	go s.sendIncreaseCommitThread()
 }

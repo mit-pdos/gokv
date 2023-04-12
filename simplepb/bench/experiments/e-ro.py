@@ -25,7 +25,7 @@ def write_lts(data, outfilename):
         x = 0.0
         y = 0.0
         for k, v in d['lts'].items():
-            # look for updates; if any other operation is found, report an error
+            # look for reads; if any other operation is found, report an error
             if k.strip() == 'READ':
                 x = x + v['thruput']
                 y = y + v['avg_latency'] / 1000

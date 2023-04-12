@@ -18,6 +18,7 @@ const (
 	RPC_PRIMARYAPPLY  = uint64(4)
 	// RPC_ROAPPLYASBACKUP = uint64(5)
 	RPC_ROPRIMARYAPPLY = uint64(6)
+	RPC_INCREASECOMMIT = uint64(7)
 )
 
 func MakeClerk(host grove_ffi.Address) *Clerk {
@@ -86,4 +87,8 @@ func (ck *Clerk) ApplyRo(op []byte) (e.Error, []byte) {
 	} else {
 		return e.Timeout, nil
 	}
+}
+
+func (ck *Clerk) IncreaseCommitIndex(n uint64) e.Error {
+	return ck.cl.Call(RPC_ROPRIMARYAPPLY, EncodeIncreaseCommitArgs(n), new([]byte), 100 /* ms */)
 }
