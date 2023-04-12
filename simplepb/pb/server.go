@@ -137,6 +137,7 @@ func (s *Server) Apply(op Op) *ApplyReply {
 			// retry if we get OutOfOrder errors
 			for {
 				err := clerk.ApplyAsBackup(args)
+				// log.Printf("Sending applyasbackup")
 				if err == e.OutOfOrder || err == e.Timeout {
 					continue
 				} else {
@@ -194,7 +195,7 @@ func (s *Server) leaseRenewalThread() {
 			s.leaseExpiration = leaseExpiration
 			s.leaseValid = true
 			s.mu.Unlock()
-			log.Printf("Got lease")
+			// log.Printf("Got lease")
 			machine.Sleep(uint64(250) * 1_000_000)
 		} else if latestEpoch != s.epoch {
 			latestEpoch = s.epoch
@@ -245,6 +246,9 @@ func (s *Server) sendIncreaseCommitThread() {
 			}()
 		}
 		wg.Wait()
+		// XXX: this is so the primary does not flood the backups with RPCs
+		// (e.g. when the system should be idle).
+		machine.Sleep(1_000_000) // 1 ms
 	}
 }
 
@@ -257,6 +261,8 @@ func (s *Server) isEpochStale(epoch uint64) bool {
 // called on backup servers to apply an operation so it is replicated and
 // can be considered committed by primary.
 func (s *Server) ApplyAsBackup(args *ApplyAsBackupArgs) e.Error {
+	// log.Printf("Received applyasbackup")
+	// defer log.Printf("Exiting applyasbackup")
 	s.mu.Lock()
 
 	// operation sequencing

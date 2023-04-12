@@ -90,5 +90,5 @@ func (ck *Clerk) ApplyRo(op []byte) (e.Error, []byte) {
 }
 
 func (ck *Clerk) IncreaseCommitIndex(n uint64) e.Error {
-	return ck.cl.Call(RPC_ROPRIMARYAPPLY, EncodeIncreaseCommitArgs(n), new([]byte), 100 /* ms */)
+	return ck.cl.Call(RPC_INCREASECOMMIT, EncodeIncreaseCommitArgs(n), new([]byte), 100 /* ms */)
 }
