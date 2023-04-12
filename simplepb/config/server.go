@@ -31,8 +31,9 @@ func (s *Server) GetEpochAndConfig(args []byte, reply *[]byte) {
 			break
 		} else {
 			s.wantLeaseToExpire = true
+			timeToSleep := s.leaseExpiration - l
 			s.mu.Unlock()
-			machine.Sleep(s.leaseExpiration - l) // sleep long enough for lease to be expired
+			machine.Sleep(timeToSleep) // sleep long enough for lease to be expired
 		}
 	}
 	s.wantLeaseToExpire = false
