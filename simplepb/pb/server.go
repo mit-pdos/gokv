@@ -362,8 +362,7 @@ func MakeServer(sm *StateMachine, confHost grove_ffi.Address, nextIndex uint64, 
 	s.isPrimary = false
 	s.canBecomePrimary = false
 	s.leaseValid = false
-	// FIXME: this is wrong, just makes it easier to test
-	s.canBecomePrimary = true
+	s.canBecomePrimary = false
 	s.opAppliedConds = make(map[uint64]*sync.Cond)
 	s.confCk = config.MakeClerk(confHost)
 	s.committedNextIndex_cond = sync.NewCond(s.mu)
