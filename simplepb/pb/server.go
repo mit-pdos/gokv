@@ -82,6 +82,18 @@ func (s *Server) ApplyRoWaitForCommit(op Op) *ApplyReply {
 	return reply
 }
 
+// precondition:
+// is_epoch_lb epoch ∗ committed_by epoch log ∗ is_pb_log_lb log
+func (s *Server) IncreaseCommitIndex(newCommittedNextIndex uint64) {
+	s.mu.Lock()
+	if newCommittedNextIndex > s.committedNextIndex {
+		s.committedNextIndex = newCommittedNextIndex
+		s.committedNextIndex_cond.Broadcast() // now that committedNextIndex
+		// has increased, the outstanding RO ops are complete.
+	}
+	s.mu.Unlock()
+}
+
 // called on the primary server to apply a new operation.
 func (s *Server) Apply(op Op) *ApplyReply {
 	reply := new(ApplyReply)
@@ -171,18 +183,6 @@ func (s *Server) Apply(op Op) *ApplyReply {
 
 	// log.Println("Apply() returned ", err)
 	return reply
-}
-
-// precondition:
-// is_epoch_lb epoch ∗ committed_by epoch log ∗ is_pb_log_lb log
-func (s *Server) IncreaseCommitIndex(newCommittedNextIndex uint64) {
-	s.mu.Lock()
-	if newCommittedNextIndex > s.committedNextIndex {
-		s.committedNextIndex = newCommittedNextIndex
-		s.committedNextIndex_cond.Broadcast() // now that committedNextIndex
-		// has increased, the outstanding RO ops are complete.
-	}
-	s.mu.Unlock()
 }
 
 func (s *Server) leaseRenewalThread() {
@@ -458,6 +458,6 @@ func (s *Server) Serve(me grove_ffi.Address) {
 	rs := urpc.MakeServer(handlers)
 	rs.Serve(me)
 
-	go s.leaseRenewalThread()
-	go s.sendIncreaseCommitThread()
+	go func() { s.leaseRenewalThread() }()
+	go func() { s.sendIncreaseCommitThread() }()
 }
