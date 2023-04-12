@@ -33,7 +33,7 @@ do(f"""ssh upamanyu@node{totalreplicas} <<ENDSSH
 ENDSSH
     """)
 
-conf_addr = "10.10.1.{total_replicas + 1}:12000"
+conf_addr = f"10.10.1.{totalreplicas + 1}:12000"
 # Start all replicas
 for i in range(totalreplicas):
     do(f"""ssh upamanyu@node{str(i)} <<ENDSSH

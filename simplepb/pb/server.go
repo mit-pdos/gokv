@@ -188,18 +188,23 @@ func (s *Server) leaseRenewalThread() {
 	var latestEpoch uint64
 	for {
 		leaseErr, leaseExpiration := s.confCk.GetLease(latestEpoch)
-		if leaseErr != e.None {
-			continue
-		}
+
 		s.mu.Lock()
-		if s.epoch == latestEpoch {
+		if s.epoch == latestEpoch && leaseErr == e.None {
 			s.leaseExpiration = leaseExpiration
 			s.leaseValid = true
 			s.mu.Unlock()
+			log.Printf("Got lease")
 			machine.Sleep(uint64(250) * 1_000_000)
-		} else {
+		} else if latestEpoch != s.epoch {
 			latestEpoch = s.epoch
 			s.mu.Unlock()
+		} else { // XXX: in this case, got an error but we're still in the same epoch.
+			// This happens e.g. when the config service wants to expire the
+			// lease to move to a new epoch. We should avoid sending requests
+			// too quickly to the config service in that case
+			s.mu.Unlock()
+			machine.Sleep(uint64(100) * 1_000_000)
 		}
 	}
 }
