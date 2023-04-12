@@ -248,7 +248,7 @@ func (s *Server) sendIncreaseCommitThread() {
 		wg.Wait()
 		// XXX: this is so the primary does not flood the backups with RPCs
 		// (e.g. when the system should be idle).
-		machine.Sleep(1_000_000) // 1 ms
+		machine.Sleep(5_000_000) // 5 ms
 	}
 }
 
