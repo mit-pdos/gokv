@@ -177,21 +177,22 @@ func (s *Server) Apply(op Op) *ApplyReply {
 	return reply
 }
 
-func (s *Server) leaseRenewalThread(epoch uint64) {
+func (s *Server) leaseRenewalThread() {
+	var latestEpoch uint64
 	for {
-		leaseErr, leaseExpiration := s.confCk.GetLease(epoch)
+		leaseErr, leaseExpiration := s.confCk.GetLease(latestEpoch)
 		if leaseErr != e.None {
 			continue
 		}
 		s.mu.Lock()
-		if s.epoch == epoch {
+		if s.epoch == latestEpoch {
 			s.leaseExpiration = leaseExpiration
 			s.leaseValid = true
 			s.mu.Unlock()
 			machine.Sleep(uint64(250) * 1_000_000)
 		} else {
+			latestEpoch = s.epoch
 			s.mu.Unlock()
-			break
 		}
 	}
 }
@@ -343,12 +344,6 @@ func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {
 		j++
 	}
 	s.mu.Unlock()
-
-	epoch := args.Epoch
-	go func() {
-		s.leaseRenewalThread(epoch)
-	}()
-
 	return e.None
 }
 
@@ -399,4 +394,6 @@ func (s *Server) Serve(me grove_ffi.Address) {
 
 	rs := urpc.MakeServer(handlers)
 	rs.Serve(me)
+
+	go s.leaseRenewalThread()
 }

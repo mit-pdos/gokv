@@ -8,36 +8,37 @@ import (
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/simplepb/e"
 	"github.com/mit-pdos/gokv/urpc"
+	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/marshal"
 )
 
 const LeaseInterval = uint64(1_000_000_000) // 1 second
 
 type Server struct {
-	mu              *sync.Mutex
-	epoch           uint64
-	leaseExpiration uint64
-	config          []grove_ffi.Address
+	mu                *sync.Mutex
+	epoch             uint64
+	leaseExpiration   uint64
+	wantLeaseToExpire bool
+	config            []grove_ffi.Address
 }
 
 func (s *Server) GetEpochAndConfig(args []byte, reply *[]byte) {
 	// check if lease is expired
-	l, _ := grove_ffi.GetTimeRange()
-	s.mu.Lock()
-	if l < s.leaseExpiration {
-		// lease is not expired
-		s.mu.Unlock()
-		*reply = make([]byte, 0, 8+8+8)
-		*reply = marshal.WriteInt(*reply, e.Leased)
-		*reply = marshal.WriteInt(*reply, 0)
-		*reply = marshal.WriteBytes(*reply, EncodeConfig(nil))
-		return
+	for {
+		l, _ := grove_ffi.GetTimeRange()
+		s.mu.Lock()
+		if l >= s.leaseExpiration {
+			break
+		} else {
+			s.wantLeaseToExpire = true
+			s.mu.Unlock()
+			machine.Sleep(s.leaseExpiration - l) // sleep long enough for lease to be expired
+		}
 	}
+	s.wantLeaseToExpire = false
 
 	s.epoch = std.SumAssumeNoOverflow(s.epoch, 1)
-
 	*reply = make([]byte, 0, 8+8+8*len(s.config))
-	*reply = marshal.WriteInt(*reply, 0)
 	*reply = marshal.WriteInt(*reply, s.epoch)
 	*reply = marshal.WriteBytes(*reply, EncodeConfig(s.config))
 	s.mu.Unlock()
@@ -67,11 +68,11 @@ func (s *Server) WriteConfig(args []byte, reply *[]byte) {
 func (s *Server) GetLease(args []byte, reply *[]byte) {
 	epoch, _ := marshal.ReadInt(args)
 	s.mu.Lock()
-	if s.epoch != epoch {
+	if s.epoch != epoch || s.wantLeaseToExpire {
 		s.mu.Unlock()
 		*reply = marshal.WriteInt(nil, e.Stale)
 		*reply = marshal.WriteInt(*reply, 0)
-		log.Println("Stale lease request", s.config)
+		log.Println("Rejected lease request", epoch, s.epoch, s.wantLeaseToExpire)
 		return
 	}
 

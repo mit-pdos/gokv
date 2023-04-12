@@ -20,11 +20,7 @@ func EnterNewConfig(configHost grove_ffi.Address, servers []grove_ffi.Address) e
 	configCk := config.MakeClerk(configHost)
 	// Get new epoch number from config service.
 	// Read from config service, fenced with that epoch.
-	err1, epoch, oldServers := configCk.GetEpochAndConfig()
-	if err1 != e.None {
-		log.Println("Can't start config change because of lease")
-		return err1
-	}
+	epoch, oldServers := configCk.GetEpochAndConfig()
 
 	// Enter new epoch on one of the old servers.
 	// Get a copy of the state from that old server.
@@ -39,6 +35,7 @@ func EnterNewConfig(configHost grove_ffi.Address, servers []grove_ffi.Address) e
 		return reply.Err
 	}
 
+	// FIXME: maybe use "makeClerks" helper function from simplepb/clerk
 	// Set the state of all the new servers.
 	clerks := make([]*pb.Clerk, len(servers))
 	var i = uint64(0)

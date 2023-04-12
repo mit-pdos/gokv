@@ -10,8 +10,18 @@ import (
 )
 
 type Clerk struct {
-	confCk    *config.Clerk
-	primaryCk *pb.Clerk
+	confCk        *config.Clerk
+	replicaClerks []*pb.Clerk
+}
+
+func makeClerks(servers []grove_ffi.Address) []*pb.Clerk {
+	clerks := make([]*pb.Clerk, len(servers))
+	var i = uint64(0)
+	for i < uint64(len(clerks)) {
+		clerks[i] = pb.MakeClerk(servers[i])
+		i += 1
+	}
+	return clerks
 }
 
 func Make(confHost grove_ffi.Address) *Clerk {
@@ -22,7 +32,7 @@ func Make(confHost grove_ffi.Address) *Clerk {
 		if len(config) == 0 {
 			continue
 		} else {
-			ck.primaryCk = pb.MakeClerk(config[0])
+			ck.replicaClerks = makeClerks(config)
 			break
 		}
 	}
@@ -34,7 +44,7 @@ func (ck *Clerk) Apply(op []byte) []byte {
 	var ret []byte
 	for {
 		var err e.Error
-		err, ret = ck.primaryCk.Apply(op)
+		err, ret = ck.replicaClerks[0].Apply(op)
 		if err == e.None {
 			break
 		} else {
@@ -42,7 +52,7 @@ func (ck *Clerk) Apply(op []byte) []byte {
 			machine.Sleep(uint64(100) * uint64(1_000_000)) // throttle retries to config server
 			config := ck.confCk.GetConfig()
 			if len(config) > 0 {
-				ck.primaryCk = pb.MakeClerk(config[0])
+				ck.replicaClerks = makeClerks(config)
 			}
 			continue
 		}
@@ -54,7 +64,7 @@ func (ck *Clerk) ApplyRo(op []byte) []byte {
 	var ret []byte
 	for {
 		var err e.Error
-		err, ret = ck.primaryCk.ApplyRo(op)
+		err, ret = ck.replicaClerks[0].ApplyRo(op)
 		if err == e.None {
 			break
 		} else {
@@ -62,7 +72,7 @@ func (ck *Clerk) ApplyRo(op []byte) []byte {
 			machine.Sleep(uint64(100) * uint64(1_000_000)) // throttle retries to config server
 			config := ck.confCk.GetConfig()
 			if len(config) > 0 {
-				ck.primaryCk = pb.MakeClerk(config[0])
+				ck.replicaClerks = makeClerks(config)
 			}
 			continue
 		}

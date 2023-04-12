@@ -22,10 +22,12 @@ func MakeClerk(host grove_ffi.Address) *Clerk {
 	return &Clerk{cl: urpc.MakeClient(host)}
 }
 
-func (ck *Clerk) GetEpochAndConfig() (e.Error, uint64, []grove_ffi.Address) {
+func (ck *Clerk) GetEpochAndConfig() (uint64, []grove_ffi.Address) {
 	reply := new([]byte)
 	for {
-		err := ck.cl.Call(RPC_GETEPOCH, make([]byte, 0), reply, 100 /* ms */)
+		// This has a high timeout because the server might need to wait for the
+		// lease to expire before responding.
+		err := ck.cl.Call(RPC_GETEPOCH, make([]byte, 0), reply, 2000 /* ms */)
 		if err == 0 {
 			break
 		} else {
@@ -34,11 +36,9 @@ func (ck *Clerk) GetEpochAndConfig() (e.Error, uint64, []grove_ffi.Address) {
 	}
 
 	var epoch uint64
-	var err uint64
-	err, *reply = marshal.ReadInt(*reply)
 	epoch, *reply = marshal.ReadInt(*reply)
 	config := DecodeConfig(*reply)
-	return err, epoch, config
+	return epoch, config
 }
 
 func (ck *Clerk) GetConfig() []grove_ffi.Address {
