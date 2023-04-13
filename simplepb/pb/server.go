@@ -86,7 +86,7 @@ func (s *Server) ApplyRoWaitForCommit(op Op) *ApplyReply {
 // is_epoch_lb epoch ∗ committed_by epoch log ∗ is_pb_log_lb log
 func (s *Server) IncreaseCommitIndex(newCommittedNextIndex uint64) {
 	s.mu.Lock()
-	if newCommittedNextIndex > s.committedNextIndex {
+	if newCommittedNextIndex > s.committedNextIndex && newCommittedNextIndex <= s.nextIndex {
 		s.committedNextIndex = newCommittedNextIndex
 		s.committedNextIndex_cond.Broadcast() // now that committedNextIndex
 		// has increased, the outstanding RO ops are complete.
