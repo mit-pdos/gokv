@@ -9,6 +9,7 @@ import (
 )
 
 type InMemoryStateMachine struct {
+	ApplyReadonly func([]byte) []byte
 	ApplyVolatile func([]byte) []byte
 	GetState      func() []byte
 	SetState      func([]byte)
@@ -89,7 +90,7 @@ func (s *StateMachine) apply(op []byte) ([]byte, func()) {
 }
 
 func (s *StateMachine) applyReadonly(op []byte) []byte {
-	return s.smMem.ApplyVolatile(op) // apply op in-memory
+	return s.smMem.ApplyReadonly(op) // apply op in-memory
 }
 
 // TODO: make the nextIndex and epoch argument order consistent with pb.StateMachine

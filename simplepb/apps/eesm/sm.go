@@ -53,6 +53,23 @@ func (s *EEStateMachine) applyVolatile(op []byte) []byte {
 	return ret
 }
 
+func (s *EEStateMachine) applyReadonly(op []byte) []byte {
+	var ret []byte
+	// op[0] is 1 for a GetFreshCID request, 0 for a RW op, and 2 for an RO op.
+	if op[0] == OPTYPE_GETFRESHCID {
+		panic("Got GETFRESHCID as a read-only op")
+	} else if op[0] == OPTYPE_RW {
+		panic("Got RW as a read-only op")
+	} else if op[0] == OPTYPE_RO {
+		n := len(op)
+		realOp := op[1:n]
+		ret = s.sm.ApplyReadonly(realOp)
+	} else {
+		panic("unexpected ee op type")
+	}
+	return ret
+}
+
 func (s *EEStateMachine) getState() []byte {
 	appState := s.sm.GetState()
 	// var enc = make([]byte, 0, uint64(8)+uint64(8)*uint64(len(s.lastSeq))+uint64(len(appState)))
