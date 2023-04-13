@@ -43,7 +43,7 @@ def write_lts(data, outfilename):
         for xy in xys:
                 print('{0}, {1}'.format(xy[0], xy[1]), file=f)
 
-readratio = 0.05
+readratio = 0.95
 
 os.chdir('/users/upamanyu/gokv/simplepb/bench')
 do('mv /tmp/gokv/grovekv-lts.txt /tmp/grovekv-lts.old')

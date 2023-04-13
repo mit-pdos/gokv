@@ -18,7 +18,7 @@ do(f"ssh upamanyu@node0 'cp /users/upamanyu/redis/redisraft/redisraft.so /users/
 do(f""" ssh upamanyu@node0 <<ENDSSH
     cd /users/upamanyu/gokv/simplepb/;
     ./bench/set-cores.py {str(ncores)};
-  nohup /users/upamanyu/redis/redis/src/redis-server \
+    nohup /users/upamanyu/redis/redis/src/redis-server \
         --port 5001 --dbfilename dbfilename, \
         --protected-mode no \
         --loadmodule ./redisraft.so \
@@ -27,6 +27,6 @@ do(f""" ssh upamanyu@node0 <<ENDSSH
         --raft.log-fsync yes \
         --raft.addr 0.0.0.0:5001 1>/tmp/redis.out 2>/tmp/redis.err & ;
      sleep 2;
-     /users/upamanyu/redis/redis/src/redis-cli -h 0.0.0.0 -p 5001 raft.cluster init
+     /users/upamanyu/redis/redis/src/redis-cli -h 0.0.0.0 -p 5001 raft.cluster init;
 ENDSSH
 """)

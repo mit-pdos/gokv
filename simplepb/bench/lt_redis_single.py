@@ -40,6 +40,8 @@ def closed_lt(kvname, warmuptime, runtime, valuesize, outfilename, readprop, upd
 
         cleanup_procs()
         start_fresh_single_node_redisraft()
+        goycsb_load(kvname, 10, valuesize, recordcount,
+                    ['-p', f"redis.addr={config['serverhost']}:5001"])
         a = goycsb_bench(kvname, threads, warmuptime, runtime, valuesize, readprop, updateprop, recordcount,
                          ['-p', f"redis.addr={config['serverhost']}:5001"])
 
@@ -73,9 +75,10 @@ def main():
     resource.setrlimit(resource.RLIMIT_NOFILE, (100000, 100000))
     global config
 
+    readratio = float(global_args.reads)
     config = {
-        'read': 0,
-        'write': 1.0,
+        'read': readratio,
+        'write': 1 - readratio,
         'keys': 1000,
         'serverhost': '10.10.1.1',
         'warmuptime': 20,

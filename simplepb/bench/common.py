@@ -209,3 +209,13 @@ def goycsb_bench_inst(kvname:str, threads:int, runtime:int, valuesize:int, readp
     p.stdout.close()
     p.terminate()
     return totalopss
+
+def goycsb_load(kvname:str, threads:int, valuesize:int, keys:int, extra_args=[]):
+    run_command(['go', 'run',
+                 path.join(goycsbdir, './cmd/go-ycsb'),
+                 'load', kvname,
+                 '-P', path.join(simplepbdir, "bench", kvname + '_workload'),
+                 '--threads', str(threads),
+                 '-p', 'fieldlength=' + str(valuesize),
+                 '-p', 'recordcount=' + str(keys),
+                 ] + extra_args, cwd=goycsbdir)

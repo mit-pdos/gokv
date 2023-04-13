@@ -17,4 +17,4 @@ echo off | sudo tee /sys/devices/system/cpu/smt/control
 
 # install numactl
 sudo apt update
-sudo apt install numactl
+sudo apt install numactl cmake

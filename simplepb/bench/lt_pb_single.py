@@ -33,6 +33,8 @@ def closed_lt(kvname, warmuptime, runtime, valuesize, outfilename, readprop, upd
         # restart every single time
         start_single_core_single_node_kv_system()
 
+        goycsb_load(kvname, 10, valuesize, recordcount,
+                    ['-p', f"pbkv.configAddr={config['serverhost']}:12000"])
         # start_single_core_single_node_kv_system()
         a = goycsb_bench(kvname, threads, warmuptime, runtime, valuesize, readprop, updateprop, recordcount,
                          ['-p', f"pbkv.configAddr={config['serverhost']}:12000"])
