@@ -72,12 +72,11 @@ def main():
         'write': 1 - readratio,
         'keys': 1000,
         'serverhost': '10.10.1.4',
-        'warmuptime': 20,
-        'runtime': 120,
+        'warmuptime': 10,
+        'runtime': 30,
     }
 
     outfilepath = global_args.outfile
-    # start_single_core_single_node_kv_system()
     closed_lt('pbkv', config['warmuptime'], config['runtime'], 128, outfilepath, config['read'], config['write'], config['keys'], num_threads)
     cleanup_procs()
 

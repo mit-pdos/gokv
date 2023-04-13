@@ -81,8 +81,8 @@ def main():
         'write': 1 - readratio,
         'keys': 1000,
         'serverhost': '10.10.1.1',
-        'warmuptime': 20,
-        'runtime': 60,
+        'warmuptime': 10,
+        'runtime': 30,
     }
 
     outfilepath = global_args.outfile
