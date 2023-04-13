@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import os
-from os import system as do
+import subprocess
 import argparse
 import json
 import time
@@ -12,12 +12,13 @@ def get_thruput(threads, reads, recordcount, cooldown, warmup):
 
     # start bench-ops.py on other machines
     for m in other_client_machines:
-        do(f"""ssh upamanyu@node{m} <<ENDSSH
+        sshcmd = f"""ssh upamanyu@node{m} <<ENDSSH
         killall go-ycsb 2>/dev/null;
         cd /users/upamanyu/gokv/simplepb/bench/;
         nohup {benchcmd} &
 ENDSSH
-        """)
+        """
+        subprocess.Popen(sshcmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     # start local bench-ops.py; relying on the other one still warming up for this
     # to not mess up the numbers
