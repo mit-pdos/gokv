@@ -23,6 +23,7 @@ parser.add_argument('--runtime', type=int, default=10)
 parser.add_argument("--reads", help="percentage of ops that are reads (between 0.0 and 1.0)",
                     required=False, default=0.0)
 parser.add_argument('--recordcount', type=int, default=1000)
+parser.add_argument("--outfilename", help="the file where the output is placed", required=True)
 args = parser.parse_args()
 
 procs = []
@@ -112,4 +113,5 @@ a = goycsb_bench("pbkv", args.threads, args.warmup, args.runtime, valuesize,
                  float(args.reads), 1-float(args.reads), args.recordcount,
                  ['-p', f"pbkv.configAddr=10.10.1.4:12000"], cooldown=args.cooldown)
 p = {'service': "pbkv", 'num_threads': args.threads, 'lts': a}
-print(json.dumps(p) + '\n')
+with open(args.outfilename, 'w') as f:
+    print(json.dumps(p) + '\n', file=f)
