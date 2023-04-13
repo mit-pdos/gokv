@@ -106,12 +106,6 @@ def one_core(args, c):
 def many_cpus(args, c):
     return ["numactl"] + c + args
 
-def remote_cmd(hostname, cmd, cwd):
-    if cwd == None:
-        return ["ssh", hostname, f"'{' '.join(cmd)}'"]
-    else:
-        return ["ssh", hostname, f"'cd {cwd} ; {' '.join(cmd)} '"]
-
 def parse_ycsb_output(output):
     # look for 'Run finished, takes...', then parse the lines for each of the operations
     # output = output[re.search("Run finished, takes .*\n", output).end():] # strip off beginning of output
@@ -125,7 +119,7 @@ def parse_ycsb_output(output):
         a[m.group('opname').strip()] = {'thruput': float(m.group('ops')), 'avg_latency': float(m.group('avg_latency')), 'raw': output[m.span()[0] : m.span()[1]]}
     return a
 
-def goycsb_bench(kvname:str, threads:int, warmuptime:int, runtime:int, valuesize:int, readprop:float, updateprop:float, keys:int, extra_args=[]):
+def goycsb_bench(kvname:str, threads:int, warmuptime:int, runtime:int, valuesize:int, readprop:float, updateprop:float, keys:int, extra_args=[], cooldown=0):
     """
     Returns a dictionary of the form
     { 'UPDATE': {'thruput': 1000, 'avg_latency': 12345', 'raw': 'blah'},...}
@@ -160,7 +154,7 @@ def goycsb_bench(kvname:str, threads:int, warmuptime:int, runtime:int, valuesize
           optypes_seen += 1
           if optypes_seen == num_optypes:
               break
-
+    time.sleep(cooldown)
     p.stdout.close()
     p.terminate()
     return parse_ycsb_output(to_parse)

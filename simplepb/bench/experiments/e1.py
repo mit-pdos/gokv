@@ -38,10 +38,10 @@ def write_lts(data, outfilename):
                 rlat = v['avg_latency'] / 1000
             else:
                 throw("unimpl")
-        xys.append((d['numthreads'], rlat, rthru, wlat, wthru))
+        xys.append((d['num_threads'], rlat, rthru, wlat, wthru))
     with open(outfilename, 'w') as f:
         for xy in xys:
-                print('{0}, {1}'.format(xy[0], xy[1]), file=f)
+                print(f"{xy[0]}, {xy[1]}, {xy[2]}, {xy[3]}, {xy[4]}", file=f)
 
 readratio = 0.95
 
@@ -49,8 +49,8 @@ os.chdir('/users/upamanyu/gokv/simplepb/bench')
 do('mv /tmp/gokv/grovekv-lts.txt /tmp/grovekv-lts.old')
 do('mv /tmp/gokv/redis-lts.txt /tmp/redis-lts.old')
 
-do('./lt_pb_single.py -v -e --reads {str(readratio)} --outfile /tmp/gokv/grovekv-lts.txt 1>/tmp/pb.out 2>/tmp/pb.err')
-do('./lt_redis_single.py -v -e --reads {str(readratio)} --outfile /tmp/gokv/redis-lts.txt 1>/tmp/redis.out 2>/tmp/redis.err')
+do(f'./lt_pb_single.py -v -e --reads {str(readratio)} --outfile /tmp/gokv/grovekv-lts.txt 1>/tmp/pb.out 2>/tmp/pb.err')
+do(f'./lt_redis_single.py -v -e --reads {str(readratio)} --outfile /tmp/gokv/redis-lts.txt 1>/tmp/redis.out 2>/tmp/redis.err')
 
 do("cp /tmp/gokv/grovekv-lts.txt ./data/redis_vs_grove/grovekv-lts.txt")
 do("cp /tmp/gokv/redis-lts.txt ./data/redis_vs_grove/redis-lts.txt")

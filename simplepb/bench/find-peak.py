@@ -10,6 +10,10 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--onlypeak',
                     help='if this flag is set, then this only prints the peak throughput, not all the intermediate throughputs',
                     action='store_true')
+parser.add_argument("--reads",
+                    help="percentage of ops that are reads (between 0.0 and 1.0)",
+                    required=False,
+                    default=0.0)
 parser.add_argument('--benchcmd',
                     help='The command to run to benchmark a single server (should be either the one for GroveKV or for redis)',
                     default='./bench-put.py')
@@ -30,7 +34,7 @@ highestThruput = 0
 highestThruputLatency = 0
 
 for threads in threadcounts:
-    benchoutput = os.popen(f"{args.benchcmd} {threads} --warmup {warmuptime}", 'r', 100)
+    benchoutput = os.popen(f"{args.benchcmd} {threads} --reads {args.reads} --warmup {warmuptime}", 'r', 100)
 
     ret = ''
     for line in benchoutput:
