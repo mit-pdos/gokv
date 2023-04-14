@@ -26,7 +26,7 @@ args = parser.parse_args()
 threadcounts = [50, 100, 150, 200, 250] + [200 * (i + 2) for i in range(3)] + [500 * (i + 3) for i in range (15)]
 client_machines = [5, 6, 7]
 
-runtime = 20
+runtime = 40
 warmuptime = 20
 cooldown = 10
 fullwarmuptime = 20
