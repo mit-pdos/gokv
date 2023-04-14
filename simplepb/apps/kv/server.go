@@ -11,7 +11,9 @@ import (
 )
 
 type KVState struct {
-	kvs map[string][]byte
+	kvs          map[string][]byte
+	vnums        map[string]uint64
+	minNextIndex uint64
 }
 
 // Ops include:
@@ -84,11 +86,16 @@ func (s *KVState) apply(args []byte) []byte {
 	panic("unexpected op type")
 }
 
-func (s *KVState) applyReadonly(args []byte) []byte {
+func (s *KVState) applyReadonly(args []byte) (uint64, []byte) {
 	if args[0] == OP_PUT {
 		panic("got a put as a readonly op")
 	} else if args[0] == OP_GET {
-		return s.get(decodeGetArgs(args[1:]))
+		key := decodeGetArgs(args[1:])
+		reply := s.get(decodeGetArgs(args[1:]))
+		if vnum, ok := s.vnums[string(key)]; ok {
+			return vnum, reply
+		}
+		return s.minNextIndex, reply
 	}
 	panic("unexpected op type")
 }
@@ -97,7 +104,10 @@ func (s *KVState) getState() []byte {
 	return map_string_marshal.EncodeMapStringToBytes(s.kvs)
 }
 
-func (s *KVState) setState(snap []byte) {
+func (s *KVState) setState(snap []byte, nextIndex uint64) {
+	s.minNextIndex = nextIndex
+	s.vnums = make(map[string]uint64)
+
 	if len(snap) == 0 {
 		s.kvs = make(map[string][]byte, 0)
 	} else {

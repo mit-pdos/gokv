@@ -53,6 +53,11 @@ func (s *Server) ApplyRoWaitForCommit(op Op) *ApplyReply {
 		reply.Err = e.LeaseExpired
 		return reply
 	}
+
+	var lastModifiedIndex uint64
+	lastModifiedIndex, reply.Reply = s.sm.ApplyReadonly(op)
+	epoch := s.epoch
+
 	_, h := grove_ffi.GetTimeRange()
 	if s.leaseExpiration <= h {
 		s.mu.Unlock()
@@ -61,15 +66,11 @@ func (s *Server) ApplyRoWaitForCommit(op Op) *ApplyReply {
 		return reply
 	}
 
-	reply.Reply = s.sm.ApplyReadonly(op)
-	readNextIndex := s.nextIndex
-	epoch := s.epoch
-
 	for {
 		if s.epoch != epoch {
 			reply.Err = e.Stale
 			break
-		} else if readNextIndex <= s.committedNextIndex {
+		} else if lastModifiedIndex <= s.committedNextIndex {
 			reply.Err = e.None
 			break
 		} else {
