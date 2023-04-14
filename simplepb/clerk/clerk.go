@@ -5,6 +5,7 @@ import (
 	"github.com/mit-pdos/gokv/simplepb/config"
 	"github.com/mit-pdos/gokv/simplepb/e"
 	"github.com/mit-pdos/gokv/simplepb/pb"
+	"github.com/mit-pdos/gokv/trusted_proph"
 	"github.com/tchajed/goose/machine"
 	// "log"
 )
@@ -60,7 +61,7 @@ func (ck *Clerk) Apply(op []byte) []byte {
 	return ret
 }
 
-func (ck *Clerk) ApplyRo(op []byte) []byte {
+func (ck *Clerk) ApplyRo2(op []byte) []byte {
 	var ret []byte
 	for {
 		// pick a random server to read from
@@ -81,4 +82,11 @@ func (ck *Clerk) ApplyRo(op []byte) []byte {
 		}
 	}
 	return ret
+}
+
+func (ck *Clerk) ApplyRo(op []byte) []byte {
+	p := trusted_proph.NewProph()
+	v := ck.ApplyRo2(op)
+	trusted_proph.ResolveBytes(p, v)
+	return v
 }
