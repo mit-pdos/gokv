@@ -46,7 +46,7 @@ func (s *EEStateMachine) applyVolatile(op []byte) []byte {
 	} else if op[0] == OPTYPE_RO {
 		n := len(op)
 		realOp := op[1:n]
-		ret = s.sm.ApplyVolatile(realOp)
+		ret = s.sm.ApplyReadonly(realOp)
 	} else {
 		panic("unexpected ee op type")
 	}
@@ -100,6 +100,7 @@ func MakeEEKVStateMachine(sm *simplelog.InMemoryStateMachine) *simplelog.InMemor
 
 	return &simplelog.InMemoryStateMachine{
 		ApplyVolatile: s.applyVolatile,
+		ApplyReadonly: s.applyReadonly,
 		GetState:      func() []byte { return s.getState() },
 		SetState:      s.setState,
 	}
