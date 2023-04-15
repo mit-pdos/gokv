@@ -125,8 +125,7 @@ def goycsb_bench(kvname:str, threads:int, warmuptime:int, runtime:int, valuesize
     { 'UPDATE': {'thruput': 1000, 'avg_latency': 12345', 'raw': 'blah'},...}
     """
 
-    p = start_command(['go', 'run',
-                       path.join(goycsbdir, './cmd/go-ycsb'),
+    p = start_command([path.join(goycsbdir, './go-ycsb'),
                        'run', kvname,
                        '-P', path.join(simplepbdir, "bench", kvname + '_workload'),
                        '--threads', str(threads),

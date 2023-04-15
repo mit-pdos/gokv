@@ -118,6 +118,7 @@ func (s *KVState) applyReadonly(args []byte) (uint64, []byte) {
 func MakeKVStateMachine() *eesm.VersionedStateMachine {
 	s := new(KVState)
 	s.kvs = make(map[uint64][]byte, 0)
+	s.vnums = make(map[uint64]uint64)
 
 	return &eesm.VersionedStateMachine{
 		ApplyVolatile: s.apply,

@@ -72,9 +72,9 @@ def goycsb_bench(kvname:str, threads:int, warmuptime:int, runtime:int, valuesize
     goycsbdir = "/users/upamanyu/go-ycsb/"
     simplepbdir = "/users/upamanyu/gokv/simplepb/"
 
-    gobin = '/usr/local/go/bin/go'
-    p = start_command([gobin, 'run',
-                       path.join(goycsbdir, './cmd/go-ycsb'),
+    # gobin = '/usr/local/go/bin/go'
+    # run_command([gobin, 'build', './cmd/go-ycsb'], cwd=goyscbdir)
+    p = start_command([path.join(goycsbdir, './go-ycsb'),
                        'run', kvname,
                        '-P', path.join(simplepbdir, "bench", kvname + '_workload'),
                        '--threads', str(threads),
