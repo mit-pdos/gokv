@@ -118,6 +118,7 @@ func (s *KVState) setState(snap []byte, nextIndex uint64) {
 func MakeKVStateMachine() *simplelog.InMemoryStateMachine {
 	s := new(KVState)
 	s.kvs = make(map[string][]byte, 0)
+	s.vnums = make(map[string]uint64)
 
 	return &simplelog.InMemoryStateMachine{
 		ApplyVolatile: s.apply,

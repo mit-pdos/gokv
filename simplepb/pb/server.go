@@ -221,7 +221,7 @@ func (s *Server) sendIncreaseCommitThread() {
 	// push it to the backups. We chose option 2 here
 	for {
 		s.mu.Lock()
-		for !s.isPrimary {
+		for !s.isPrimary || len(s.clerks[0]) == 0 {
 			s.isPrimary_cond.Wait()
 		}
 		newCommittedNextIndex := s.committedNextIndex
