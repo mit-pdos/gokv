@@ -1,13 +1,14 @@
 package clerk
 
 import (
+	"fmt"
+
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/simplepb/config"
 	"github.com/mit-pdos/gokv/simplepb/e"
 	"github.com/mit-pdos/gokv/simplepb/pb"
 	"github.com/mit-pdos/gokv/trusted_proph"
 	"github.com/tchajed/goose/machine"
-	// "log"
 )
 
 type Clerk struct {
@@ -72,7 +73,8 @@ func (ck *Clerk) ApplyRo2(op []byte) []byte {
 		if err == e.None {
 			break
 		} else {
-			// log.Println("Error during applyRo(): ", err)
+			panic("err")
+			fmt.Printf("Error during applyRo(): ", err)
 			machine.Sleep(uint64(100) * uint64(1_000_000)) // throttle retries to config server
 			config := ck.confCk.GetConfig()
 			if len(config) > 0 {

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
 from parseycsb import *
+import sys
 
 data = ''
-with open('/tmp/reconfig_raw.txt') as f:
+with open(sys.argv[1]) as f:
     data = f.read()
 
 # averaged over the last 1second, so keep 5 last data points

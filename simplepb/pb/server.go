@@ -47,9 +47,12 @@ func (s *Server) ApplyRoWaitForCommit(op Op) *ApplyReply {
 	reply.Reply = nil
 	reply.Err = e.None
 
+	x := machine.RandomUint64()
+	log.Printf("Got ro request %d", x)
 	s.mu.Lock()
 	if !s.leaseValid {
 		s.mu.Unlock()
+		log.Printf("Lease invalid")
 		reply.Err = e.LeaseExpired
 		return reply
 	}
@@ -80,6 +83,7 @@ func (s *Server) ApplyRoWaitForCommit(op Op) *ApplyReply {
 	}
 	s.mu.Unlock()
 
+	log.Printf("Success ro request %d", x)
 	return reply
 }
 
@@ -180,7 +184,15 @@ func (s *Server) Apply(op Op) *ApplyReply {
 
 	if err == e.None {
 		s.IncreaseCommitIndex(nextIndex)
+	} else {
+		// stop acting as primary in epoch
+		s.mu.Lock()
+		if s.epoch == epoch {
+			s.isPrimary = false
+		}
+		s.mu.Unlock()
 	}
+
 
 	// log.Println("Apply() returned ", err)
 	return reply
@@ -206,7 +218,7 @@ func (s *Server) leaseRenewalThread() {
 			// lease to move to a new epoch. We should avoid sending requests
 			// too quickly to the config service in that case
 			s.mu.Unlock()
-			machine.Sleep(uint64(100) * 1_000_000)
+			machine.Sleep(uint64(50) * 1_000_000)
 		}
 	}
 }
@@ -331,12 +343,14 @@ func (s *Server) SetState(args *SetStateArgs) e.Error {
 		s.mu.Unlock()
 		return e.None
 	} else {
+		log.Print("Entered new epoch")
 		s.isPrimary = false
 		s.canBecomePrimary = true
 		s.epoch = args.Epoch
 		s.leaseValid = false
 		s.sealed = false
 		s.nextIndex = args.NextIndex
+		s.committedNextIndex = args.CommittedNextIndex
 		s.sm.SetStateAndUnseal(args.State, args.NextIndex, args.Epoch)
 
 		for _, cond := range s.opAppliedConds {
@@ -361,6 +375,7 @@ func (s *Server) GetState(args *GetStateArgs) *GetStateReply {
 	s.sealed = true
 	ret := s.sm.GetStateAndSeal()
 	nextIndex := s.nextIndex
+	committedNextIndex := s.committedNextIndex
 
 	for _, cond := range s.opAppliedConds {
 		cond.Signal()
@@ -369,7 +384,8 @@ func (s *Server) GetState(args *GetStateArgs) *GetStateReply {
 	s.committedNextIndex_cond.Broadcast()
 	s.mu.Unlock()
 
-	return &GetStateReply{Err: e.None, State: ret, NextIndex: nextIndex}
+	return &GetStateReply{Err: e.None, State: ret, NextIndex: nextIndex,
+		CommittedNextIndex: committedNextIndex}
 }
 
 func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {

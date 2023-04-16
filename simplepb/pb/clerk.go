@@ -37,7 +37,7 @@ func (ck *Clerk) ApplyAsBackup(args *ApplyAsBackupArgs) e.Error {
 
 func (ck *Clerk) SetState(args *SetStateArgs) e.Error {
 	reply := new([]byte)
-	err := ck.cl.Call(RPC_SETSTATE, EncodeSetStateArgs(args), reply, 1000 /* ms */)
+	err := ck.cl.Call(RPC_SETSTATE, EncodeSetStateArgs(args), reply, 10000 /* ms */)
 	if err != 0 {
 		return e.Timeout
 	} else {
@@ -80,7 +80,7 @@ func (ck *Clerk) Apply(op []byte) (e.Error, []byte) {
 
 func (ck *Clerk) ApplyRo(op []byte) (e.Error, []byte) {
 	reply := new([]byte)
-	err := ck.cl.Call(RPC_ROPRIMARYAPPLY, op, reply, 5000 /* ms */)
+	err := ck.cl.Call(RPC_ROPRIMARYAPPLY, op, reply, 100 /* ms */) // FIXME: increase this timeout
 	if err == 0 {
 		r := DecodeApplyReply(*reply)
 		return r.Err, r.Reply

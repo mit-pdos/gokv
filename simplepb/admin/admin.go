@@ -20,7 +20,8 @@ func EnterNewConfig(configHost grove_ffi.Address, servers []grove_ffi.Address) e
 	configCk := config.MakeClerk(configHost)
 	// Get new epoch number from config service.
 	// Read from config service, fenced with that epoch.
-	epoch, oldServers := configCk.GetEpochAndConfig()
+	epoch, oldServers := configCk.ReserveEpochAndGetConfig()
+	log.Printf("Reserved %d", epoch)
 
 	// Enter new epoch on one of the old servers.
 	// Get a copy of the state from that old server.
@@ -52,7 +53,7 @@ func EnterNewConfig(configHost grove_ffi.Address, servers []grove_ffi.Address) e
 		clerk := clerks[i]
 		locali := i
 		go func() {
-			errs[locali] = clerk.SetState(&pb.SetStateArgs{Epoch: epoch, State: reply.State, NextIndex: reply.NextIndex})
+			errs[locali] = clerk.SetState(&pb.SetStateArgs{Epoch: epoch, State: reply.State, NextIndex: reply.NextIndex, CommittedNextIndex: reply.CommittedNextIndex})
 			wg.Done()
 		}()
 		i += 1
@@ -74,7 +75,7 @@ func EnterNewConfig(configHost grove_ffi.Address, servers []grove_ffi.Address) e
 	}
 
 	// Write to config service saying the new servers have up-to-date state.
-	if configCk.WriteConfig(epoch, servers) != e.None {
+	if configCk.TryWriteConfig(epoch, servers) != e.None {
 		log.Println("Error while writing to config service")
 		return e.Stale
 	}
