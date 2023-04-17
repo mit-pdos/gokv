@@ -32,10 +32,10 @@ func DecodeApplyAsBackupArgs(enc_args []byte) *ApplyAsBackupArgs {
 }
 
 type SetStateArgs struct {
-	Epoch     uint64
-	NextIndex uint64
+	Epoch              uint64
+	NextIndex          uint64
 	CommittedNextIndex uint64
-	State     []byte
+	State              []byte
 }
 
 func EncodeSetStateArgs(args *SetStateArgs) []byte {

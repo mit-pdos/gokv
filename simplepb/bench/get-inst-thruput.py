@@ -8,7 +8,7 @@ with open(sys.argv[1]) as f:
     data = f.read()
 
 # averaged over the last 1second, so keep 5 last data points
-lastops = [0 for i in range(5)]
+lastops = [0 for i in range(6)]
 for line in data.splitlines():
     time,ops,latency, = (parse_ycsb_output_totalops(line + "\n"))
     if time is None:

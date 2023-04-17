@@ -38,7 +38,7 @@ func (s *EEStateMachine) applyVolatile(op []byte) []byte {
 		// get fresh cid
 		ret = make([]byte, 0, 8)
 		ret = marshal.WriteInt(ret, s.nextCID)
-		s.nextCID += 1
+		s.nextCID = std.SumAssumeNoOverflow(s.nextCID, 1)
 	} else if op[0] == OPTYPE_RW {
 		n := len(op)
 		enc := op[1:n]

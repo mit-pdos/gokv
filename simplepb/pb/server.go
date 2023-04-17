@@ -47,8 +47,8 @@ func (s *Server) ApplyRoWaitForCommit(op Op) *ApplyReply {
 	reply.Reply = nil
 	reply.Err = e.None
 
-	x := machine.RandomUint64()
-	log.Printf("Got ro request %d", x)
+	// x := machine.RandomUint64()
+	// log.Printf("Got ro request %d", x)
 	s.mu.Lock()
 	if !s.leaseValid {
 		s.mu.Unlock()
@@ -83,7 +83,7 @@ func (s *Server) ApplyRoWaitForCommit(op Op) *ApplyReply {
 	}
 	s.mu.Unlock()
 
-	log.Printf("Success ro request %d", x)
+	// log.Printf("Success ro request %d", x)
 	return reply
 }
 
@@ -192,7 +192,6 @@ func (s *Server) Apply(op Op) *ApplyReply {
 		}
 		s.mu.Unlock()
 	}
-
 
 	// log.Println("Apply() returned ", err)
 	return reply
@@ -350,7 +349,6 @@ func (s *Server) SetState(args *SetStateArgs) e.Error {
 		s.leaseValid = false
 		s.sealed = false
 		s.nextIndex = args.NextIndex
-		s.committedNextIndex = args.CommittedNextIndex
 		s.sm.SetStateAndUnseal(args.State, args.NextIndex, args.Epoch)
 
 		for _, cond := range s.opAppliedConds {
@@ -360,6 +358,7 @@ func (s *Server) SetState(args *SetStateArgs) e.Error {
 		s.opAppliedConds = make(map[uint64]*sync.Cond)
 
 		s.mu.Unlock()
+		s.IncreaseCommitIndex(args.CommittedNextIndex)
 		return e.None
 	}
 }

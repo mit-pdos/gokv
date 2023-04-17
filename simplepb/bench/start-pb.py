@@ -7,6 +7,8 @@ import sys
 parser = argparse.ArgumentParser()
 parser.add_argument('nreplicas', metavar='nreplicas', type=int,
                     help='number of replicas to set up and start')
+parser.add_argument('--totalreplicas', type=int, default=3,
+                    help='max number of replica servers (config service is started on next server after this max)')
 parser.add_argument('--ncores', metavar='ncores', type=int,
                     default=8,
                     help='number of cores per replica server')
@@ -17,7 +19,7 @@ print("Stopped pb (and deleted old files)")
 
 gobin='/usr/local/go/bin/go'
 
-totalreplicas = 3
+totalreplicas = args.totalreplicas
 nreplicas = args.nreplicas
 ncores = args.ncores
 
