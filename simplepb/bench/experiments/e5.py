@@ -37,7 +37,7 @@ def collect_samples_one_pb(reads, num_samples, nthreads):
                     break
                 else:
                     continue
-            gotfirst = true
+            gotfirst = True
             thput += float(ops)/t
         samples = samples + [thput]
 
@@ -75,7 +75,7 @@ def collect_samples_one_redis(reads, num_samples, nthreads):
                     break
                 else:
                     continue
-            gotfirst = true
+            gotfirst = True
             thput += float(ops)/t
         samples = samples + [thput]
 
