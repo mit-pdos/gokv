@@ -28,25 +28,19 @@ o = os.popen("""~/go-ycsb/go-ycsb run pbkv -P /users/upamanyu/gokv/simplepb/benc
 -p updateproportion=0.0 -p warmuptime=5 -p recordcount=1000000 -p pbkv.configAddr=10.10.1.5:12000 > /tmp/reads.txt \
 """)
 
-time.sleep(15) # let it run for 10 seconds
-do(f"./reconfig.py 2 3") # servers are numbered starting at 0
-time.sleep(10) # let it run for 10 seconds
-
+time.sleep(15)
 print("Killing server")
-# kill then restart the server.
-do(f"""ssh upamanyu@node1 <<ENDSSH
+do(f"""ssh upamanyu@node0 <<ENDSSH
 cd /users/upamanyu/gokv/simplepb/;
 killall kvsrv;
-nohup {gobin} run ./cmd/kvsrv -conf 10.10.1.5.12000 -filename kv.data -port 12100 1>/tmp/replica.out 2>/tmp/replica.err &
 ENDSSH
 """)
 
-time.sleep(20) # let it run for another 20 seconds
+do(f"./reconfig.py 2 3") # servers are numbered starting at 0
+time.sleep(15) # let it run for 10 seconds
 
 do("killall go-ycsb")
 do("./stop-pb.py")
 
 # Analyze the file
 # do("./get-inst-thruput.py")
-
-sys.exit(0)

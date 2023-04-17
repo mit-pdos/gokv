@@ -23,7 +23,7 @@ parser.add_argument('--benchcmd',
                     default='./bench-ops-multiclient.py')
 args = parser.parse_args()
 
-threadcounts = [10, 20, 50, 100, 150, 200, 250] + [200 * (i + 2) for i in range(3)] + [500 * (i + 3) for i in range (10)]
+threadcounts = [50, 100, 150, 200, 250, 400, 600] # + [200 * (i + 2) for i in range(3)] + [500 * (i + 3) for i in range (10)]
 client_machines = [5, 6, 7]
 
 runtime = 40
