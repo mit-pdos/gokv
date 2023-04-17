@@ -56,6 +56,9 @@ func (s *Server) ApplyRoWaitForCommit(op Op) *ApplyReply {
 		reply.Err = e.LeaseExpired
 		return reply
 	}
+	if machine.RandomUint64() % 10000 == 0 {
+		log.Printf("Server nextIndex=%d commitIndex=%d", s.nextIndex, s.committedNextIndex)
+	}
 
 	var lastModifiedIndex uint64
 	lastModifiedIndex, reply.Reply = s.sm.ApplyReadonly(op)
