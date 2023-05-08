@@ -9,6 +9,6 @@ import (
 	"github.com/mit-pdos/gokv/simplepb/simplelog"
 )
 
-func Start(host grove_ffi.Address, fname string) {
-	simplelog.MakePbServer(eesm.MakeEEKVStateMachine(kv64.MakeKVStateMachine()), fname).Serve(host)
+func Start(host grove_ffi.Address, fname string, confHost grove_ffi.Address) {
+	simplelog.MakePbServer(eesm.MakeEEKVStateMachine(kv64.MakeKVStateMachine()), fname, confHost).Serve(host)
 }

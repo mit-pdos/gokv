@@ -141,3 +141,14 @@ func DecodeApplyReply(enc_reply []byte) *ApplyReply {
 	// that will sit around until ApplyReply is deallocated
 	return reply
 }
+
+type IncreaseCommitArgs = uint64
+
+func EncodeIncreaseCommitArgs(args IncreaseCommitArgs) []byte {
+	return marshal.WriteInt(nil, args)
+}
+
+func DecodeIncreaseCommitArgs(args []byte) IncreaseCommitArgs {
+	a, _ := marshal.ReadInt(args)
+	return a
+}

@@ -11,8 +11,11 @@ import (
 type AppendOnlyFile struct {
 	mu *sync.Mutex
 
-	durableCond *sync.Cond
-	lengthCond  *sync.Cond
+	// Having two condvars helps make sure that the FileAppend() thread only
+	// wakes up the Wait() threads that are actually done.
+	oldDurableCond *sync.Cond
+	durableCond    *sync.Cond
+	lengthCond     *sync.Cond
 
 	membuf        []byte
 	length        uint64 // logical length
@@ -27,6 +30,7 @@ func CreateAppendOnlyFile(fname string) *AppendOnlyFile {
 	a := new(AppendOnlyFile)
 	a.mu = new(sync.Mutex)
 	a.lengthCond = sync.NewCond(a.mu)
+	a.oldDurableCond = sync.NewCond(a.mu)
 	a.durableCond = sync.NewCond(a.mu)
 	a.closedCond = sync.NewCond(a.mu)
 
@@ -56,7 +60,12 @@ func CreateAppendOnlyFile(fname string) *AppendOnlyFile {
 			newLength := a.length
 			a.membuf = make([]byte, 0)
 			cond := a.durableCond
-			a.durableCond = sync.NewCond(a.mu)
+
+			// swap the condvars, oldDurableCond is effectively unused at this
+			// point
+			a.durableCond = a.oldDurableCond
+			a.oldDurableCond = cond
+
 			a.mu.Unlock()
 
 			grove_ffi.FileAppend(fname, l)
@@ -99,8 +108,16 @@ func (a *AppendOnlyFile) Append(data []byte) uint64 {
 
 func (a *AppendOnlyFile) WaitAppend(length uint64) {
 	a.mu.Lock()
+	var cond *sync.Cond
+
+	if length+uint64(len(a.membuf)) <= a.length {
+		cond = a.oldDurableCond // XXX: wait for data the FileAppend thread already started writing
+	} else {
+		cond = a.durableCond // wait for data that's still in membuf, associated with the new condvar
+	}
+
 	for a.durableLength < length {
-		a.durableCond.Wait()
+		cond.Wait()
 	}
 	a.mu.Unlock()
 }

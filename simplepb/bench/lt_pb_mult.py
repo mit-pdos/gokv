@@ -20,34 +20,24 @@ def num_threads(i):
     i = i - 10
     return 100 * (i + 1)
 
-    if i < 5:
-        return i + 1
-    elif i < 25:
-        return 5 + (i - 5) * 5
-    else:
-        return 500 + (i - 25) * 500
-
 def closed_lt(kvname, warmuptime, runtime, valuesize, outfilename, readprop, updateprop, recordcount, thread_fn):
-    data = []
     i = 0
     last_good_index = i
     peak_thruput = 0
 
     while True:
-        if i > last_good_index + 5:
+        if i > last_good_index + 7:
             break
         threads = thread_fn(i)
 
-        cleanup_procs()
-        start_fresh_single_node_redisraft()
-        goycsb_load(kvname, 10, valuesize, recordcount,
-                    ['-p', f"redis.addr={config['serverhost']}:5001"])
-        a = goycsb_bench(kvname, threads, warmuptime, runtime, valuesize, readprop, updateprop, recordcount,
-                         ['-p', f"redis.addr={config['serverhost']}:5001"])
+        # restart every single time
+        start_kv_system()
 
+        # start_single_core_single_node_kv_system()
+        a = goycsb_bench(kvname, threads, warmuptime, runtime, valuesize, readprop, updateprop, recordcount,
+                         ['-p', f"pbkv.configAddr={config['serverhost']}:12000"])
         p = {'service': kvname, 'num_threads': threads, 'lts': a}
 
-        data = data + [ p ]
         with open(outfilename, 'a+') as outfile:
             outfile.write(json.dumps(p) + '\n')
 
@@ -58,17 +48,16 @@ def closed_lt(kvname, warmuptime, runtime, valuesize, outfilename, readprop, upd
         if thput > peak_thruput:
             peak_thruput = thput
 
-        # last_thruput = int(thput + 1)
         last_threads = threads
 
         i = i + 1
 
-    return data
+    return
+
+def start_kv_system():
+    os.system("./start-pb.py --ncores 8 3")
 
 config = {}
-
-def start_fresh_single_node_redisraft():
-    os.system("./start-redis.py --ncores 1")
 
 def main():
     atexit.register(cleanup_procs)
@@ -80,14 +69,14 @@ def main():
         'read': readratio,
         'write': 1 - readratio,
         'keys': 1000,
-        'serverhost': '10.10.1.1',
-        'warmuptime': 30,
-        'runtime': 120,
+        'serverhost': '10.10.1.4',
+        'warmuptime': 10,
+        'runtime': 10,
     }
 
     outfilepath = global_args.outfile
-
-    closed_lt('rediskv', config['warmuptime'], config['runtime'], 128, outfilepath, config['read'], config['write'], config['keys'], num_threads)
+    closed_lt('pbkv', config['warmuptime'], config['runtime'], 128, outfilepath, config['read'], config['write'], config['keys'], num_threads)
+    cleanup_procs()
 
 if __name__=='__main__':
     main()

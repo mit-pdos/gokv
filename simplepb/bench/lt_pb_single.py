@@ -33,6 +33,8 @@ def closed_lt(kvname, warmuptime, runtime, valuesize, outfilename, readprop, upd
         # restart every single time
         start_single_core_single_node_kv_system()
 
+        goycsb_load(kvname, 10, valuesize, recordcount,
+                    ['-p', f"pbkv.configAddr={config['serverhost']}:12000"])
         # start_single_core_single_node_kv_system()
         a = goycsb_bench(kvname, threads, warmuptime, runtime, valuesize, readprop, updateprop, recordcount,
                          ['-p', f"pbkv.configAddr={config['serverhost']}:12000"])
@@ -64,17 +66,17 @@ def main():
     resource.setrlimit(resource.RLIMIT_NOFILE, (100000, 100000))
     global config
 
+    readratio = float(global_args.reads)
     config = {
-        'read': 0,
-        'write': 1.0,
+        'read': readratio,
+        'write': 1 - readratio,
         'keys': 1000,
         'serverhost': '10.10.1.4',
-        'warmuptime': 20,
+        'warmuptime': 30,
         'runtime': 120,
     }
 
     outfilepath = global_args.outfile
-    # start_single_core_single_node_kv_system()
     closed_lt('pbkv', config['warmuptime'], config['runtime'], 128, outfilepath, config['read'], config['write'], config['keys'], num_threads)
     cleanup_procs()
 

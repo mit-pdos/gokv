@@ -35,6 +35,7 @@ func EnterNewConfig(configHost grove_ffi.Address, servers []grove_ffi.Address) e
 		return reply.Err
 	}
 
+	// FIXME: maybe use "makeClerks" helper function from simplepb/clerk
 	// Set the state of all the new servers.
 	clerks := make([]*pb.Clerk, len(servers))
 	var i = uint64(0)

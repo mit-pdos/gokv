@@ -91,18 +91,32 @@ func (s *KVState) setState(snap []byte) {
 	s.kvs, _ = map_marshal.DecodeMapU64ToBytes(snap)
 }
 
+func (s *KVState) applyReadonly(args []byte) []byte {
+	var ret []byte
+	n := len(args)
+	if args[0] == OP_PUT {
+		panic("unexpectedly got put as readonly op")
+	} else if args[0] == OP_GET {
+		ret = s.get(DecodeGetArgs(args[1:n]))
+	} else {
+		panic("unexpected op type")
+	}
+	return ret
+}
+
 func MakeKVStateMachine() *simplelog.InMemoryStateMachine {
 	s := new(KVState)
 	s.kvs = make(map[uint64][]byte, 0)
 
 	return &simplelog.InMemoryStateMachine{
 		ApplyVolatile: s.apply,
+		ApplyReadonly: s.applyReadonly,
 		GetState:      func() []byte { return s.getState() },
 		SetState:      s.setState,
 	}
 }
 
-func Start(fname string, me grove_ffi.Address) {
-	r := simplelog.MakePbServer(MakeKVStateMachine(), fname)
+func Start(fname string, me grove_ffi.Address, confHost grove_ffi.Address) {
+	r := simplelog.MakePbServer(MakeKVStateMachine(), fname, confHost)
 	r.Serve(me)
 }

@@ -6,12 +6,6 @@ import json
 
 # Gives redis latency/throughput and GroveKV latency/throughput curves.
 
-os.chdir('/users/upamanyu/gokv/simplepb/bench')
-do('mv /tmp/gokv/grovekv-lts.txt /tmp/grovekv-lts.old')
-do('mv /tmp/gokv/redis-lts.txt /tmp/redis-lts.old')
-do('./lt_pb_single.py -v -e --outfile /tmp/gokv/grovekv-lts.txt 1>/tmp/pb.out 2>/tmp/pb.err')
-do('./lt_redis_single.py -v -e --outfile /tmp/gokv/redis-lts.txt 1>/tmp/redis.out 2>/tmp/redis.err')
-
 def read_raw_lt_data(infilename):
     with open(infilename, 'r') as f:
         data = []
@@ -24,23 +18,42 @@ def write_lts(data, outfilename):
     """
     Assumes data is in format
     [ (kvname, numthreads, { 'OPERATION_TYPE': (throughput in ops/sec, latency in us), ... } ),  ... ]
-    returns latency/thruput pairs
+    returns (numthreads, read_latency, read_thruput, write_latency, write_thruput)
     """
     xys = []
     for d in data:
-        x = 0.0
-        y = 0.0
+        wlat = 0.0
+        wthru = 0.0
+
+        rlat = 0.0
+        rthru = 0.0
+
         for k, v in d['lts'].items():
             # look for updates; if any other operation is found, report an error
             if k == 'UPDATE':
-                x = x + v['thruput']
-                y = y + v['avg_latency'] / 1000
-                xys.append((x,y))
+                wthru = v['thruput']
+                wlat = v['avg_latency'] / 1000
+            elif k == 'READ':
+                rthru = v['thruput']
+                rlat = v['avg_latency'] / 1000
             else:
                 throw("unimpl")
+        xys.append((d['num_threads'], rlat, rthru, wlat, wthru))
     with open(outfilename, 'w') as f:
         for xy in xys:
-                print('{0}, {1}'.format(xy[0], xy[1]), file=f)
+                print(f"{xy[0]}, {xy[1]}, {xy[2]}, {xy[3]}, {xy[4]}", file=f)
+
+readratio = 0.95
+
+os.chdir('/users/upamanyu/gokv/simplepb/bench')
+do('mv /tmp/gokv/grovekv-lts.txt /tmp/grovekv-lts.old')
+do('mv /tmp/gokv/redis-lts.txt /tmp/redis-lts.old')
+
+do(f'./lt_pb_single.py -v -e --reads {str(readratio)} --outfile /tmp/gokv/grovekv-lts.txt 1>/tmp/pb.out 2>/tmp/pb.err')
+do(f'./lt_redis_single.py -v -e --reads {str(readratio)} --outfile /tmp/gokv/redis-lts.txt 1>/tmp/redis.out 2>/tmp/redis.err')
+
+do("cp /tmp/gokv/grovekv-lts.txt ./data/redis_vs_grove/grovekv-lts.txt")
+do("cp /tmp/gokv/redis-lts.txt ./data/redis_vs_grove/redis-lts.txt")
 
 write_lts(read_raw_lt_data("/tmp/gokv/grovekv-lts.txt"), "./data/redis_vs_grove/grovekv.dat")
 write_lts(read_raw_lt_data("/tmp/gokv/redis-lts.txt"), "./data/redis_vs_grove/redis.dat")

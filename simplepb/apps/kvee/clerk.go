@@ -1,6 +1,8 @@
 package kvee
 
 import (
+	"log"
+
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/simplepb/apps/eesm"
 	"github.com/mit-pdos/gokv/simplepb/apps/kv64"
@@ -19,9 +21,11 @@ func (ck *Clerk) Put(key uint64, val []byte) {
 		Key: key,
 		Val: val,
 	}
+	log.Print("Running PUT RW")
 	ck.cl.ApplyExactlyOnce(kv64.EncodePutArgs(putArgs))
 }
 
 func (ck *Clerk) Get(key uint64) []byte {
-	return ck.cl.ApplyExactlyOnce(kv64.EncodeGetArgs(key))
+	log.Print("Running GET RO")
+	return ck.cl.ApplyReadonly(kv64.EncodeGetArgs(key))
 }

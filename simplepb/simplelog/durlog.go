@@ -9,6 +9,7 @@ import (
 )
 
 type InMemoryStateMachine struct {
+	ApplyReadonly func([]byte) []byte
 	ApplyVolatile func([]byte) []byte
 	GetState      func() []byte
 	SetState      func([]byte)
@@ -86,6 +87,10 @@ func (s *StateMachine) apply(op []byte) ([]byte, func()) {
 	}
 	return ret, waitFn
 	// }
+}
+
+func (s *StateMachine) applyReadonly(op []byte) []byte {
+	return s.smMem.ApplyReadonly(op) // apply op in-memory
 }
 
 // TODO: make the nextIndex and epoch argument order consistent with pb.StateMachine
@@ -180,11 +185,14 @@ func recoverStateMachine(smMem *InMemoryStateMachine, fname string) *StateMachin
 // index, epoch, etc.
 //
 // Maybe we should make those be a part of pb.StateMachine
-func MakePbServer(smMem *InMemoryStateMachine, fname string) *pb.Server {
+func MakePbServer(smMem *InMemoryStateMachine, fname string, confHost grove_ffi.Address) *pb.Server {
 	s := recoverStateMachine(smMem, fname)
 	sm := &pb.StateMachine{
 		StartApply: func(op []byte) ([]byte, func()) {
 			return s.apply(op)
+		},
+		ApplyReadonly: func(op []byte) []byte {
+			return s.applyReadonly(op)
 		},
 		SetStateAndUnseal: func(snap []byte, nextIndex uint64, epoch uint64) {
 			s.setStateAndUnseal(snap, nextIndex, epoch)
@@ -193,5 +201,5 @@ func MakePbServer(smMem *InMemoryStateMachine, fname string) *pb.Server {
 			return s.getStateAndSeal()
 		},
 	}
-	return pb.MakeServer(sm, s.nextIndex, s.epoch, s.sealed)
+	return pb.MakeServer(sm, confHost, s.nextIndex, s.epoch, s.sealed)
 }
