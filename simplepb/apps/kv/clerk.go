@@ -2,15 +2,15 @@ package kv
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
-	"github.com/mit-pdos/gokv/simplepb/clerk"
+	"github.com/mit-pdos/gokv/simplepb/apps/eesm"
 )
 
 type Clerk struct {
-	cl *clerk.Clerk
+	cl *eesm.Clerk
 }
 
 func MakeClerk(confHost grove_ffi.Address) *Clerk {
-	return &Clerk{cl: clerk.Make(confHost)}
+	return &Clerk{cl: eesm.MakeClerk(confHost)}
 }
 
 func (ck *Clerk) Put(key []byte, val []byte) {
@@ -18,9 +18,9 @@ func (ck *Clerk) Put(key []byte, val []byte) {
 		Key: key,
 		Val: val,
 	}
-	ck.cl.Apply(EncodePutArgs(putArgs))
+	ck.cl.ApplyExactlyOnce(EncodePutArgs(putArgs))
 }
 
 func (ck *Clerk) Get(key []byte) []byte {
-	return ck.cl.ApplyRo(EncodeGetArgs(key))
+	return ck.cl.ApplyReadonly(EncodeGetArgs(key))
 }

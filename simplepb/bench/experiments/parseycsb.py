@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import re
 
 def parse_ycsb_output_totalops(output):
@@ -11,10 +12,11 @@ def parse_ycsb_output_totalops(output):
     ops = 0
     time = None
     numMatches = 0
+    latency = 0
     for m in ms:
         ops += int(m.group('count'))
         time = float(m.group('time'))
         latency = float(m.group('avg_latency'))
         numMatches += 1
-    assert numMatches == 1, "expected only one kind of operation, but got " + str(numMatches)
+    # assert numMatches <= 1, "expected only one kind of operation, but got " + str(numMatches)
     return (time, ops, latency)

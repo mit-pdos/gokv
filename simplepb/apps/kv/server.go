@@ -6,12 +6,15 @@ package kv
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/map_string_marshal"
+	"github.com/mit-pdos/gokv/simplepb/apps/eesm"
 	"github.com/mit-pdos/gokv/simplepb/simplelog"
 	"github.com/tchajed/marshal"
 )
 
 type KVState struct {
-	kvs map[string][]byte
+	kvs     map[string][]byte
+	vnums   map[string]uint64
+	minVnum uint64
 }
 
 // Ops include:
@@ -65,7 +68,6 @@ func decodeGetArgs(raw_args []byte) getArgs {
 }
 
 // end of marshalling
-
 func (s *KVState) put(args *PutArgs) []byte {
 	s.kvs[string(args.Key)] = args.Val
 	return make([]byte, 0)
@@ -75,20 +77,30 @@ func (s *KVState) get(args getArgs) []byte {
 	return s.kvs[string(args)]
 }
 
-func (s *KVState) apply(args []byte) []byte {
+func (s *KVState) apply(args []byte, vnum uint64) []byte {
 	if args[0] == OP_PUT {
-		return s.put(DecodePutArgs(args[1:]))
+		args := DecodePutArgs(args[1:])
+		s.vnums[string(args.Key)] = vnum
+		return s.put(args)
 	} else if args[0] == OP_GET {
-		return s.get(decodeGetArgs(args[1:]))
+		key := decodeGetArgs(args[1:])
+		s.vnums[string(key)] = vnum
+		return s.get(key)
+	} else {
+		panic("unexpected op type")
 	}
-	panic("unexpected op type")
 }
 
-func (s *KVState) applyReadonly(args []byte) []byte {
+func (s *KVState) applyReadonly(args []byte) (uint64, []byte) {
 	if args[0] == OP_PUT {
 		panic("got a put as a readonly op")
 	} else if args[0] == OP_GET {
-		return s.get(decodeGetArgs(args[1:]))
+		key := decodeGetArgs(args[1:])
+		reply := s.get(decodeGetArgs(args[1:]))
+		if vnum, ok := s.vnums[string(key)]; ok {
+			return vnum, reply
+		}
+		return s.minVnum, reply
 	}
 	panic("unexpected op type")
 }
@@ -97,7 +109,10 @@ func (s *KVState) getState() []byte {
 	return map_string_marshal.EncodeMapStringToBytes(s.kvs)
 }
 
-func (s *KVState) setState(snap []byte) {
+func (s *KVState) setState(snap []byte, nextIndex uint64) {
+	s.minVnum = nextIndex
+	s.vnums = make(map[string]uint64)
+
 	if len(snap) == 0 {
 		s.kvs = make(map[string][]byte, 0)
 	} else {
@@ -105,19 +120,33 @@ func (s *KVState) setState(snap []byte) {
 	}
 }
 
-func MakeKVStateMachine() *simplelog.InMemoryStateMachine {
+// func MakeKVStateMachine() *simplelog.InMemoryStateMachine {
+// 	s := new(KVState)
+// 	s.kvs = make(map[string][]byte, 0)
+// 	s.vnums = make(map[string]uint64)
+//
+// 	return &simplelog.InMemoryStateMachine{
+// 		ApplyVolatile: s.apply,
+// 		ApplyReadonly: s.applyReadonly,
+// 		GetState:      s.getState,
+// 		SetState:      s.setState,
+// 	}
+// }
+
+func MakeKVStateMachine() *eesm.VersionedStateMachine {
 	s := new(KVState)
 	s.kvs = make(map[string][]byte, 0)
+	s.vnums = make(map[string]uint64)
 
-	return &simplelog.InMemoryStateMachine{
+	return &eesm.VersionedStateMachine{
 		ApplyVolatile: s.apply,
 		ApplyReadonly: s.applyReadonly,
-		GetState:      s.getState,
+		GetState:      func() []byte { return s.getState() },
 		SetState:      s.setState,
 	}
 }
 
 func Start(fname string, me grove_ffi.Address, confHost grove_ffi.Address) {
-	r := simplelog.MakePbServer(MakeKVStateMachine(), fname, confHost)
+	r := simplelog.MakePbServer(eesm.MakeEEKVStateMachine(MakeKVStateMachine()), fname, confHost)
 	r.Serve(me)
 }

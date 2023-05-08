@@ -7,12 +7,12 @@ import (
 	"github.com/mit-pdos/gokv/simplepb/pb"
 	"github.com/mit-pdos/gokv/trusted_proph"
 	"github.com/tchajed/goose/machine"
-	// "log"
 )
 
 type Clerk struct {
-	confCk        *config.Clerk
-	replicaClerks []*pb.Clerk
+	confCk           *config.Clerk
+	replicaClerks    []*pb.Clerk
+	preferredReplica uint64
 }
 
 func makeClerks(servers []grove_ffi.Address) []*pb.Clerk {
@@ -64,19 +64,30 @@ func (ck *Clerk) Apply(op []byte) []byte {
 func (ck *Clerk) ApplyRo2(op []byte) []byte {
 	var ret []byte
 	for {
-		// pick a random server to read from
-		j := machine.RandomUint64() % uint64(len(ck.replicaClerks))
+		// pick a random server to initially read from
 
+		offset := ck.preferredReplica
 		var err e.Error
-		err, ret = ck.replicaClerks[j].ApplyRo(op)
+		var i uint64
+		// try all the servers starting from that random offset
+		for i < uint64(len(ck.replicaClerks)) {
+			k := (i + offset) % uint64(len(ck.replicaClerks))
+			err, ret = ck.replicaClerks[k].ApplyRo(op)
+			if err == e.None {
+				ck.preferredReplica = k
+				break
+			}
+			i += 1
+		}
+
 		if err == e.None {
 			break
 		} else {
-			// log.Println("Error during applyRo(): ", err)
-			machine.Sleep(uint64(100) * uint64(1_000_000)) // throttle retries to config server
+			machine.Sleep(uint64(10) * uint64(1_000_000)) // throttle retries to config server
 			config := ck.confCk.GetConfig()
 			if len(config) > 0 {
 				ck.replicaClerks = makeClerks(config)
+				ck.preferredReplica = machine.RandomUint64() % uint64(len(ck.replicaClerks))
 			}
 			continue
 		}

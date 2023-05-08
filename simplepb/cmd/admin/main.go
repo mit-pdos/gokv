@@ -1,9 +1,11 @@
 package main
 
 import (
+	"math/rand"
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/simplepb/admin"
@@ -14,6 +16,8 @@ func main() {
 	var confStr string
 	flag.StringVar(&confStr, "conf", "", "address of config server")
 	flag.Parse()
+
+	rand.Seed(time.Now().UTC().UnixNano())
 
 	usage_assert := func(b bool) {
 		if !b {

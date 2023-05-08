@@ -32,15 +32,17 @@ func DecodeApplyAsBackupArgs(enc_args []byte) *ApplyAsBackupArgs {
 }
 
 type SetStateArgs struct {
-	Epoch     uint64
-	NextIndex uint64
-	State     []byte
+	Epoch              uint64
+	NextIndex          uint64
+	CommittedNextIndex uint64
+	State              []byte
 }
 
 func EncodeSetStateArgs(args *SetStateArgs) []byte {
 	var enc = make([]byte, 0, 8+uint64(len(args.State)))
 	enc = marshal.WriteInt(enc, args.Epoch)
 	enc = marshal.WriteInt(enc, args.NextIndex)
+	enc = marshal.WriteInt(enc, args.CommittedNextIndex)
 	enc = marshal.WriteBytes(enc, args.State)
 	return enc
 }
@@ -50,6 +52,7 @@ func DecodeSetStateArgs(enc_args []byte) *SetStateArgs {
 	args := new(SetStateArgs)
 	args.Epoch, enc = marshal.ReadInt(enc)
 	args.NextIndex, enc = marshal.ReadInt(enc)
+	args.CommittedNextIndex, enc = marshal.ReadInt(enc)
 	args.State = enc
 	return args
 }
@@ -71,15 +74,17 @@ func DecodeGetStateArgs(enc []byte) *GetStateArgs {
 }
 
 type GetStateReply struct {
-	Err       e.Error
-	NextIndex uint64
-	State     []byte
+	Err                e.Error
+	NextIndex          uint64
+	CommittedNextIndex uint64
+	State              []byte
 }
 
 func EncodeGetStateReply(reply *GetStateReply) []byte {
 	var enc = make([]byte, 0, 8+len(reply.State))
 	enc = marshal.WriteInt(enc, reply.Err)
 	enc = marshal.WriteInt(enc, reply.NextIndex)
+	enc = marshal.WriteInt(enc, reply.CommittedNextIndex)
 	enc = marshal.WriteBytes(enc, reply.State)
 	return enc
 }
@@ -89,6 +94,7 @@ func DecodeGetStateReply(enc_reply []byte) *GetStateReply {
 	reply := new(GetStateReply)
 	reply.Err, enc = marshal.ReadInt(enc)
 	reply.NextIndex, enc = marshal.ReadInt(enc)
+	reply.CommittedNextIndex, enc = marshal.ReadInt(enc)
 	reply.State = enc
 	return reply
 }

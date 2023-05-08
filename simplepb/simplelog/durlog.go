@@ -9,10 +9,10 @@ import (
 )
 
 type InMemoryStateMachine struct {
-	ApplyReadonly func([]byte) []byte
+	ApplyReadonly func([]byte) (uint64, []byte)
 	ApplyVolatile func([]byte) []byte
 	GetState      func() []byte
-	SetState      func([]byte)
+	SetState      func([]byte, uint64)
 }
 
 const MAX_LOG_SIZE = uint64(64 * 1024 * 1024 * 1024)
@@ -89,7 +89,7 @@ func (s *StateMachine) apply(op []byte) ([]byte, func()) {
 	// }
 }
 
-func (s *StateMachine) applyReadonly(op []byte) []byte {
+func (s *StateMachine) applyReadonly(op []byte) (uint64, []byte) {
 	return s.smMem.ApplyReadonly(op) // apply op in-memory
 }
 
@@ -98,7 +98,7 @@ func (s *StateMachine) setStateAndUnseal(snap []byte, nextIndex uint64, epoch ui
 	s.epoch = epoch
 	s.nextIndex = nextIndex
 	s.sealed = false
-	s.smMem.SetState(snap)
+	s.smMem.SetState(snap, nextIndex)
 	s.makeDurableWithSnap(snap)
 }
 
@@ -150,11 +150,13 @@ func recoverStateMachine(smMem *InMemoryStateMachine, fname string) *StateMachin
 	snap = enc[0:snapLen]
 	n := len(enc) // For `make check`
 	enc = enc[snapLen:n]
-	s.smMem.SetState(snap)
 
-	// load protocol state
 	s.epoch, enc = marshal.ReadInt(enc)
 	s.nextIndex, enc = marshal.ReadInt(enc)
+
+	s.smMem.SetState(snap, s.nextIndex)
+
+	// load protocol state
 
 	// apply ops to bring in-memory state up to date
 	for {
@@ -191,7 +193,7 @@ func MakePbServer(smMem *InMemoryStateMachine, fname string, confHost grove_ffi.
 		StartApply: func(op []byte) ([]byte, func()) {
 			return s.apply(op)
 		},
-		ApplyReadonly: func(op []byte) []byte {
+		ApplyReadonly: func(op []byte) (uint64, []byte) {
 			return s.applyReadonly(op)
 		},
 		SetStateAndUnseal: func(snap []byte, nextIndex uint64, epoch uint64) {

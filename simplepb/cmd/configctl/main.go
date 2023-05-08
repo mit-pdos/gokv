@@ -21,5 +21,5 @@ func main() {
 
 	config := make([]grove_ffi.Address, 1)
 	config[0] = grove_ffi.MakeAddress("0.0.0.0:12100")
-	ck.WriteConfig(0, config)
+	ck.TryWriteConfig(0, config)
 }

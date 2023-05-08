@@ -23,10 +23,10 @@ parser.add_argument('--benchcmd',
                     default='./bench-ops-multiclient.py')
 args = parser.parse_args()
 
-threadcounts = [50, 100, 150, 200, 250] + [200 * (i + 2) for i in range(3)] + [500 * (i + 3) for i in range (15)]
+threadcounts = [50, 100, 150, 200, 250, 400, 600] # + [200 * (i + 2) for i in range(3)] + [500 * (i + 3) for i in range (10)]
 client_machines = [5, 6, 7]
 
-runtime = 20
+runtime = 40
 warmuptime = 20
 cooldown = 10
 fullwarmuptime = 20
@@ -72,7 +72,7 @@ for threads in threadcounts:
     if thruput > highestThruput:
         highestThruput = thruput
         highestThreads = threads
-    if 1.10 * thruput < highestThruput:
+    if 1.50 * thruput < highestThruput:
         break # don't bother trying them all
 
 if args.onlypeak:

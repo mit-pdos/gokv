@@ -4,14 +4,15 @@ package kv64
 // This does not use a reply table for deduplication.
 
 import (
-	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/map_marshal"
-	"github.com/mit-pdos/gokv/simplepb/simplelog"
+	"github.com/mit-pdos/gokv/simplepb/apps/eesm"
 	"github.com/tchajed/marshal"
 )
 
 type KVState struct {
-	kvs map[uint64][]byte
+	kvs     map[uint64][]byte
+	minVnum uint64
+	vnums   map[uint64]uint64
 }
 
 // Ops include:
@@ -70,13 +71,17 @@ func (s *KVState) get(args getArgs) []byte {
 	return s.kvs[args]
 }
 
-func (s *KVState) apply(args []byte) []byte {
+func (s *KVState) apply(args []byte, vnum uint64) []byte {
 	var ret []byte
 	n := len(args)
 	if args[0] == OP_PUT {
-		ret = s.put(DecodePutArgs(args[1:n]))
+		args := DecodePutArgs(args[1:n])
+		ret = s.put(args)
+		s.vnums[args.Key] = vnum
 	} else if args[0] == OP_GET {
-		ret = s.get(DecodeGetArgs(args[1:n]))
+		key := DecodeGetArgs(args[1:n])
+		ret = s.get(key)
+		s.vnums[key] = vnum
 	} else {
 		panic("unexpected op type")
 	}
@@ -87,36 +92,38 @@ func (s *KVState) getState() []byte {
 	return map_marshal.EncodeMapU64ToBytes(s.kvs)
 }
 
-func (s *KVState) setState(snap []byte) {
+func (s *KVState) setState(snap []byte, vnum uint64) {
 	s.kvs, _ = map_marshal.DecodeMapU64ToBytes(snap)
+	s.vnums = make(map[uint64]uint64)
+	s.minVnum = vnum
 }
 
-func (s *KVState) applyReadonly(args []byte) []byte {
-	var ret []byte
-	n := len(args)
+func (s *KVState) applyReadonly(args []byte) (uint64, []byte) {
 	if args[0] == OP_PUT {
 		panic("unexpectedly got put as readonly op")
-	} else if args[0] == OP_GET {
-		ret = s.get(DecodeGetArgs(args[1:n]))
-	} else {
+	} else if args[0] != OP_GET {
 		panic("unexpected op type")
 	}
-	return ret
+	n := len(args)
+	key := DecodeGetArgs(args[1:n])
+	ret := s.get(key)
+	vnum, ok := s.vnums[key]
+	if ok {
+		return vnum, ret
+	} else {
+		return s.minVnum, ret
+	}
 }
 
-func MakeKVStateMachine() *simplelog.InMemoryStateMachine {
+func MakeKVStateMachine() *eesm.VersionedStateMachine {
 	s := new(KVState)
 	s.kvs = make(map[uint64][]byte, 0)
+	s.vnums = make(map[uint64]uint64)
 
-	return &simplelog.InMemoryStateMachine{
+	return &eesm.VersionedStateMachine{
 		ApplyVolatile: s.apply,
 		ApplyReadonly: s.applyReadonly,
 		GetState:      func() []byte { return s.getState() },
 		SetState:      s.setState,
 	}
-}
-
-func Start(fname string, me grove_ffi.Address, confHost grove_ffi.Address) {
-	r := simplelog.MakePbServer(MakeKVStateMachine(), fname, confHost)
-	r.Serve(me)
 }

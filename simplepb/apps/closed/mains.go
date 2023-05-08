@@ -2,8 +2,9 @@ package closed
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
-	"github.com/mit-pdos/gokv/simplepb/apps/kv64"
+	"github.com/mit-pdos/gokv/simplepb/apps/kvee"
 	"github.com/mit-pdos/gokv/simplepb/config"
+	"github.com/tchajed/goose/machine"
 )
 
 const (
@@ -22,5 +23,15 @@ func config_main() {
 func kv_replica_main(fname string, me grove_ffi.Address) {
 	x := new(uint64)
 	*x = uint64(1)
-	kv64.Start(fname, me, configHost)
+	kvee.Start(fname, me, configHost)
+}
+
+func kv_client_main(fname string, me grove_ffi.Address) {
+	ck := kvee.MakeClerk(configHost)
+	ck.Put(10, make([]byte, 10))
+	v1 := ck.Get(10)
+	machine.Assert(len(v1) == 10)
+	ck.Put(10, make([]byte, 5))
+	v2 := ck.Get(10)
+	machine.Assert(len(v2) == 5)
 }

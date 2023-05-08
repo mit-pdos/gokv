@@ -47,12 +47,23 @@ func (s *Server) ApplyRoWaitForCommit(op Op) *ApplyReply {
 	reply.Reply = nil
 	reply.Err = e.None
 
+	// x := machine.RandomUint64()
+	// log.Printf("Got ro request %d", x)
 	s.mu.Lock()
 	if !s.leaseValid {
 		s.mu.Unlock()
+		log.Printf("Lease invalid")
 		reply.Err = e.LeaseExpired
 		return reply
 	}
+	if machine.RandomUint64() % 10000 == 0 {
+		log.Printf("Server nextIndex=%d commitIndex=%d", s.nextIndex, s.committedNextIndex)
+	}
+
+	var lastModifiedIndex uint64
+	lastModifiedIndex, reply.Reply = s.sm.ApplyReadonly(op)
+	epoch := s.epoch
+
 	_, h := grove_ffi.GetTimeRange()
 	if s.leaseExpiration <= h {
 		s.mu.Unlock()
@@ -61,15 +72,11 @@ func (s *Server) ApplyRoWaitForCommit(op Op) *ApplyReply {
 		return reply
 	}
 
-	reply.Reply = s.sm.ApplyReadonly(op)
-	readNextIndex := s.nextIndex
-	epoch := s.epoch
-
 	for {
 		if s.epoch != epoch {
 			reply.Err = e.Stale
 			break
-		} else if readNextIndex <= s.committedNextIndex {
+		} else if lastModifiedIndex <= s.committedNextIndex {
 			reply.Err = e.None
 			break
 		} else {
@@ -79,6 +86,7 @@ func (s *Server) ApplyRoWaitForCommit(op Op) *ApplyReply {
 	}
 	s.mu.Unlock()
 
+	// log.Printf("Success ro request %d", x)
 	return reply
 }
 
@@ -179,6 +187,13 @@ func (s *Server) Apply(op Op) *ApplyReply {
 
 	if err == e.None {
 		s.IncreaseCommitIndex(nextIndex)
+	} else {
+		// stop acting as primary in epoch
+		s.mu.Lock()
+		if s.epoch == epoch {
+			s.isPrimary = false
+		}
+		s.mu.Unlock()
 	}
 
 	// log.Println("Apply() returned ", err)
@@ -205,7 +220,7 @@ func (s *Server) leaseRenewalThread() {
 			// lease to move to a new epoch. We should avoid sending requests
 			// too quickly to the config service in that case
 			s.mu.Unlock()
-			machine.Sleep(uint64(100) * 1_000_000)
+			machine.Sleep(uint64(50) * 1_000_000)
 		}
 	}
 }
@@ -220,7 +235,7 @@ func (s *Server) sendIncreaseCommitThread() {
 	// push it to the backups. We chose option 2 here
 	for {
 		s.mu.Lock()
-		for !s.isPrimary {
+		for !s.isPrimary || len(s.clerks[0]) == 0 {
 			s.isPrimary_cond.Wait()
 		}
 		newCommittedNextIndex := s.committedNextIndex
@@ -330,6 +345,7 @@ func (s *Server) SetState(args *SetStateArgs) e.Error {
 		s.mu.Unlock()
 		return e.None
 	} else {
+		log.Print("Entered new epoch")
 		s.isPrimary = false
 		s.canBecomePrimary = true
 		s.epoch = args.Epoch
@@ -345,6 +361,7 @@ func (s *Server) SetState(args *SetStateArgs) e.Error {
 		s.opAppliedConds = make(map[uint64]*sync.Cond)
 
 		s.mu.Unlock()
+		s.IncreaseCommitIndex(args.CommittedNextIndex)
 		return e.None
 	}
 }
@@ -360,6 +377,7 @@ func (s *Server) GetState(args *GetStateArgs) *GetStateReply {
 	s.sealed = true
 	ret := s.sm.GetStateAndSeal()
 	nextIndex := s.nextIndex
+	committedNextIndex := s.committedNextIndex
 
 	for _, cond := range s.opAppliedConds {
 		cond.Signal()
@@ -368,7 +386,8 @@ func (s *Server) GetState(args *GetStateArgs) *GetStateReply {
 	s.committedNextIndex_cond.Broadcast()
 	s.mu.Unlock()
 
-	return &GetStateReply{Err: e.None, State: ret, NextIndex: nextIndex}
+	return &GetStateReply{Err: e.None, State: ret, NextIndex: nextIndex,
+		CommittedNextIndex: committedNextIndex}
 }
 
 func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {
