@@ -23,7 +23,7 @@ func (s *Server) Start(me grove_ffi.Address) {
 
 	handlers[RPC_TRY_ACQUIRE] =
 		func(enc_args []byte, enc_reply *[]byte) {
-			*enc_reply = EncodeBool(s.tryAcquire(DecodeUint64(enc_args)))
+			*enc_reply = EncodeUint64(s.tryAcquire(DecodeUint64(enc_args)))
 		}
 
 	handlers[RPC_RELEASE] =
@@ -48,18 +48,22 @@ func (cl *Client) getFreshNum() (uint64, Error) {
 	return 0, err
 }
 
-func (cl *Client) tryAcquire(id uint64) (bool, Error) {
+func (cl *Client) tryAcquire(id uint64) (uint64, Error) {
 	var reply []byte
 	args := EncodeUint64(id)
 	err := cl.cl.Call(RPC_TRY_ACQUIRE, args, &reply, 100)
 	if err == urpc.ErrNone {
-		return DecodeBool(reply), err
+		return DecodeUint64(reply), err
 	}
-	return false, err
+	return 0, err
 }
 
 func (cl *Client) release(id uint64) Error {
 	var reply []byte
 	args := EncodeUint64(id)
 	return cl.cl.Call(RPC_RELEASE, args, &reply, 100)
+}
+
+func makeClient(hostname grove_ffi.Address) *Client {
+	return &Client{ cl : urpc.MakeClient(hostname) }
 }

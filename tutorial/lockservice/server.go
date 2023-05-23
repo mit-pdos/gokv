@@ -2,6 +2,7 @@ package lockservice
 
 import (
 	"github.com/goose-lang/std"
+	"log"
 	"sync"
 )
 
@@ -20,21 +21,29 @@ func (s *Server) getFreshNum() uint64 {
 	return n
 }
 
-func (s *Server) tryAcquire(id uint64) bool {
-	var ret bool
+const (
+	StatusGranted = uint64(0)
+	StatusRetry   = uint64(2)
+	StatusStale   = uint64(1)
+)
+
+func (s *Server) tryAcquire(id uint64) uint64 {
+	var ret uint64
 	s.mu.Lock()
-	if s.locked {
-		ret = (s.holder == id)
+	if s.holder > id {
+		ret = StatusStale
 	} else {
-		if s.holder < id {
+		if s.locked {
+			if s.holder == id {
+				ret = StatusGranted
+			} else {
+				ret = StatusRetry
+			}
+		} else {
 			s.holder = id
 			s.locked = true
-			ret = true
-		} else {
-			// may have already been acquired with `id` before;
-			// TODO: should return descriptive error to client so they can retry
-			// with higher id if needed.
-			ret = false
+			log.Printf("Lock held by %d", id)
+			ret = StatusGranted
 		}
 	}
 	s.mu.Unlock()
@@ -46,5 +55,12 @@ func (s *Server) release(id uint64) {
 	if s.holder == id {
 		s.locked = false
 	}
+	log.Printf("Lock released by %d", id)
 	s.mu.Unlock()
+}
+
+func MakeServer() *Server {
+	s := new(Server)
+	s.mu = new(sync.Mutex)
+	return s
 }
