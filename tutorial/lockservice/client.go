@@ -14,9 +14,6 @@ type Locked struct {
 	locknum uint64
 }
 
-const RPC_TRY_ACQUIRE = uint64(0)
-const RPC_RELEASE = uint64(0)
-
 func (ck *Clerk) Acquire() *Locked {
 	var reply []byte
 	for {

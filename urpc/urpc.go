@@ -13,23 +13,22 @@ import (
 )
 
 type Server struct {
-	handlers map[uint64]func([]byte, *[]byte)
+	handlers map[uint64]func([]byte) []byte
 }
 
 func (srv *Server) rpcHandle(conn grove_ffi.Connection, rpcid uint64, seqno uint64, data []byte) {
-	replyData := new([]byte)
 
 	f := srv.handlers[rpcid] // for Goose
-	f(data, replyData)       // call the function
+	replyData := f(data)       // call the function
 
-	data1 := make([]byte, 0, 8+len(*replyData))
+	data1 := make([]byte, 0, 8+len(replyData))
 	data2 := marshal.WriteInt(data1, seqno)
-	data3 := marshal.WriteBytes(data2, *replyData)
+	data3 := marshal.WriteBytes(data2, replyData)
 	// Ignore errors (what would we do about them anyway -- client will inevitably time out, and then retry)
 	grove_ffi.Send(conn, data3) // TODO: contention? should we buffer these in userspace too?
 }
 
-func MakeServer(handlers map[uint64]func([]byte, *[]byte)) *Server {
+func MakeServer(handlers map[uint64]func([]byte) []byte) *Server {
 	return &Server{handlers: handlers}
 }
 
@@ -146,10 +145,12 @@ func MakeClient(host_name grove_ffi.Address) *Client {
 	return cl
 }
 
-const ErrTimeout uint64 = 1
-const ErrDisconnect uint64 = 2
+type Error = uint64
+const ErrNone = Error(1)
+const ErrTimeout = Error(1)
+const ErrDisconnect = Error(2)
 
-func (cl *Client) CallStart(rpcid uint64, args []byte) (uint64, *Callback) {
+func (cl *Client) CallStart(rpcid uint64, args []byte) (*Callback, Error) {
 	// log.Printf("Started call %d\n", rpcid)
 	reply_buf := new([]byte)
 	cb := &Callback{reply: reply_buf, state: new(uint64), cond: sync.NewCond(cl.mu)}
@@ -176,15 +177,15 @@ func (cl *Client) CallStart(rpcid uint64, args []byte) (uint64, *Callback) {
 	if grove_ffi.Send(cl.conn, reqData) {
 		// An error occured; this client is dead.
 		// (&Callback works around goose not translating "nil" properly.)
-		return ErrDisconnect, &Callback{}
+		return &Callback{}, ErrNone
 	}
 
 	return 0, cb
 }
 
-func (cl *Client) CallComplete(cb *Callback, reply *[]byte, timeout_ms uint64) uint64 {
-
+func (cl *Client) CallComplete(cb *Callback, timeout_ms uint64) ([]byte, Error) {
 	// wait for reply
+	var reply []byte
 	cl.mu.Lock()
 	if *cb.state == callbackStateWaiting {
 		// No reply yet (and `replyThread` hasn't aborted either).
@@ -194,25 +195,25 @@ func (cl *Client) CallComplete(cb *Callback, reply *[]byte, timeout_ms uint64) u
 	}
 	state := *cb.state
 	if state == callbackStateDone {
-		*reply = *cb.reply
+		reply = *cb.reply
 		cl.mu.Unlock()
-		return 0 // no error
+		return reply, ErrNone
 	} else {
 		cl.mu.Unlock()
 		if state == callbackStateAborted {
-			return ErrDisconnect
+			return nil, ErrDisconnect
 		} else {
 			// FIXME: in case of timeout, resend message with the same "seq", so that if the
 			// server responds to a resend, we accept that response for the original request.
-			return ErrTimeout
+			return nil, ErrTimeout
 		}
 	}
 }
 
-func (cl *Client) Call(rpcid uint64, args []byte, reply *[]byte, timeout_ms uint64) uint64 {
-	err, cb := cl.CallStart(rpcid, args)
-	if err != 0 {
-		return err
+func (cl *Client) Call(rpcid uint64, args []byte, timeout_ms uint64) ([]byte, Error) {
+	cb, err := cl.CallStart(rpcid, args)
+	if err != ErrNone {
+		return nil, err
 	}
-	return cl.CallComplete(cb, reply, timeout_ms)
+	return cl.CallComplete(cb, timeout_ms)
 }

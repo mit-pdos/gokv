@@ -31,7 +31,10 @@ func (s *Server) tryAcquire(id uint64) bool {
 			s.locked = true
 			ret = true
 		} else {
-			ret = false // may have already been acquired with `id` before
+			// may have already been acquired with `id` before;
+			// TODO: should return descriptive error to client so they can retry
+			// with higher id if needed.
+			ret = false
 		}
 	}
 	s.mu.Unlock()
