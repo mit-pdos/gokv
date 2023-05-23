@@ -73,22 +73,3 @@ func (cl *ReconnectingClient) Call(rpcid uint64, args []byte, reply *[]byte, tim
 	}
 	return err
 }
-
-func (cl *ReconnectingClient) CallStart(rpcid uint64, args []byte, reply *[]byte, timeout_ms uint64) func() uint64 {
-	err1, urpcCl := cl.getClient()
-	if err1 != 0 {
-		return func() uint64 { return err1 }
-	}
-	err, cb := urpcCl.CallStart(rpcid, args)
-	if err == urpc.ErrDisconnect {
-		cl.mu.Lock()
-		cl.valid = false
-		cl.mu.Unlock()
-	}
-	return func() uint64 {
-		if err == urpc.ErrDisconnect {
-			return err
-		}
-		return urpcCl.CallComplete(cb, reply, timeout_ms)
-	}
-}

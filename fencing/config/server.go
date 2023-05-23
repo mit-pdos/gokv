@@ -111,26 +111,26 @@ func StartServer(me grove_ffi.Address) {
 		s.HeartbeatListener()
 	}()
 
-	handlers := make(map[uint64]func([]byte) []byte)
-	handlers[RPC_ACQUIRE_EPOCH] = func(args []byte) []byte {
+	handlers := make(map[uint64]func([]byte, *[]byte))
+	handlers[RPC_ACQUIRE_EPOCH] = func(args []byte, reply *[]byte) {
 		dec := marshal.NewDec(args)
 		enc := marshal.NewEnc(8)
 		enc.PutInt(s.AcquireEpoch(dec.GetInt()))
-		return enc.Finish()
+		*reply = enc.Finish()
 	}
 
-	handlers[RPC_GET] = func(args []byte) []byte {
+	handlers[RPC_GET] = func(args []byte, reply *[]byte) {
 		enc := marshal.NewEnc(8)
 		enc.PutInt(s.Get())
-		return enc.Finish()
+		*reply = enc.Finish()
 	}
 
-	handlers[RPC_HB] = func(args []byte) []byte {
+	handlers[RPC_HB] = func(args []byte, reply *[]byte) {
 		dec := marshal.NewDec(args)
 		if s.Heartbeat(dec.GetInt()) {
-			return make([]byte, 0)
+			*reply = make([]byte, 0)
 		} else {
-			return make([]byte, 1)
+			*reply = make([]byte, 1)
 		}
 	}
 
