@@ -68,7 +68,8 @@ func (c *ConnMan) CallAtLeastOnce(host HostName, rpcid uint64, args []byte, repl
 	cl = c.getClient(host)
 
 	for {
-		err := cl.Call(rpcid, args, reply, retryTimeout)
+		var err uint64
+		*reply, err = cl.Call(rpcid, args, retryTimeout)
 		if err == urpc.ErrTimeout {
 			// just retry
 			continue

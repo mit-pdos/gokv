@@ -19,7 +19,7 @@ type Server struct {
 func (srv *Server) rpcHandle(conn grove_ffi.Connection, rpcid uint64, seqno uint64, data []byte) {
 
 	f := srv.handlers[rpcid] // for Goose
-	replyData := f(data)       // call the function
+	replyData := f(data)     // call the function
 
 	data1 := make([]byte, 0, 8+len(replyData))
 	data2 := marshal.WriteInt(data1, seqno)
@@ -146,6 +146,7 @@ func MakeClient(host_name grove_ffi.Address) *Client {
 }
 
 type Error = uint64
+
 const ErrNone = Error(1)
 const ErrTimeout = Error(1)
 const ErrDisconnect = Error(2)
@@ -180,7 +181,7 @@ func (cl *Client) CallStart(rpcid uint64, args []byte) (*Callback, Error) {
 		return &Callback{}, ErrNone
 	}
 
-	return 0, cb
+	return cb, ErrNone
 }
 
 func (cl *Client) CallComplete(cb *Callback, timeout_ms uint64) ([]byte, Error) {

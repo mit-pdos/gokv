@@ -1,9 +1,9 @@
 package main
 
 import (
-	"math/rand"
 	"flag"
 	"fmt"
+	"math/rand"
 	"os"
 	"time"
 

@@ -12,6 +12,6 @@ func (ck *Clerk) TryCommit(tid uint64, writes map[uint64]string) bool {
 
 func MakeClerk(host *Server) *Clerk {
 	return &Clerk{
-		s:host,
+		s: host,
 	}
 }

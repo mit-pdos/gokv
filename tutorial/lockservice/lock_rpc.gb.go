@@ -7,14 +7,14 @@ import (
 
 const (
 	RPC_GET_FRESH_NUM = uint64(0)
-	RPC_TRY_ACQUIRE = uint64(1)
-	RPC_RELEASE = uint64(2)
+	RPC_TRY_ACQUIRE   = uint64(1)
+	RPC_RELEASE       = uint64(2)
 )
 
 type Error = uint64
 
 func (s *Server) Start(me grove_ffi.Address) {
-	handlers := make(map[uint64]func([]byte)[]byte)
+	handlers := make(map[uint64]func([]byte) []byte)
 
 	handlers[RPC_GET_FRESH_NUM] =
 		func(enc_args []byte) []byte {

@@ -10,7 +10,7 @@ type Clerk struct {
 }
 
 type Locked struct {
-	rpcCl      *urpc.Client
+	rpcCl   *urpc.Client
 	locknum uint64
 }
 
@@ -25,7 +25,7 @@ func (ck *Clerk) Acquire() *Locked {
 
 	locknum, _ := marshal.ReadInt(reply)
 	return &Locked{
-		rpcCl: ck.rpcCl,
+		rpcCl:   ck.rpcCl,
 		locknum: locknum,
 	}
 }

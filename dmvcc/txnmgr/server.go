@@ -1,8 +1,8 @@
 package txnmgr
 
 import (
-	"sync"
 	"github.com/tchajed/goose/machine"
+	"sync"
 )
 
 type Server struct {
