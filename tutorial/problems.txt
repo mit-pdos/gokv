@@ -1,0 +1,6 @@
+Goose (the subset of Go) related:
+* Need to manually topologically sort definitions in Go code; sometimes this
+  even forces code to be split into files where it otherwise wouldn't need to
+  be.
+* Restricted control flow: no return in `for` loop
+* Can't use built-in `error` type

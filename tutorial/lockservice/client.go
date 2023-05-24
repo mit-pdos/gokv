@@ -23,6 +23,7 @@ func MakeClerk(host grove_ffi.Address) *Clerk {
 func (ck *Clerk) Acquire() *Locked {
 	var id uint64
 	var err uint64
+	var l *Locked // XXX: need this because can't return from inside for loop in Goose
 
 	for {
 		id, err = ck.rpcCl.getFreshNum()
@@ -36,12 +37,17 @@ func (ck *Clerk) Acquire() *Locked {
 				machine.Sleep(100 * 1_000_000) // 100 ms
 				continue
 			} else if lockStatus == StatusGranted {
-				return &Locked{rpcCl: ck.rpcCl, id: id}
+				l = &Locked{rpcCl: ck.rpcCl, id: id}
+				break
 			} else { // lockStatus == StatusNotGranted
 				break
 			}
 		}
+		if l != nil {
+			break
+		}
 	}
+	return l
 }
 
 func (l *Locked) Release() {
