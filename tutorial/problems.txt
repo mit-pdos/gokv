@@ -4,3 +4,18 @@ Goose (the subset of Go) related:
   be.
 * Restricted control flow: no return in `for` loop
 * Can't use built-in `error` type
+
+Perennial related:
+* why manually write "slice_val"?
+* Always have to write fraction for slices. It's often 1, or else it's some q
+  coming from "readonly". Maybe have a separate "is_slice_frac"?
+* Use dfrac for slics and heap? It's annoying that the slice lemmas don't work
+  with "readonly" slices.
+* Why have a separate is_slice_cap always? Why not have a AsFrac (maybe
+  AsDfrac?) for is_slice? Answer: because the cap is actually separate (e.g. the
+  beginning of the slice might be read-only and shared, while someone owns the
+  ability to extend the slice and add new stuff).
+* (Universally?) quantified names are messed up.
+* Φ/Ψ in urpc. To see the problem, try using just one Φ. Will end up with
+  obligation to establish functoriality.
+* wp_Client__Call2': forces early branching, with no clear way to merge proofs.
