@@ -36,8 +36,9 @@ type putArgs struct {
 func encodePutArgs(a *putArgs) []byte {
 	var e = make([]byte, 0)
 	e = marshal.WriteInt(e, a.opId)
-	e = marshal.WriteInt(e, uint64(len(a.key)))
-	e = marshal.WriteBytes(e, []byte(a.key))
+	keyBytes := []byte(a.key)
+	e = marshal.WriteInt(e, uint64(len(keyBytes)))
+	e = marshal.WriteBytes(e, keyBytes)
 	e = marshal.WriteBytes(e, []byte(a.val))
 	return e
 }
@@ -66,11 +67,13 @@ func encodeConditionalPutArgs(a *conditionalPutArgs) []byte {
 	var e = make([]byte, 0)
 	e = marshal.WriteInt(e, a.opId)
 
-	e = marshal.WriteInt(e, uint64(len(a.key)))
-	e = marshal.WriteBytes(e, []byte(a.key))
+	keyBytes := []byte(a.key)
+	e = marshal.WriteInt(e, uint64(len(keyBytes)))
+	e = marshal.WriteBytes(e, keyBytes)
 
-	e = marshal.WriteInt(e, uint64(len(a.expectedVal)))
-	e = marshal.WriteBytes(e, []byte(a.expectedVal))
+	expectedValBytes := []byte(a.expectedVal)
+	e = marshal.WriteInt(e, uint64(len(expectedValBytes)))
+	e = marshal.WriteBytes(e, expectedValBytes)
 
 	e = marshal.WriteBytes(e, []byte(a.newVal))
 	return e
