@@ -44,5 +44,5 @@ func (cl *Client) release(id uint64) Error {
 }
 
 func makeClient(hostname grove_ffi.Address) *Client {
-	return &Client{ cl : urpc.MakeClient(hostname) }
+	return &Client{cl: urpc.MakeClient(hostname)}
 }

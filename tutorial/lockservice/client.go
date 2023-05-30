@@ -16,7 +16,7 @@ type Locked struct {
 
 func MakeClerk(host grove_ffi.Address) *Clerk {
 	return &Clerk{
-		rpcCl : makeClient(host),
+		rpcCl: makeClient(host),
 	}
 }
 

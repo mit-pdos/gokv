@@ -95,8 +95,8 @@ func decodeConditionalPutArgs(x []byte) *conditionalPutArgs {
 
 // Get
 type getArgs struct {
-	opId        uint64
-	key         string
+	opId uint64
+	key  string
 }
 
 func encodeGetArgs(a *getArgs) []byte {

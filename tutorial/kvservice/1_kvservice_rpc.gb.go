@@ -55,5 +55,5 @@ func (cl *Client) getRpc(args *getArgs) (string, Error) {
 }
 
 func makeClient(hostname grove_ffi.Address) *Client {
-	return &Client{ cl : urpc.MakeClient(hostname) }
+	return &Client{cl: urpc.MakeClient(hostname)}
 }
