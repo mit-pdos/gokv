@@ -40,14 +40,15 @@ func (s *Server) conditionalPut(args *conditionalPutArgs) string {
 		s.mu.Unlock()
 		return ret
 	}
+
+	var ret2 string = ""
 	if s.kvs[args.key] == args.expectedVal {
 		s.kvs[args.key] = args.newVal
-		s.lastReplies[args.opId] = ""
-	} else {
-		s.lastReplies[args.opId] = "ok"
+		ret2 = "ok"
 	}
+	s.lastReplies[args.opId] = ret2
 	s.mu.Unlock()
-	return ret
+	return ret2
 }
 
 func (s *Server) get(args *getArgs) string {

@@ -73,7 +73,6 @@ func encodeConditionalPutArgs(a *conditionalPutArgs) []byte {
 	e = marshal.WriteBytes(e, []byte(a.expectedVal))
 
 	e = marshal.WriteBytes(e, []byte(a.newVal))
-	e = marshal.WriteBytes(e, []byte(a.newVal))
 	return e
 }
 

@@ -40,7 +40,7 @@ func main() {
 		k := a[1]
 		v := a[2]
 		ck.Put(k, v)
-		fmt.Printf("PUT %v ↦ %v\n", k, v)
+		fmt.Printf("put \"%v\" ↦ \"%v\"\n", k, v)
 	} else if a[0] == "cput" {
 		usage_assert(len(a) == 4)
 		k := a[1]
@@ -48,15 +48,15 @@ func main() {
 		v := a[3]
 		ok := ck.ConditionalPut(k, ev, v)
 		if ok {
-			fmt.Printf("CPUT %v ↦ %v ⤳ %v\n", k, ev, v)
+			fmt.Printf("cput \"%v\" [old:\"%v\"] ↦ \"%v\"\n", k, ev, v)
 		} else {
-			fmt.Printf("CPUT failed %v ↦ %v\n", k, v)
+			fmt.Printf("cput failed \"%v\" ↦ \"%v\"\n", k, v)
 		}
 	} else if a[0] == "get" {
 		usage_assert(len(a) == 2)
 		k := a[1]
 		v := ck.Get(k)
-		fmt.Printf("GET %v ↦ %v\n", k, v)
+		fmt.Printf("get \"%v\" ↦ \"%v\"\n", k, v)
 	} else {
 		usage_assert(false)
 	}

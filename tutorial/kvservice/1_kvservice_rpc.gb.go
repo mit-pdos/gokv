@@ -38,7 +38,7 @@ func (cl *Client) putRpc(args *putArgs) Error {
 
 func (cl *Client) conditionalPutRpc(args *conditionalPutArgs) (string, Error) {
 	var reply []byte
-	err := cl.cl.Call(rpcIdPut, encodeConditionalPutArgs(args), &reply, 100)
+	err := cl.cl.Call(rpcIdConditionalPut, encodeConditionalPutArgs(args), &reply, 100)
 	if err == urpc.ErrNone {
 		return string(reply), err
 	}
@@ -47,7 +47,7 @@ func (cl *Client) conditionalPutRpc(args *conditionalPutArgs) (string, Error) {
 
 func (cl *Client) getRpc(args *getArgs) (string, Error) {
 	var reply []byte
-	err := cl.cl.Call(rpcIdPut, encodeGetArgs(args), &reply, 100)
+	err := cl.cl.Call(rpcIdGet, encodeGetArgs(args), &reply, 100)
 	if err == urpc.ErrNone {
 		return string(reply), err
 	}
