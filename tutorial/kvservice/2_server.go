@@ -1,4 +1,4 @@
-package lockservice
+package kvservice
 
 import (
 	"github.com/goose-lang/std"
@@ -40,7 +40,7 @@ func (s *Server) conditionalPut(args *conditionalPutArgs) string {
 		s.mu.Unlock()
 		return ret
 	}
-	if s.kvs[args.key]  == args.expectedVal {
+	if s.kvs[args.key] == args.expectedVal {
 		s.kvs[args.key] = args.newVal
 		s.lastReplies[args.opId] = ""
 	} else {
@@ -65,5 +65,7 @@ func (s *Server) get(args *getArgs) string {
 func MakeServer() *Server {
 	s := new(Server)
 	s.mu = new(sync.Mutex)
+	s.kvs = make(map[string]string)
+	s.lastReplies = make(map[uint64]string)
 	return s
 }

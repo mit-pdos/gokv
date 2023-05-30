@@ -1,4 +1,4 @@
-package lockservice
+package kvservice
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"

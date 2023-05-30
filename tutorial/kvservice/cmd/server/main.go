@@ -9,7 +9,7 @@ import (
 	"os"
 
 	"github.com/mit-pdos/gokv/grove_ffi"
-	"github.com/mit-pdos/gokv/tutorial/lockservice"
+	"github.com/mit-pdos/gokv/tutorial/kvservice"
 )
 
 func main() {
@@ -27,7 +27,7 @@ func main() {
 	}
 
 	me := grove_ffi.MakeAddress(fmt.Sprintf("0.0.0.0:%d", port))
-	lockservice.MakeServer().Start(me)
-	log.Printf("Started lock server on port %d; id %d", port, me)
+	kvservice.MakeServer().Start(me)
+	log.Printf("Started kv server on port %d; id %d", port, me)
 	select {}
 }
