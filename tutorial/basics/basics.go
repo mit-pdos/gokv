@@ -9,13 +9,13 @@ type Tracker struct {
 	m  map[uint64]uint64
 }
 
-func (t *Tracker) lookup_locked(k uint64) (uint64, bool) {
+func (t *Tracker) lookupLocked(k uint64) (uint64, bool) {
 	v, ok := t.m[k]
 	return v, ok
 }
 
-func (t *Tracker) register_locked(k uint64, v uint64) bool {
-	_, ok := t.lookup_locked(k)
+func (t *Tracker) registerLocked(k uint64, v uint64) bool {
+	_, ok := t.lookupLocked(k)
 	if ok {
 		return false
 	}
@@ -26,14 +26,14 @@ func (t *Tracker) register_locked(k uint64, v uint64) bool {
 
 func (t *Tracker) Lookup(k uint64) (uint64, bool) {
 	t.mu.Lock()
-	v, ok := t.lookup_locked(k)
+	v, ok := t.lookupLocked(k)
 	t.mu.Unlock()
 	return v, ok
 }
 
 func (t *Tracker) Register(k uint64, v uint64) bool {
 	t.mu.Lock()
-	r := t.register_locked(k, v)
+	r := t.registerLocked(k, v)
 	t.mu.Unlock()
 	return r
 }
