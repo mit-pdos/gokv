@@ -16,3 +16,4 @@ Perennial related:
 * Φ/Ψ in urpc. To see the problem, try using just one Φ. Will end up with
   obligation to establish functoriality.
 * wp_Client__Call2': forces early branching, with no clear way to merge proofs.
+* disambiguate names for untyped + typed slice + map
