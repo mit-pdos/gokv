@@ -7,8 +7,11 @@
 * Clone the Perennial repository: https://github.com/mit-pdos/perennial
 * In the Perennial repo, run `git submodule update --init --recursive` to
   download its dependencies.
+* Build the basic Perennial libraries by running `make -j4 src/goose_lang/prelude.vos`.
+  You may want to adjust the number of parallel jobs (`-j4`) based on
+  the number of cores in your machine.
 
-# Building and using Perennial
+# Using Perennial
 In order to be able to "step through" a file, all of the files that it depends
 on must first be compiled. There are two ways of building a file and its
 dependencies: with proof-checking or without proof-checking.  For example,
@@ -25,9 +28,6 @@ Example:
 ```
 make -j4 src/program_proof/tutorial/basics/proof.vos
 ```
-
-You might want to adjust the number of parallel jobs (`-j4`) depending on the
-number of cores in your machine.
 
 ## Full (with proof-checking) build of a file
 This fully builds the given file and its dependencies. It actually checks all
