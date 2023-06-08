@@ -54,7 +54,7 @@ these steps:
 
 This will update the files in the `external/Goose/github_com/mit_pdos/gokv`
 directory in Perennial, including
-[`external/Goose/github_com/mit_pdos/gokv/tutorial/basics.v`](https://github.com/mit-pdos/perennial/blob/master/external/Goose/github_com/mit_pdos/gokv/tutorial/basics.v) corresponding to the [gokv/tutorial/basics] package.
+[`external/Goose/github_com/mit_pdos/gokv/tutorial/basics.v`](https://github.com/mit-pdos/perennial/blob/master/external/Goose/github_com/mit_pdos/gokv/tutorial/basics.v) corresponding to the [gokv/tutorial/basics](https://github.com/mit-pdos/gokv/blob/main/tutorial/basics/basics.go) package.
 
 We typically check in the generated Goose code into the Perennial
 repository, so unless you changed the `gokv` source code, running the
