@@ -1,8 +1,5 @@
-# Install Go (version 1.18 or newer): https://go.dev/doc/install
-
---------------------------------------------------------------------------------
-
 # First-time Perennial setup
+* Install Go (version 1.18 or newer): https://go.dev/doc/install
 * To install Coq, first install [opam](https://opam.ocaml.org/).  Here's a [link
   to opam's "how to install" page](https://opam.ocaml.org/doc/Install.html).
 * Install Coq version 8.16.1 as described [here](https://coq.inria.fr/opam-using.html).
@@ -11,14 +8,15 @@
 * In the Perennial repo, run `git submodule update --init --recursive` to
   download its dependencies.
 
-# Working with Perennial
+# Building and using Perennial
 In order to be able to "step through" a file, all of the files that it depends
 on must first be compiled. There are two ways of building a file and its
-dependencies. After building `src/program_proof/tutorial/basics/proof.v` (as
-described below), try opening it an editor set up with Coq and stepping through
-it.
+dependencies: with proof-checking or without proof-checking.  For example,
+suppose we want to work on the proof for
+[gokv/tutorial/basics](https://github.com/mit-pdos/gokv/blob/main/tutorial/basics/basics.go);
+the proof lives in `src/program_proof/tutorial/basics/proof.v`.
 
-## Light build of a file
+## Light (without proof-checking) build of a file
 This builds the given file and its transitive dependencies.  It skips checking
 proofs (i.e. stuff ending with `Qed.` or `Admitted.`), but still compiles
 theorem statements so that files can be imported, and the theorems can be used.
@@ -28,7 +26,7 @@ Example:
 make src/program_proof/tutorial/basics/proof.vos
 ```
 
-## Full build of a file
+## Full (with proof-checking) build of a file
 This fully builds the given file and its dependencies. It actually checks all
 proofs, so it takes longer than the "light build". You should do a full build in
 case you change a definition in a file that lots of other files import to make
@@ -38,19 +36,49 @@ Example:
 make src/program_proof/tutorial/basics/proof.vo
 ```
 
---------------------------------------------------------------------------------
-
-# Re-generating translation of code
+# Translating Go code for proving with Perennial
 
 Goose is a tool to translate Go code (`.go` files) into a formal "GooseLang"
-program in Coq (some definitions in `.v` files). This is how Coq proofs with
-Perennial are connected to actual Go code.
+program in Coq (represented using definitions in `.v` files). This is how
+Coq proofs with Perennial are connected to actual Go code.
 
-Clone https://github.com/tchajed/goose somewhere.
-Clone https://github.com/mit-pdos/gokv somewhere.
-Then, from the root of the Perennial repository, run
+For example, to translate the `gokv/tutorial/basics` code, you can follow
+these steps:
+
+- Clone https://github.com/tchajed/goose somewhere.
+- Clone https://github.com/mit-pdos/gokv somewhere.
+- From the root of the Perennial repository, run
 ```
-./etc/update-goose.py --compile  --goose /path/to/goose --gokv /path/to/gokv
+./etc/update-goose.py --compile --goose /path/to/goose --gokv /path/to/gokv
 ```
 This will update the files in the `external/Goose/github_com/mit_pdos/gokv`
-directory in Perennial.
+directory in Perennial, including
+[`external/Goose/github_com/mit_pdos/gokv/tutorial/basics.v`](https://github.com/mit-pdos/perennial/blob/master/external/Goose/github_com/mit_pdos/gokv/tutorial/basics.v) corresponding to the [gokv/tutorial/basics] package.
+
+We typically check in the generated Goose code into the Perennial
+repository, so unless you changed the `gokv` source code, running the
+above `update-gooes.py` command should not change the generated files.
+
+# Warm-up exercise 1
+
+Build the dependencies for the `basics.v` proof by running `make
+src/program_proof/tutorial/basics/proof.vos` in your Perennial
+checkout.  Open `src/program_proof/tutorial/basics/basics.v`
+in an editor set up with Coq, and step through the proofs in
+that file.  It might be helpful to refer to the Go source code in
+[basics.v](https://github.com/mit-pdos/gokv/blob/main/tutorial/basics/basics.go)
+to understand what code is being verified.
+
+Hint: You might find it helpful to this [Iris Proof Mode
+reference](https://gitlab.mpi-sws.org/iris/iris/-/blob/master/docs/proof_mode.md)
+to understand the Iris tactics and their syntax.
+
+# Warm-up exercise 2
+
+Add methods to `basics.go` for unregistering a key from the map (the
+opposite of the existing `registerLocked` and `Register` methods).
+Re-generate the Goose code once you've modified `basics.go`.  State
+theorems specifying your new methods in `basics/proof.v`, and prove
+those theorems.
+
+Hint: `delete k m` is the deletion of key `k` from gmap `m`.
