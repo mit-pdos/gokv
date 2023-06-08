@@ -48,9 +48,10 @@ these steps:
 - Clone https://github.com/tchajed/goose somewhere.
 - Clone https://github.com/mit-pdos/gokv somewhere.
 - From the root of the Perennial repository, run
-```
-./etc/update-goose.py --compile --goose /path/to/goose --gokv /path/to/gokv
-```
+  ```
+  ./etc/update-goose.py --compile --goose /path/to/goose --gokv /path/to/gokv
+  ```
+
 This will update the files in the `external/Goose/github_com/mit_pdos/gokv`
 directory in Perennial, including
 [`external/Goose/github_com/mit_pdos/gokv/tutorial/basics.v`](https://github.com/mit-pdos/perennial/blob/master/external/Goose/github_com/mit_pdos/gokv/tutorial/basics.v) corresponding to the [gokv/tutorial/basics] package.
