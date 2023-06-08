@@ -2,7 +2,7 @@
 * Install Go (version 1.18 or newer): https://go.dev/doc/install
 * To install Coq, first install [opam](https://opam.ocaml.org/).  Here's a [link
   to opam's "how to install" page](https://opam.ocaml.org/doc/Install.html).
-* Install Coq version 8.16.1 as described [here](https://coq.inria.fr/opam-using.html).
+* Install Coq version 8.17.0 as described [here](https://coq.inria.fr/opam-using.html).
 * Set up an editor for Coq as described [here](https://coq.inria.fr/user-interfaces.html).
 * Clone the Perennial repository: https://github.com/mit-pdos/perennial
 * In the Perennial repo, run `git submodule update --init --recursive` to
@@ -23,17 +23,21 @@ theorem statements so that files can be imported, and the theorems can be used.
 This is convenient during development.
 Example:
 ```
-make src/program_proof/tutorial/basics/proof.vos
+make -j4 src/program_proof/tutorial/basics/proof.vos
 ```
+
+You might want to adjust the number of parallel jobs (`-j4`) depending on the
+number of cores in your machine.
 
 ## Full (with proof-checking) build of a file
 This fully builds the given file and its dependencies. It actually checks all
 proofs, so it takes longer than the "light build". You should do a full build in
 case you change a definition in a file that lots of other files import to make
-sure nothing is broken.
+sure nothing is broken. We typically do full builds when changing low-level
+definitions, and as part of the CI process for the Perennial repo.
 Example:
 ```
-make src/program_proof/tutorial/basics/proof.vo
+make -j4 src/program_proof/tutorial/basics/proof.vo
 ```
 
 # Translating Go code for proving with Perennial
