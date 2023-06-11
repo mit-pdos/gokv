@@ -31,13 +31,17 @@ func (ck *Clerk) Put(key string, val string) {
 		}
 	}
 
-	args := &putArgs{
-		opId: opId,
-		key:  key,
-		val:  val,
-	}
-
-	for ck.rpcCl.putRpc(args) != urpc.ErrNone {
+	for {
+		// TODO: allocate these once, outside the loop. Waiting to do this until
+		// heap has dfrac for convenience.
+		args := &putArgs{
+			opId: opId,
+			key:  key,
+			val:  val,
+		}
+		if ck.rpcCl.putRpc(args) == urpc.ErrNone {
+			break
+		}
 	}
 }
 
@@ -54,15 +58,15 @@ func (ck *Clerk) ConditionalPut(key string, expectedVal string, newVal string) b
 		}
 	}
 
-	args := &conditionalPutArgs{
-		opId:        opId,
-		key:         key,
-		expectedVal: expectedVal,
-		newVal:      newVal,
-	}
-
 	var ret bool
 	for {
+		args := &conditionalPutArgs{
+			opId:        opId,
+			key:         key,
+			expectedVal: expectedVal,
+			newVal:      newVal,
+		}
+
 		reply, err := ck.rpcCl.conditionalPutRpc(args)
 		if err == urpc.ErrNone {
 			ret = (reply == "ok")
@@ -85,13 +89,13 @@ func (ck *Clerk) Get(key string) string {
 		}
 	}
 
-	args := &getArgs{
-		opId: opId,
-		key:  key,
-	}
-
 	var ret string
 	for {
+		args := &getArgs{
+			opId: opId,
+			key:  key,
+		}
+
 		reply, err := ck.rpcCl.getRpc(args)
 		if err == urpc.ErrNone {
 			ret = reply
