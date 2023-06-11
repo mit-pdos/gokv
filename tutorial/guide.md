@@ -86,4 +86,4 @@ Re-generate the Goose code once you've modified `basics.go`.  State
 theorems specifying your new methods in `basics/proof.v`, and prove
 those theorems.
 
-Hint: `delete k m` is the deletion of key `k` from gmap `m`.
+Hint: in Coq, `delete k m` is the deletion of key `k` from gmap `m`.

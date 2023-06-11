@@ -48,8 +48,11 @@ func decodePutArgs(x []byte) *putArgs {
 	a := new(putArgs)
 	a.opId, e = marshal.ReadInt(e)
 
-	keyLen, e := marshal.ReadInt(e) // FIXME: does this get translated correctly?
-	keyBytes, valBytes := marshal.ReadBytes(e, keyLen)
+	// FIXME: this does not get translated correctly
+	// keyLen, e := marshal.ReadInt(e)
+
+	keyLen, e2 := marshal.ReadInt(e)
+	keyBytes, valBytes := marshal.ReadBytes(e2, keyLen)
 	a.key = string(keyBytes)
 	a.val = string(valBytes)
 	return a
