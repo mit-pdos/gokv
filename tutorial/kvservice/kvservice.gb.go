@@ -87,12 +87,12 @@ func decodeConditionalPutArgs(x []byte) *conditionalPutArgs {
 	a := new(conditionalPutArgs)
 	a.opId, e = marshal.ReadInt(e)
 
-	keyLen, e := marshal.ReadInt(e)
-	keyBytes, e := marshal.ReadBytes(e, keyLen)
+	keyLen, e2 := marshal.ReadInt(e)
+	keyBytes, e3 := marshal.ReadBytes(e2, keyLen)
 	a.key = string(keyBytes)
 
-	expectedValLen, e := marshal.ReadInt(e)
-	expectedValBytes, newValBytes := marshal.ReadBytes(e, expectedValLen)
+	expectedValLen, e4 := marshal.ReadInt(e3)
+	expectedValBytes, newValBytes := marshal.ReadBytes(e4, expectedValLen)
 
 	a.expectedVal = string(expectedValBytes)
 	a.newVal = string(newValBytes)
