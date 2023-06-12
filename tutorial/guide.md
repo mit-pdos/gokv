@@ -68,10 +68,10 @@ above `update-gooes.py` command should not change the generated files.
 
 Build the dependencies for the `basics.v` proof by running `make
 src/program_proof/tutorial/basics/proof.vos` in your Perennial
-checkout.  Open `src/program_proof/tutorial/basics/basics.v`
+checkout.  Open `src/program_proof/tutorial/basics/proof.v`
 in an editor set up with Coq, and step through the proofs in
 that file.  It might be helpful to refer to the Go source code in
-[basics.v](https://github.com/mit-pdos/gokv/blob/main/tutorial/basics/basics.go)
+[basics.go](https://github.com/mit-pdos/gokv/blob/main/tutorial/basics/basics.go)
 to understand what code is being verified.
 
 Hint: You might find it helpful to this [Iris Proof Mode
