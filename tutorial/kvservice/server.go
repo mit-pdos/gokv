@@ -59,6 +59,7 @@ func (s *Server) get(args *getArgs) string {
 		return ret
 	}
 	ret2 := s.kvs[args.key]
+	s.lastReplies[args.opId] = ret2
 	s.mu.Unlock()
 	return ret2
 }
