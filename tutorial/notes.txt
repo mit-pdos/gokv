@@ -1,0 +1,20 @@
+What did we actually work through in the tutorial with jonh?
+
+jun 15
+  basics: walk through the proofs.
+  adding unregister.
+  re-proving rpc client Get.
+
+jun 16
+  discussing different specs for the concurrent tracker Register/Lookup.
+  adding a P to is_tracker.
+    going through all of the proofs to add it.
+  specify and prove MakeTracker.
+  adding ghost state point-to to basics tracker.
+  start looking at kvservice Server.get()
+  wrote specs for kvservice clerk on the board (ownership-based)
+    and discussed there's something more we might want (logical atomicity)
+
+jun 19
+  discuss specs for kvservice RPCs (as opposed to clerk-provided specs)
+
