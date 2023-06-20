@@ -35,6 +35,8 @@ jun 20
     proof rule for using a logically-atomic conditional-put clerk call
     definition of logical-atomicity notation using fupd's
     ghost callback analogy
-  logical atomicity: mechanization
+  logical atomicity: mechanization of caller
     implementing a lock service on top of kvservice full_proof
-    Go code, spec, proof for this lock service
+    Go code, spec, proof for this lock service: acquire, release
+  composition: bank
+
