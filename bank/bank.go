@@ -29,13 +29,8 @@ func acquire_two(lck *lockservice.LockClerk, l1 uint64, l2 uint64) {
 }
 
 func release_two(lck *lockservice.LockClerk, l1 uint64, l2 uint64) {
-	if l1 < l2 {
-		lck.Unlock(l2)
-		lck.Unlock(l1)
-	} else {
-		lck.Unlock(l1)
-		lck.Unlock(l2)
-	}
+	lck.Unlock(l1)
+	lck.Unlock(l2)
 	return
 }
 
