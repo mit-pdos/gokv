@@ -29,4 +29,12 @@ jun 20
   discuss TCB: lang.v, grove_ffi.v, Bank example of top-level demo spec
   client-side PUT rpc code
     state and prove lemmas for client RPC sending request, receiving reply
-
+  logical atomicity: on the board
+    how to implement a spinlock: what's inside is_lock?
+    proof rule for using physically atomic compare-and-swap
+    proof rule for using a logically-atomic conditional-put clerk call
+    definition of logical-atomicity notation using fupd's
+    ghost callback analogy
+  logical atomicity: mechanization
+    implementing a lock service on top of kvservice full_proof
+    Go code, spec, proof for this lock service
