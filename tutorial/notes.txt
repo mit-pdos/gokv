@@ -17,4 +17,16 @@ jun 16
 
 jun 19
   discuss specs for kvservice RPCs (as opposed to clerk-provided specs)
+  write spec on whiteboard for PUT rpc using invariant to transfer resources
+    both sending to server and returning to client
+  mechanize server-side PUT rpc spec
+    server state: physical and ghost
+    invariant for server state and for one RPC invocation
+    state fupd lemmas for server executing first time and repeated execution
+    prove lemmas
+
+jun 20
+  discuss TCB: lang.v, grove_ffi.v, Bank example of top-level demo spec
+  client-side PUT rpc code
+    state and prove lemmas for client RPC sending request, receiving reply
 
