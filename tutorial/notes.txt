@@ -39,4 +39,5 @@ jun 20
     implementing a lock service on top of kvservice full_proof
     Go code, spec, proof for this lock service: acquire, release
   composition: bank
-
+    bank invariant on top of existing spec for kvservice + lockservice
+    partial proofs
