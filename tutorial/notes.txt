@@ -41,3 +41,9 @@ jun 20
   composition: bank
     bank invariant on top of existing spec for kvservice + lockservice
     partial proofs
+
+jun 21
+  look at how to implement logically-atomic kvservice RPCs
+    how to put the logically-atomic fupd into the RPC invariant?
+  crash safety; WPCs
+    per-node crashes in grove
