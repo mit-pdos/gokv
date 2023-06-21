@@ -82,7 +82,7 @@ func (bck *BankClerk) SimpleAudit() {
 	}
 }
 
-func MakeBankClerk(lockhost memkv.HostName, kvhost memkv.HostName, cm *connman.ConnMan, init_flag uint64, accts []uint64, cid uint64) *BankClerk {
+func MakeBankClerkSlice(lockhost memkv.HostName, kvhost memkv.HostName, cm *connman.ConnMan, init_flag uint64, accts []uint64, cid uint64) *BankClerk {
 	bck := new(BankClerk)
 	bck.lck = lockservice.MakeLockClerk(lockhost, cm)
 	bck.kvck = memkv.MakeSeqKVClerk(kvhost, cm)
@@ -100,4 +100,11 @@ func MakeBankClerk(lockhost memkv.HostName, kvhost memkv.HostName, cm *connman.C
 	bck.lck.Unlock(init_flag)
 
 	return bck
+}
+
+func MakeBankClerk(lockhost memkv.HostName, kvhost memkv.HostName, cm *connman.ConnMan, init_flag uint64, acc1 uint64, acc2 uint64, cid uint64) *BankClerk {
+	var accts []uint64
+	accts = append(accts, acc1)
+	accts = append(accts, acc2)
+	return MakeBankClerkSlice(lockhost, kvhost, cm, init_flag, accts, cid)
 }
