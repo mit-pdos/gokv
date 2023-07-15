@@ -1,7 +1,7 @@
 package index
 
 import (
-	"github.com/mit-pdos/go-mvcc/index"
+	"github.com/mit-pdos/vmvcc/index"
 )
 
 type Server struct {
@@ -22,7 +22,7 @@ func (s *Server) Read(key uint64, tid uint64) string {
 func (s *Server) UpdateAndRelease(tid uint64, writes map[uint64]string) {
 	for key, val := range writes {
 		t := s.index.GetTuple(key)
-		t.WriteLock()
+		t.WriteOpen()
 		t.AppendVersion(tid, val)
 	}
 }
