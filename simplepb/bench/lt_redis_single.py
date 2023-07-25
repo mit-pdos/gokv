@@ -29,6 +29,7 @@ def run(outfilepath, readratio, threads_fn, warmuptime=30, runtime=120):
         'valuesize': 128,
     }
 
-    closed_lt('rediskv', config, reset_redis, threads_fn,
+    data = closed_lt('rediskv', config, reset_redis, threads_fn,
               ['-p', f"redis.addr={serverhost}:5001"])
     cleanup_procs()
+    return data

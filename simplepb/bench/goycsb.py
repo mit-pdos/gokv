@@ -29,7 +29,7 @@ def goycsb_bench(kvname:str, threads:int, warmuptime:int, runtime:int, valuesize
                        '-P', path.join(simplepbdir, "bench", kvname + '_workload'),
                        '--threads', str(threads),
                        '--target', '-1',
-                       '--interval', '100',
+                       '--interval', '200',
                        '-p', 'operationcount=' + str(2**32 - 1),
                        '-p', 'fieldlength=' + str(valuesize),
                        '-p', 'requestdistribution=uniform',
@@ -44,7 +44,8 @@ def goycsb_bench(kvname:str, threads:int, warmuptime:int, runtime:int, valuesize
 
     to_parse = ""
     optypes_seen = 0
-    num_optypes = 1 if readprop == 0.0 or updateprop == 0.0 else 2
+    # XXX: there is an extra line of output for "TOTAL"
+    num_optypes = 2 if readprop == 0.0 or updateprop == 0.0 else 3
 
     for stdout_line in iter(p.stdout.readline, ""):
         if stdout_line.find('Takes(s): {0}.'.format(runtime)) != -1:
@@ -92,9 +93,11 @@ def closed_lt(kvname, config, reset_fn, thread_fn, ycsb_args):
     peak_thruput = 0
 
     while True:
-        if i > last_good_index + 5:
+        if i >= last_good_index + 5:
             break
         threads = thread_fn(i)
+        if threads is None:
+            return data
 
         # restart and reload every single time
         reset_fn()

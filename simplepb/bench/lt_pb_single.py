@@ -29,6 +29,7 @@ def run(outfilepath, readratio, threads_fn, warmuptime=30, runtime=120):
         'valuesize': 128,
     }
 
-    closed_lt('pbkv', config, reset_single_core_kv_server, threads_fn,
+    data = closed_lt('pbkv', config, reset_single_core_kv_server, threads_fn,
               ['-p', f"pbkv.configAddr={serverhost}:12000"])
     cleanup_procs()
+    return data

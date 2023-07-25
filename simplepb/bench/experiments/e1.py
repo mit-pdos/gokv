@@ -10,7 +10,7 @@ from os import system as do
 import os
 import json
 import sys
-from bench import lt_pb_single
+from bench import lt_pb_single, lt_redis_single
 
 def write_lts(data, outfilename):
     """
@@ -27,13 +27,15 @@ def write_lts(data, outfilename):
         rthru = 0.0
 
         for k, v in d['lts'].items():
-            # look for updates; if any other operation is found, report an error
-            if k == 'TOTAL':
+            # look for the TOTAL
+            if k == 'UPDATE':
                 wthru = v['thruput']
                 wlat = v['avg_latency'] / 1000
-            # elif k == 'READ':
-                # rthru = v['thruput']
-                # rlat = v['avg_latency'] / 1000
+            elif k == 'READ':
+                rthru = v['thruput']
+                rlat = v['avg_latency'] / 1000
+            elif k == 'TOTAL':
+                pass
             else:
                 throw("unimpl")
         xys.append((d['num_threads'], rlat, rthru, wlat, wthru))
@@ -52,6 +54,11 @@ def num_threads(i):
     i = i - 10
     return 100 * (i + 1)
 
+def num_threads_lite(i):
+    if i > 0:
+        return None
+    return 1000 + 200 * i
+
 for readratio in [0.0, 0.5, 0.95]:
     do('mkdir /tmp/gokv')
     do('mv /tmp/gokv/grovekv-lts.txt /tmp/grovekv-lts.old')
@@ -59,9 +66,9 @@ for readratio in [0.0, 0.5, 0.95]:
     id = str(int(100 * readratio))
     # do(f'./lt_pb_single.py -v -e --reads {str(readratio)} --outfile /tmp/gokv/grovekv-lts.txt 1>/tmp/pb.out 2>/tmp/pb.err')
     # do(f'./lt_redis_single.py -v -e --reads {str(readratio)} --outfile /tmp/gokv/redis-lts.txt 1>/tmp/redis.out 2>/tmp/redis.err')
-    grove_data = lt_pb_single.run("/tmp/gokv/grovekv-lts.txt", readratio, num_threads,
+    grove_data = lt_pb_single.run("/tmp/gokv/grovekv-lts.txt", readratio, num_threads_lite,
                                   warmuptime=10, runtime=20)
-    redis_data = lt_pb_single.run("/tmp/gokv/redis-lts.txt", readratio, num_threads,
+    redis_data = lt_redis_single.run("/tmp/gokv/redis-lts.txt", readratio, num_threads_lite,
                                   warmuptime=10, runtime=20)
 
     do(f"cp /tmp/gokv/grovekv-lts.txt ./data/redis_vs_grove/grovekv-lts-{id}.txt")

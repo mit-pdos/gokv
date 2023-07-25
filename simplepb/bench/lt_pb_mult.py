@@ -11,7 +11,6 @@ import time
 import atexit
 import signal
 from datetime import datetime
-
 from .goycsb import *
 
 def num_threads(i):
