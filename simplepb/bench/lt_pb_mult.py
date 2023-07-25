@@ -26,7 +26,7 @@ def closed_lt(kvname, warmuptime, runtime, valuesize, outfilename, readprop, upd
     peak_thruput = 0
 
     while True:
-        if i > last_good_index + 7:
+        if i > last_good_index + 5:
             break
         threads = thread_fn(i)
 

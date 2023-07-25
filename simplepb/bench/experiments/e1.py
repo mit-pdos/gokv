@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S python3
 
 # Generates raw data for latency/throughput curves for Redis and GroveKV for
 # various read ratios.
@@ -6,9 +6,13 @@
 # This is intended to help find the peak throughput of the two systems and the
 # latency under low load.
 
+print("package:", __package__)
+
 from os import system as do
 import os
 import json
+import sys
+from bench import lt_pb_single
 
 def read_raw_lt_data(infilename):
     with open(infilename, 'r') as f:
@@ -48,13 +52,29 @@ def write_lts(data, outfilename):
                 print(f"{xy[0]}, {xy[1]}, {xy[2]}, {xy[3]}, {xy[4]}", file=f)
 
 os.chdir(os.path.expanduser('~/gokv/simplepb/bench'))
+
+def num_threads(i):
+    if i < 1:
+        return 1
+    i = i - 1
+    if i < 10:
+        return 5 + i * 5
+    i = i - 10
+    return 100 * (i + 1)
+
 for readratio in [0.0, 0.5, 0.95]:
     do('mkdir /tmp/gokv')
     do('mv /tmp/gokv/grovekv-lts.txt /tmp/grovekv-lts.old')
     do('mv /tmp/gokv/redis-lts.txt /tmp/redis-lts.old')
     id = str(int(100 * readratio))
-    do(f'./lt_pb_single.py -v -e --reads {str(readratio)} --outfile /tmp/gokv/grovekv-lts.txt 1>/tmp/pb.out 2>/tmp/pb.err')
-    do(f'./lt_redis_single.py -v -e --reads {str(readratio)} --outfile /tmp/gokv/redis-lts.txt 1>/tmp/redis.out 2>/tmp/redis.err')
+    # do(f'./lt_pb_single.py -v -e --reads {str(readratio)} --outfile /tmp/gokv/grovekv-lts.txt 1>/tmp/pb.out 2>/tmp/pb.err')
+    # do(f'./lt_redis_single.py -v -e --reads {str(readratio)} --outfile /tmp/gokv/redis-lts.txt 1>/tmp/redis.out 2>/tmp/redis.err')
+    lt_pb_single.run("/tmp/gokv/grovekv-lts.txt", readratio, num_threads,
+                     warmuptime=10, runtime=20)
+
+    lt_pb_single.run("/tmp/gokv/redis-lts.txt", readratio, num_threads,
+                     warmuptime=10, runtime=20)
+
     do(f"cp /tmp/gokv/grovekv-lts.txt ./data/redis_vs_grove/grovekv-lts-{id}.txt")
     do(f"cp /tmp/gokv/redis-lts.txt ./data/redis_vs_grove/redis-lts-{id}.txt")
     write_lts(read_raw_lt_data("/tmp/gokv/grovekv-lts.txt"), f"./data/redis_vs_grove/grovekv-{id}.dat")

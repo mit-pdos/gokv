@@ -12,16 +12,7 @@ import atexit
 import signal
 from datetime import datetime
 
-from common import *
-
-def num_threads(i):
-    if i < 1:
-        return 1
-    i = i - 1
-    if i < 10:
-        return 5 + i * 5
-    i = i - 10
-    return 100 * (i + 1)
+from .goycsb import *
 
 def closed_lt(kvname, warmuptime, runtime, valuesize, outfilename, readprop, updateprop, recordcount, thread_fn):
     data = []
