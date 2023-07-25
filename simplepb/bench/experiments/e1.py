@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 
+# Generates raw data for latency/throughput curves for Redis and GroveKV for
+# various read ratios.
+# Puts final data in `gokv/simplepb/bench/data/redis_vs_grove/`.
+# This is intended to help find the peak throughput of the two systems and the
+# latency under low load.
+
 from os import system as do
 import os
 import json
-
-# Gives redis latency/throughput and GroveKV latency/throughput curves.
 
 def read_raw_lt_data(infilename):
     with open(infilename, 'r') as f:
@@ -30,12 +34,12 @@ def write_lts(data, outfilename):
 
         for k, v in d['lts'].items():
             # look for updates; if any other operation is found, report an error
-            if k == 'UPDATE':
+            if k == 'TOTAL':
                 wthru = v['thruput']
                 wlat = v['avg_latency'] / 1000
-            elif k == 'READ':
-                rthru = v['thruput']
-                rlat = v['avg_latency'] / 1000
+            # elif k == 'READ':
+                # rthru = v['thruput']
+                # rlat = v['avg_latency'] / 1000
             else:
                 throw("unimpl")
         xys.append((d['num_threads'], rlat, rthru, wlat, wthru))
@@ -43,7 +47,7 @@ def write_lts(data, outfilename):
         for xy in xys:
                 print(f"{xy[0]}, {xy[1]}, {xy[2]}, {xy[3]}, {xy[4]}", file=f)
 
-os.chdir('/users/upamanyu/gokv/simplepb/bench')
+os.chdir(os.path.expanduser('~/gokv/simplepb/bench'))
 for readratio in [0.0, 0.5, 0.95]:
     do('mkdir /tmp/gokv')
     do('mv /tmp/gokv/grovekv-lts.txt /tmp/grovekv-lts.old')

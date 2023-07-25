@@ -10,6 +10,7 @@ import (
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/simplepb/admin"
 	"github.com/mit-pdos/gokv/simplepb/config"
+	"github.com/mit-pdos/gokv/simplepb/e"
 )
 
 func main() {
@@ -52,11 +53,16 @@ func main() {
 		for _, srvStr := range a[1:] {
 			servers = append(servers, grove_ffi.MakeAddress(srvStr))
 		}
-		err := admin.EnterNewConfig(confHost, servers)
-		if err != 0 {
-			fmt.Printf("Failed to switch config: %d\n", err)
-		} else {
-			fmt.Printf("Finished switching configuration\n")
+		for {
+			err := admin.EnterNewConfig(confHost, servers)
+			if err == 0 {
+				fmt.Printf("Finished switching configuration\n")
+				break
+			} else if err != e.Timeout {
+				fmt.Printf("Failed to switch config: %d\n", err)
+				break
+			}
+			continue
 		}
 	} else if a[0] == "getconf" {
 		ck := config.MakeClerk(confHost)

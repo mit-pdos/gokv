@@ -15,6 +15,9 @@ from datetime import datetime
 from common import *
 
 def num_threads(i):
+    if i < 1:
+        return 1
+    i = i - 1
     if i < 10:
         return 5 + i * 5
     i = i - 10
@@ -72,8 +75,8 @@ def main():
         'write': 1 - readratio,
         'keys': 1000,
         'serverhost': '10.10.1.4',
-        'warmuptime': 30,
-        'runtime': 120,
+        'warmuptime': 10,
+        'runtime': 30,
     }
 
     outfilepath = global_args.outfile

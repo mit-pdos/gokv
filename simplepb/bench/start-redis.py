@@ -11,22 +11,37 @@ args = parser.parse_args()
 
 ncores = args.ncores
 
-do(f"ssh upamanyu@node0 'killall go kvsrv config redis-server 2>/dev/null' ")
-do(f"ssh upamanyu@node0 'rm -f /users/upamanyu/gokv/simplepb/durable/*'")
-do(f"ssh upamanyu@node0 'cp /users/upamanyu/redis/redisraft/redisraft.so /users/upamanyu/gokv/simplepb/durable/'")
+do(f"ssh node0 'killall go kvsrv config redis-server 2>/dev/null' ")
+do(f"ssh node0 'rm -f ~/gokv/simplepb/durable/*'")
 
-do(f""" ssh upamanyu@node0 <<ENDSSH
-    cd /users/upamanyu/gokv/simplepb/;
+# do(f"ssh upamanyu@node0 'cp /users/upamanyu/redis/redisraft/redisraft.so /users/upamanyu/gokv/simplepb/durable/'")
+# do(f""" ssh upamanyu@node0 <<ENDSSH
+    # cd /users/upamanyu/gokv/simplepb/;
+    # ./bench/set-cores.py {str(ncores)};
+    # nohup /users/upamanyu/redis/redis/src/redis-server \
+        # --port 5001 --dbfilename dbfilename, \
+        # --protected-mode no \
+        # --loadmodule ./redisraft.so \
+        # --raft.log-filename logfilename \
+        # --dir /users/upamanyu/gokv/simplepb/durable \
+        # --raft.log-fsync yes \
+        # --raft.addr 0.0.0.0:5001 1>/tmp/redis.out 2>/tmp/redis.err & ;
+     # sleep 2;
+     # /users/upamanyu/redis/redis/src/redis-cli -h 0.0.0.0 -p 5001 raft.cluster init;
+     # sleep 1;
+# ENDSSH
+# """)
+
+do(f""" ssh node0 <<ENDSSH
+    cd ~/gokv/simplepb/;
     ./bench/set-cores.py {str(ncores)};
-    nohup /users/upamanyu/redis/redis/src/redis-server \
+    nohup ~/redis/redis/src/redis-server \
         --port 5001 --dbfilename dbfilename, \
         --protected-mode no \
-        --loadmodule ./redisraft.so \
-        --raft.log-filename logfilename \
-        --dir /users/upamanyu/gokv/simplepb/durable \
-        --raft.log-fsync yes \
-        --raft.addr 0.0.0.0:5001 1>/tmp/redis.out 2>/tmp/redis.err & ;
-     sleep 2;
-     /users/upamanyu/redis/redis/src/redis-cli -h 0.0.0.0 -p 5001 raft.cluster init;
+        --dir ~/gokv/simplepb/durable \
+        --appendonly yes \
+        --appendfsync always \
+        --save "" \
+        1>/tmp/redis.out 2>/tmp/redis.err & ;
 ENDSSH
 """)

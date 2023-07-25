@@ -28,8 +28,8 @@ if nreplicas > totalreplicas:
     sys.exit(1)
 
 # Start config server, on the last machine that isn't the client, with all 8 cores
-do(f"""ssh upamanyu@node{totalreplicas} <<ENDSSH
-    cd /users/upamanyu/gokv/simplepb/;
+do(f"""ssh node{totalreplicas} <<ENDSSH
+    cd ~/gokv/simplepb/;
     ./bench/set-cores.py 8;
     nohup {gobin} run ./cmd/config -port 12000 1>/tmp/config.out 2>/tmp/config.err &
 ENDSSH
@@ -38,8 +38,8 @@ ENDSSH
 conf_addr = f"10.10.1.{totalreplicas + 1}:12000"
 # Start all replicas
 for i in range(totalreplicas):
-    do(f"""ssh upamanyu@node{str(i)} <<ENDSSH
-    cd /users/upamanyu/gokv/simplepb/;
+    do(f"""ssh node{str(i)} <<ENDSSH
+    cd ~/gokv/simplepb/;
     ./bench/set-cores.py {ncores};
     nohup {gobin} run ./cmd/kvsrv -conf {conf_addr} -filename kv.data -port 12100 1>/tmp/replica.out 2>/tmp/replica.err &
 ENDSSH

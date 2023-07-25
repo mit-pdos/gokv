@@ -15,17 +15,13 @@ from datetime import datetime
 from common import *
 
 def num_threads(i):
+    if i < 1:
+        return 1
+    i = i - 1
     if i < 10:
         return 5 + i * 5
     i = i - 10
     return 100 * (i + 1)
-
-    if i < 5:
-        return i + 1
-    elif i < 25:
-        return 5 + (i - 5) * 5
-    else:
-        return 500 + (i - 25) * 500
 
 def closed_lt(kvname, warmuptime, runtime, valuesize, outfilename, readprop, updateprop, recordcount, thread_fn):
     data = []
@@ -81,8 +77,8 @@ def main():
         'write': 1 - readratio,
         'keys': 1000,
         'serverhost': '10.10.1.1',
-        'warmuptime': 30,
-        'runtime': 120,
+        'warmuptime': 10,
+        'runtime': 30,
     }
 
     outfilepath = global_args.outfile

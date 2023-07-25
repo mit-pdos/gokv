@@ -173,44 +173,8 @@ def parse_ycsb_output_totalops(output):
         time = float(m.group('time'))
     return (time, a)
 
-def goycsb_bench_inst(kvname:str, threads:int, runtime:int, valuesize:int, readprop:float, updateprop:float, keys:int, benchcpus:str):
-    """
-    """
-
-    p = start_command(many_cores(['go', 'run',
-                                  path.join(goycsbdir, './cmd/go-ycsb'),
-                                  'run', kvname,
-                                  '-P', path.join(simplepbdir, "bench", kvname + '_workload'),
-                                  '--threads', str(threads),
-                                  '--target', '-1',
-                                  '--interval', '500',
-                                  '-p', 'operationcount=' + str(2**32 - 1),
-                                  '-p', 'fieldlength=' + str(valuesize),
-                                  '-p', 'requestdistribution=uniform',
-                                  '-p', 'readproportion=' + str(readprop),
-                                  '-p', 'updateproportion=' + str(updateprop),
-                                  '-p', 'warmup=10', # TODO: increase warmup
-                                  '-p', 'recordcount=' + str(keys),
-                                  ], benchcpus), cwd=goycsbdir)
-    if p is None:
-        return ''
-
-    totalopss = []
-    for stdout_line in iter(p.stdout.readline, ""):
-        t,a = (parse_ycsb_output_totalops(stdout_line))
-        if t:
-            print(a)
-            totalopss.append((t,a))
-        if stdout_line.find('Takes(s): {0}.'.format(runtime)) != -1:
-            ret = stdout_line
-            break
-    p.stdout.close()
-    p.terminate()
-    return totalopss
-
 def goycsb_load(kvname:str, threads:int, valuesize:int, keys:int, extra_args=[]):
-    run_command(['go', 'run',
-                 path.join(goycsbdir, './cmd/go-ycsb'),
+    run_command([path.join(goycsbdir, './go-ycsb'),
                  'load', kvname,
                  '-P', path.join(simplepbdir, "bench", kvname + '_workload'),
                  '--threads', str(threads),
