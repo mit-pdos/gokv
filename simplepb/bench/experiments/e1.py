@@ -6,21 +6,11 @@
 # This is intended to help find the peak throughput of the two systems and the
 # latency under low load.
 
-print("package:", __package__)
-
 from os import system as do
 import os
 import json
 import sys
 from bench import lt_pb_single
-
-def read_raw_lt_data(infilename):
-    with open(infilename, 'r') as f:
-        data = []
-        for line in f:
-            data.append(json.loads(line))
-        return data
-    return None
 
 def write_lts(data, outfilename):
     """
@@ -69,13 +59,12 @@ for readratio in [0.0, 0.5, 0.95]:
     id = str(int(100 * readratio))
     # do(f'./lt_pb_single.py -v -e --reads {str(readratio)} --outfile /tmp/gokv/grovekv-lts.txt 1>/tmp/pb.out 2>/tmp/pb.err')
     # do(f'./lt_redis_single.py -v -e --reads {str(readratio)} --outfile /tmp/gokv/redis-lts.txt 1>/tmp/redis.out 2>/tmp/redis.err')
-    lt_pb_single.run("/tmp/gokv/grovekv-lts.txt", readratio, num_threads,
-                     warmuptime=10, runtime=20)
-
-    lt_pb_single.run("/tmp/gokv/redis-lts.txt", readratio, num_threads,
-                     warmuptime=10, runtime=20)
+    grove_data = lt_pb_single.run("/tmp/gokv/grovekv-lts.txt", readratio, num_threads,
+                                  warmuptime=10, runtime=20)
+    redis_data = lt_pb_single.run("/tmp/gokv/redis-lts.txt", readratio, num_threads,
+                                  warmuptime=10, runtime=20)
 
     do(f"cp /tmp/gokv/grovekv-lts.txt ./data/redis_vs_grove/grovekv-lts-{id}.txt")
     do(f"cp /tmp/gokv/redis-lts.txt ./data/redis_vs_grove/redis-lts-{id}.txt")
-    write_lts(read_raw_lt_data("/tmp/gokv/grovekv-lts.txt"), f"./data/redis_vs_grove/grovekv-{id}.dat")
-    write_lts(read_raw_lt_data("/tmp/gokv/redis-lts.txt"), f"./data/redis_vs_grove/redis-{id}.dat")
+    write_lts(grove_data, f"./data/redis_vs_grove/grovekv-{id}.dat")
+    write_lts(redis_data, f"./data/redis_vs_grove/redis-{id}.dat")

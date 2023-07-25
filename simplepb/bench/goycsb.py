@@ -80,3 +80,45 @@ def goycsb_load(kvname:str, threads:int, valuesize:int, keys:int, extra_args=[])
                  '-p', 'fieldlength=' + str(valuesize),
                  '-p', 'recordcount=' + str(keys),
                  ] + extra_args, cwd=goycsbdir)
+
+
+# This runs go-ycsb with an increasing number of threads until the throughput is
+# saturated, and returns a list of the latency/throughput information for each
+# run.
+def closed_lt(kvname, config, reset_fn, thread_fn, ycsb_args):
+    data = []
+    i = 0
+    last_good_index = i
+    peak_thruput = 0
+
+    while True:
+        if i > last_good_index + 5:
+            break
+        threads = thread_fn(i)
+
+        # restart and reload every single time
+        reset_fn()
+        goycsb_load(kvname, 10, config['valuesize'], config['recordcount'], ycsb_args)
+
+        a = goycsb_bench(kvname, threads, config['warmuptime'], config['runtime'],
+                         config['valuesize'], config['reads'], config['writes'],
+                         config['recordcount'],
+                         ycsb_args)
+
+        p = {'service': kvname, 'num_threads': threads, 'lts': a}
+        data = data + [p]
+
+        with open(config['outfilename'], 'a+') as outfile:
+            outfile.write(json.dumps(p) + '\n')
+
+        thput = sum([ a[op]['thruput'] for op in a ])
+
+        if thput > peak_thruput:
+            last_good_index = i
+        if thput > peak_thruput:
+            peak_thruput = thput
+
+        last_threads = threads
+        i = i + 1
+
+    return data

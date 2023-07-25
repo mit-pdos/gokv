@@ -11,70 +11,24 @@ import time
 import atexit
 import signal
 from datetime import datetime
-
 from .goycsb import *
 
-def closed_lt(kvname, warmuptime, runtime, valuesize, outfilename, readprop, updateprop, recordcount, thread_fn):
-    data = []
-    i = 0
-    last_good_index = i
-    peak_thruput = 0
-
-    while True:
-        if i > last_good_index + 5:
-            break
-        threads = thread_fn(i)
-
-        cleanup_procs()
-        start_fresh_single_node_redisraft()
-        goycsb_load(kvname, 10, valuesize, recordcount,
-                    ['-p', f"redis.addr={config['serverhost']}:5001"])
-        a = goycsb_bench(kvname, threads, warmuptime, runtime, valuesize, readprop, updateprop, recordcount,
-                         ['-p', f"redis.addr={config['serverhost']}:5001"])
-
-        p = {'service': kvname, 'num_threads': threads, 'lts': a}
-
-        data = data + [ p ]
-        with open(outfilename, 'a+') as outfile:
-            outfile.write(json.dumps(p) + '\n')
-
-        thput = sum([ a[op]['thruput'] for op in a ])
-
-        if thput > peak_thruput:
-            last_good_index = i
-        if thput > peak_thruput:
-            peak_thruput = thput
-
-        # last_thruput = int(thput + 1)
-        last_threads = threads
-
-        i = i + 1
-
-    return data
-
-config = {}
-
-def start_fresh_single_node_redisraft():
+def reset_redis():
     os.system("./start-redis.py --ncores 1")
 
-def main():
-    atexit.register(cleanup_procs)
+def run(outfilepath, readratio, threads_fn, warmuptime=30, runtime=120):
     resource.setrlimit(resource.RLIMIT_NOFILE, (100000, 100000))
-    global config
-
-    readratio = float(global_args.reads)
+    serverhost = '10.10.1.1',
     config = {
-        'read': readratio,
-        'write': 1 - readratio,
-        'keys': 1000,
-        'serverhost': '10.10.1.1',
-        'warmuptime': 10,
-        'runtime': 30,
+        'outfilename': outfilepath,
+        'reads': readratio,
+        'writes': 1 - readratio,
+        'recordcount': 1000,
+        'warmuptime': warmuptime,
+        'runtime': runtime,
+        'valuesize': 128,
     }
 
-    outfilepath = global_args.outfile
-
-    closed_lt('rediskv', config['warmuptime'], config['runtime'], 128, outfilepath, config['read'], config['write'], config['keys'], num_threads)
-
-if __name__=='__main__':
-    main()
+    closed_lt('rediskv', config, reset_redis, threads_fn,
+              ['-p', f"redis.addr={serverhost}:5001"])
+    cleanup_procs()
