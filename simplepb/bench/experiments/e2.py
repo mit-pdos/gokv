@@ -23,7 +23,7 @@ os.popen("""~/go-ycsb/go-ycsb run pbkv -P ~/gokv/simplepb/bench/pbkv_workload --
 -p updateproportion=1.0 -p warmuptime=5 -p recordcount=1000000 -p pbkv.configAddr=10.10.1.5:12000 > /tmp/writes.txt \
 """)
 
-os.popen("""~/go-ycsb/go-ycsb run pbkv -P ~/gokv/simplepb/bench/pbkv_workload --threads 100 --target -1 \
+os.popen("""~/go-ycsb/go-ycsb run pbkv -P ~/gokv/simplepb/bench/pbkv_workload --threads 150 --target -1 \
 --interval 200 -p operationcount=4294967295 -p fieldlength=128 -p requestdistribution=uniform -p readproportion=1.0 \
 -p updateproportion=0.0 -p warmuptime=5 -p recordcount=1000000 -p pbkv.configAddr=10.10.1.5:12000 > /tmp/reads.txt \
 """)

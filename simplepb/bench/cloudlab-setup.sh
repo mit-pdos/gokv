@@ -15,6 +15,12 @@ sudo chsh -s /bin/zsh upamanyu
 # turn off hyperthreading
 echo off | sudo tee /sys/devices/system/cpu/smt/control
 
+# set intel_pstate driver to use performance governor; note that this is not the
+# same as actually setting the CPU frequency to a fixed amount, which does not
+# seem easily doable on cloudlab.
+echo performance | sudo tee /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+
 # install numactl
 sudo apt update
-yes | sudo apt install numactl cmake
+yes | sudo apt install numactl cmake pip
+pip install numpy scipy

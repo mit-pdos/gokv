@@ -14,11 +14,11 @@ from datetime import datetime
 from .goycsb import *
 
 def reset_redis():
-    os.system("./start-redis.py --ncores 1")
+    os.system("./start-redis.py --ncores 1 1>/tmp/redis.out 2>/tmp/redis.err")
 
 def run(outfilepath, readratio, threads_fn, warmuptime=30, runtime=120):
     resource.setrlimit(resource.RLIMIT_NOFILE, (100000, 100000))
-    serverhost = '10.10.1.1',
+    serverhost = '10.10.1.1'
     config = {
         'outfilename': outfilepath,
         'reads': readratio,

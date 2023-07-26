@@ -12,7 +12,7 @@ args = parser.parse_args()
 ncores = args.ncores
 
 do(f"ssh node0 'killall go kvsrv config redis-server 2>/dev/null' ")
-do(f"ssh node0 'rm -f ~/gokv/simplepb/durable/*'")
+do(f"ssh node0 'rm -rf ~/gokv/simplepb/durable/*'")
 
 # do(f"ssh upamanyu@node0 'cp /users/upamanyu/redis/redisraft/redisraft.so /users/upamanyu/gokv/simplepb/durable/'")
 # do(f""" ssh upamanyu@node0 <<ENDSSH

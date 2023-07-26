@@ -1,0 +1,64 @@
+# The following lines were added by compinstall
+
+zstyle ':completion:*' completer _expand _complete _ignored _correct _approximate
+zstyle ':completion:*' format 'Completing %d'
+zstyle ':completion:*' group-name ''
+zstyle ':completion:*' matcher-list '' 'm:{[:lower:]}={[:upper:]} m:{[:lower:][:upper:]}={[:upper:][:lower:]}' 'r:|[._-]=** r:|=**' 'l:|=* r:|=*'
+zstyle ':completion:*' menu select=1
+zstyle ':completion:*' select-prompt %SScrolling active: current selection at %p%s
+zstyle :compinstall filename '~/.zshrc'
+
+autoload -Uz compinit
+compinit
+# End of lines added by compinstall
+# Lines configured by zsh-newuser-install
+HISTFILE=~/.histfile
+HISTSIZE=500000
+SAVEHIST=50000
+setopt appendhistory autocd
+unsetopt beep
+
+# End of lines configured by zsh-newuser-install
+
+autoload -U colors
+colors
+PROMPT="
+%{$fg[green]%}%w %*
+%{$fg[blue]%}%n %{$fg[yellow]%}at %{$fg[red]%}%m %{$fg[yellow]%}in %{$fg[magenta]%}%/
+%{$fg[yellow]%}$%{$reset_color%} "
+export PROMPT
+
+EDITOR="vim"
+export EDITOR
+
+# LS_COLORS
+LS_COLORS='di=4:ex=31:*.c=35'
+export LS_COLORS
+
+# Aliases
+alias ls='ls --color -F'
+alias l='ls --color -F'
+alias ll='ls -l --color -F'
+alias la='ls -la --color -F'
+
+# vim
+bindkey -v
+bindkey kj vi-cmd-mode
+
+export KEYTIMEOUT=10
+function zle-line-init zle-keymap-select {
+	VIM_PROMPT="%{$fg[yellow]%}[% NORMAL]%{$reset_color%}"
+    RPS1="${${KEYMAP/vicmd/$VIM_PROMPT}/(main|viins)/[% INSERT]%}"
+    RPS2=$RPS1
+    zle reset-prompt
+}
+
+zle -N zle-line-init
+zle -N zle-keymap-select
+
+export GOPATH="$HOME/go"
+
+# opam configuration
+test -r ~/.opam/opam-init/init.zsh && . ~/.opam/opam-init/init.zsh > /dev/null 2> /dev/null || true
+
+export PATH=$PATH:/usr/local/go/bin

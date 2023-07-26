@@ -1,6 +1,21 @@
-\documentclass[tikz]{standalone}% 'crop' is the default for v1.0, before it was 'preview'
+\documentclass[tikz]{standalone}
 \usepackage{pgfplots}
 \begin{document}
+
+\begin{figure}[h]
+\centering
+\small
+\begin{tabular}{@{~}l@{~ ~}r@{~ ~}r@{~}}
+\toprule
+\bf Benchmark & \bf Redis & \bf \kv{} \\
+\midrule
+\include{../data/redis_vs_grove/peak-table-lite.tex}
+\bottomrule
+\end{tabular}
+\caption{Throughput and latency of \kv{} compared to Redis.}
+\label{fig:redis}
+\end{figure}
+
 \begin{figure}[h]
 \begin{tikzpicture}
 \begin{axis}[
@@ -13,15 +28,9 @@
     scaled y ticks=base 10:-3,
     ytick scale label code/.code={},
     yticklabel={\pgfmathprintnumber{\tick}k},
-    %xmin=0, xmax=100,
-    %$ymin=0, ymax=120,
-    %$xtick={1,2,3,4,5,6,7,8,9,10},
-    %ytick={0,20,40,60,80,100,120},
-    % legend pos=north east,
     ymajorgrids=true,
     grid style=dashed,
     mark size=1pt,
-    % no marks,
 ]
 \addplot table[col sep=comma] {../data/reconfig/reads.dat};
 \addplot table[col sep=comma] {../data/reconfig/writes.dat};
@@ -33,4 +42,32 @@
   new primary and backup.}%
 \label{fig:eval-reconfig}
 \end{figure}
+
+\begin{figure}[h]
+\begin{tikzpicture}
+\begin{axis}[
+    width=\columnwidth,
+    height=0.5\columnwidth,
+    xlabel={Time (s)},
+    ylabel={Throughput (req/s)},
+    xmin=0.0,
+    ymin=0,
+    scaled y ticks=base 10:-3,
+    ytick scale label code/.code={},
+    yticklabel={\pgfmathprintnumber{\tick}k},
+    ymajorgrids=true,
+    grid style=dashed,
+    mark size=1pt,
+]
+\addplot table[col sep=comma] {data/reconfig_reads.dat};
+\addplot table[col sep=comma] {data/reconfig_writes.dat};
+\legend{reads,writes}
+ \end{axis}
+\end{tikzpicture}
+\caption{Throughput over time (averaged over 0.5 second time slices), with the
+  primary crashing at 10 seconds, followed immediately by a reconfiguration to a
+  new primary and backup.}%
+\label{fig:eval-reconfig}
+\end{figure}
+
 \end{document}
