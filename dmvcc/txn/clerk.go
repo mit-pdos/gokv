@@ -1,11 +1,11 @@
 package txn
 
 import (
-	"github.com/mit-pdos/vmvcc/trusted_proph"
 	"github.com/mit-pdos/gokv/dmvcc/index"
 	"github.com/mit-pdos/gokv/dmvcc/prophname"
 	"github.com/mit-pdos/gokv/dmvcc/txncoordinator"
 	"github.com/mit-pdos/gokv/dmvcc/txnmgr"
+	"github.com/mit-pdos/vmvcc/trusted_proph"
 
 	// "github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/tchajed/goose/machine"
