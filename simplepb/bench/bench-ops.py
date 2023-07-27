@@ -69,8 +69,8 @@ def goycsb_bench(kvname:str, threads:int, warmuptime:int, runtime:int, valuesize
     { 'UPDATE': {'thruput': 1000, 'avg_latency': 12345', 'raw': 'blah'},...}
     """
 
-    goycsbdir = "/users/upamanyu/go-ycsb/"
-    simplepbdir = "/users/upamanyu/gokv/simplepb/"
+    goycsbdir = os.path.expanduser("~/go-ycsb/")
+    simplepbdir = os.path.expanduser("~/gokv/simplepb/")
 
     # gobin = '/usr/local/go/bin/go'
     # run_command([gobin, 'build', './cmd/go-ycsb'], cwd=goyscbdir)
@@ -94,7 +94,7 @@ def goycsb_bench(kvname:str, threads:int, warmuptime:int, runtime:int, valuesize
 
     to_parse = ""
     optypes_seen = 0
-    num_optypes = 1 if readprop == 0.0 or updateprop == 0.0 else 2
+    num_optypes = 2 if readprop == 0.0 or updateprop == 0.0 else 3
 
     for stdout_line in iter(p.stdout.readline, ""):
         if stdout_line.find('Takes(s): {0}.'.format(runtime)) != -1:

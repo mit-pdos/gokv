@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
 
-# Run 3 servers, varying number of cores on each server.
+# Run between 1 and 3 servers, varying number of cores on each server.
 # Measures the peak throughput of each with increasing number of cores.
 # Read ratio is 0.95, write ratio is 0.05.
 
 import os
 from os import system as do
+from bench.find_peak import find_peak
 
 os.chdir('/users/upamanyu/gokv/simplepb/bench')
 
-for ncores in range(1,9):
-    # find peak throughput at this configuration
-    with open("./data/multicore.txt", "a+") as f:
-        f.write(f"# Running with {ncores} cores on each server\n")
+threadcounts = [50, 100, 150, 200, 250, 300, 400, 500, 600, 800, 1000, 1200]
 
-    do(f"./find-peak.py --ncores {ncores} --nreplicas 3 --reads 0.95 2>/tmp/multicore.err >> ./data/multicore.txt")
+for reads in [0.0, 0.5, 0.95, 1.0]:
+    for nreplicas in range(1,4):
+        # find peak throughput at this configuration
+        highestThruput, highestThreads = find_peak(8, nreplicas, reads, threadcounts, outfilename="/tmp/peaks.txt")
+        with open(f'./data/multi/servers{int(reads*100)}.dat', 'a+') as f:
+            print(f"{nreplicas}, {highestThruput} % at threads={highestThreads}", file=f)

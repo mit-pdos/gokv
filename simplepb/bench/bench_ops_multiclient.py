@@ -11,18 +11,18 @@ def do_quiet(cmd):
 def get_thruput(other_client_machines, threads, reads, recordcount, runtime, cooldown, warmup):
     benchcmd = f"./bench-ops.py {threads} --runtime {runtime} --reads {reads} --recordcount {recordcount} --warmup {warmup} --cooldown {cooldown} --outfile /tmp/bench.out 2>/tmp/bench.err 1>/tmp/bench.err"
 
-    # start bench-ops.py on other machines
+    # Start bench-ops.py on other machines.
     for m in other_client_machines:
-        sshcmd = f"""ssh upamanyu@node{m} <<ENDSSH
+        sshcmd = f"""ssh node{m} <<ENDSSH
         killall go-ycsb 2>/dev/null;
-        cd /users/upamanyu/gokv/simplepb/bench/;
+        cd ~/gokv/simplepb/bench/;
         nohup {benchcmd} &
 ENDSSH
         """
         do_quiet(sshcmd)
 
-    # start local bench-ops.py; relying on the other one still warming up for this
-    # to not mess up the numbers
+    # Start local bench-ops.py; relying on the other ones still warming up for
+    # this to not mess up the numbers.
     do_quiet(benchcmd)
 
     bench_data = []
@@ -30,9 +30,9 @@ ENDSSH
         bench_data += [json.loads(f.read())]
 
     time.sleep(5)
-    # now, copy the output file from the other machine
+    # Now, copy the output file from the other machine.
     for m in other_client_machines:
-        do_quiet(f"scp upamanyu@node{m}:/tmp/bench.out /tmp/bench{m}.out")
+        do_quiet(f"scp node{m}:/tmp/bench.out /tmp/bench{m}.out")
         with open(f"/tmp/bench{m}.out", "r") as f:
             bench_data += [json.loads(f.read())]
 

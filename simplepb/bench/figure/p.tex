@@ -1,19 +1,21 @@
-\documentclass[tikz]{standalone}
+\documentclass{article}
+\usepackage{tikz}
 \usepackage{pgfplots}
+\usepackage{booktabs}
 \begin{document}
-
 \begin{figure}[h]
 \centering
 \small
 \begin{tabular}{@{~}l@{~ ~}r@{~ ~}r@{~}}
 \toprule
-\bf Benchmark & \bf Redis & \bf \kv{} \\
+\bf Benchmark & \bf Redis & \bf GroveKV \\
 \midrule
-\include{../data/redis_vs_grove/peak-table-lite.tex}
+\input{../data/redis_vs_grove/peak-table-lite.tex}
+\input{../data/redis_vs_grove/latency.tex}
+\input{../data/redis_vs_grove/peak-table.tex}
 \bottomrule
 \end{tabular}
-\caption{Throughput and latency of \kv{} compared to Redis.}
-\label{fig:redis}
+\caption{Throughput and latency of GroveKV compared to Redis.}
 \end{figure}
 
 \begin{figure}[h]
@@ -40,34 +42,5 @@
 \caption{Throughput over time (averaged over 0.5 second time slices), with the
   primary crashing at 10 seconds, followed immediately by a reconfiguration to a
   new primary and backup.}%
-\label{fig:eval-reconfig}
 \end{figure}
-
-\begin{figure}[h]
-\begin{tikzpicture}
-\begin{axis}[
-    width=\columnwidth,
-    height=0.5\columnwidth,
-    xlabel={Time (s)},
-    ylabel={Throughput (req/s)},
-    xmin=0.0,
-    ymin=0,
-    scaled y ticks=base 10:-3,
-    ytick scale label code/.code={},
-    yticklabel={\pgfmathprintnumber{\tick}k},
-    ymajorgrids=true,
-    grid style=dashed,
-    mark size=1pt,
-]
-\addplot table[col sep=comma] {data/reconfig_reads.dat};
-\addplot table[col sep=comma] {data/reconfig_writes.dat};
-\legend{reads,writes}
- \end{axis}
-\end{tikzpicture}
-\caption{Throughput over time (averaged over 0.5 second time slices), with the
-  primary crashing at 10 seconds, followed immediately by a reconfiguration to a
-  new primary and backup.}%
-\label{fig:eval-reconfig}
-\end{figure}
-
 \end{document}

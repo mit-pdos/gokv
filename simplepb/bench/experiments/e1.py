@@ -141,7 +141,7 @@ def get_latencies():
                                                  warmuptime=30,
                                                  runtime=120)[0]['lts']['TOTAL']['avg_latency'])
 
-    with open("./data/redis_vs_grove/latency.tex") as f:
+    with open("./data/redis_vs_grove/latency.tex", "a+") as f:
         print(f"Read latency under low load & {redis_read}~us & {grove_read}~us \\\\",
               file=f)
 
@@ -195,7 +195,7 @@ for (readratio, threads_grove, threads_redis) in peak_threads:
     with open(outfilename, 'a+') as f:
         print(f"% YCSB {str(100 - int(100*readratio))}\\% writes stats: {redis_avg,redis_ci} & {grove_avg,grove_ci} \\\\",
             file=f)
-        print(f"Throughput for YCSB {str(100 - int(100*readratio))}\\% writes & {peak_redis}~req/s & {peak_grove}~req/s \\\\",
+        print(f"Throughput for YCSB {str(100 - int(100*readratio))}\\% writes & {redis_avg}~req/s & {grove_avg}~req/s \\\\",
             file=f)
 
 

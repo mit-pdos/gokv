@@ -37,6 +37,7 @@ func Make(confHost grove_ffi.Address) *Clerk {
 			break
 		}
 	}
+	ck.preferredReplica = machine.RandomUint64() % uint64(len(ck.replicaClerks))
 	return ck
 }
 
