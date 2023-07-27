@@ -10,7 +10,7 @@ if ! [[ $(which go) ]]; then
 fi
 
 # set shell:
-sudo chsh -s /bin/zsh upamanyu
+sudo chsh -s /bin/zsh $(whoami)
 
 # turn off hyperthreading
 echo off | sudo tee /sys/devices/system/cpu/smt/control
@@ -22,5 +22,5 @@ echo performance | sudo tee /sys/devices/system/cpu/cpu0/cpufreq/scaling_governo
 
 # install numactl
 sudo apt update
-yes | sudo apt install numactl cmake pip
+yes | sudo apt install numactl cmake pip texlive texlive-latex-extra
 pip install numpy scipy

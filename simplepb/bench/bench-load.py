@@ -18,12 +18,10 @@ def run_command(args, cwd=None, shell=False):
     return subprocess.run(args, shell=shell, text=True, cwd=cwd)
 
 def goycsb_load(kvname:str, threads:int, valuesize:int, keys:int, extra_args=[]):
-    goycsbdir = "/users/upamanyu/go-ycsb/"
-    simplepbdir = "/users/upamanyu/gokv/simplepb/"
+    goycsbdir = os.path.expanduser("~/go-ycsb")
+    simplepbdir = os.path.expanduser("~/gokv/simplepb/")
 
-    gobin = '/usr/local/go/bin/go'
-    run_command(['go', 'run',
-                 path.join(goycsbdir, './cmd/go-ycsb'),
+    run_command([path.join(goycsbdir, './go-ycsb'),
                  'load', kvname,
                  '-P', path.join(simplepbdir, "bench", kvname + '_workload'),
                  '--threads', str(threads),
@@ -33,4 +31,4 @@ def goycsb_load(kvname:str, threads:int, valuesize:int, keys:int, extra_args=[])
 
 valuesize = 128
 
-goycsb_load("pbkv", 10, valuesize, args.recordcount, ['-p', f"pbkv.configAddr=10.10.1.4:12000"])
+goycsb_load("pbkv", 400, valuesize, args.recordcount, ['-p', f"pbkv.configAddr=10.10.1.4:12000"])

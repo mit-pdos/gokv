@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 from os import system as do
 
-do("ssh-keygen -C 'upamanyu' -f /tmp/id_rsa -N ''")
+do("ssh-keygen -C '$(whoami)' -f /tmp/id_rsa -N ''")
 for i in range(0, 8):
     # this saves the key in known_hosts without asking for the user to
     # interactively type "yes"
-    do(f"ssh -o StrictHostKeyChecking=no upamanyu@node{i} 'echo starting node{i}'")
+    do(f"ssh -o StrictHostKeyChecking=no node{i} 'echo starting node{i}'")
 
     do(f"scp cloudlab-setup.sh node{i}:")
     do(f"scp .zshrc-cloudlab node{i}:.zshrc")

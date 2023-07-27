@@ -15,7 +15,7 @@ def restart_system(ncores, nreplicas):
     return
 
 client_machines = [5, 6, 7]
-recordcount = 1000
+recordcount = 1000000
 
 def find_peak(ncores, nreplicas, reads, threadcounts, runtime=40, cooldown=10, warmuptime=20, outfilename=None):
     highestThreads = 0

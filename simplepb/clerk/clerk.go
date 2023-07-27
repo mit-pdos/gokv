@@ -69,6 +69,7 @@ func (ck *Clerk) ApplyRo2(op []byte) []byte {
 
 		offset := ck.preferredReplica
 		var err e.Error
+
 		var i uint64
 		// try all the servers starting from that random offset
 		for i < uint64(len(ck.replicaClerks)) {
