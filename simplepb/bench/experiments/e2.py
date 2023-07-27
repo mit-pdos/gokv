@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
-# Reconfiguration
+# Runs GroveKV, and kills one of the servers and triggers reconfiguration in the
+# middle. Outputs the instantaneous throughput of some read clients and some
+# write clients during the reconfiguration.
 #!/usr/bin/env python3
 
 from os import system as do
@@ -18,12 +20,12 @@ do("""~/go-ycsb/go-ycsb load pbkv -P ~/gokv/simplepb/bench/pbkv_workload --threa
 -p updateproportion=1.0 -p warmuptime=5 -p recordcount=1000000 -p pbkv.configAddr=10.10.1.5:12000
 """)
 
-os.popen("""~/go-ycsb/go-ycsb run pbkv -P ~/gokv/simplepb/bench/pbkv_workload --threads 200 --target -1 \
+os.popen("""~/go-ycsb/go-ycsb run pbkv -P ~/gokv/simplepb/bench/pbkv_workload --threads 150 --target -1 \
 --interval 200 -p operationcount=4294967295 -p fieldlength=128 -p requestdistribution=uniform -p readproportion=0.0 \
 -p updateproportion=1.0 -p warmuptime=5 -p recordcount=1000000 -p pbkv.configAddr=10.10.1.5:12000 > /tmp/writes.txt \
 """)
 
-os.popen("""~/go-ycsb/go-ycsb run pbkv -P ~/gokv/simplepb/bench/pbkv_workload --threads 150 --target -1 \
+os.popen("""~/go-ycsb/go-ycsb run pbkv -P ~/gokv/simplepb/bench/pbkv_workload --threads 80 --target -1 \
 --interval 200 -p operationcount=4294967295 -p fieldlength=128 -p requestdistribution=uniform -p readproportion=1.0 \
 -p updateproportion=0.0 -p warmuptime=5 -p recordcount=1000000 -p pbkv.configAddr=10.10.1.5:12000 > /tmp/reads.txt \
 """)

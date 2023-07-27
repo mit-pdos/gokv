@@ -17,7 +17,6 @@
 \end{tabular}
 \caption{Throughput and latency of GroveKV compared to Redis.}
 \end{figure}
-
 \begin{figure}[h]
 \begin{tikzpicture}
 \begin{axis}[
@@ -42,5 +41,33 @@
 \caption{Throughput over time (averaged over 0.5 second time slices), with the
   primary crashing at 10 seconds, followed immediately by a reconfiguration to a
   new primary and backup.}%
+\end{figure}
+\begin{figure}[h]
+\begin{tikzpicture}
+\begin{axis}[
+    width=\columnwidth,
+    height=0.61\columnwidth,
+    xlabel={Number of servers},
+    ylabel={Throughput (req/s)},
+    ymin=0,
+    xtick=data,
+    scaled y ticks=base 10:-3,
+    ytick scale label code/.code={},
+    yticklabel={\pgfmathprintnumber{\tick}k},
+    ytick distance=200000,
+    legend pos=north west,
+    grid style=dashed,
+]
+\addplot table[col sep=comma] {../data/multi/servers100.dat};
+\addplot table[col sep=comma] {../data/multi/servers95.dat};
+\addplot table[col sep=comma] {../data/multi/servers50.dat};
+\addplot table[col sep=comma] {../data/multi/servers0.dat};
+\pgfplotsset{domain = 1 : 8 }
+% \addplot [dashed,no marks] {19801.5*x};
+\legend{0\%, 5\%, 50\%, 100\%}
+\end{axis}
+\end{tikzpicture}%
+\caption{Peak throughput of GroveKV with increasing number of servers, labeled
+  by the percentage of write operations.}%
 \end{figure}
 \end{document}

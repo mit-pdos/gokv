@@ -17,6 +17,9 @@ from statistics import stdev, mean
 import numpy as np
 import numpy as np, scipy.stats as st
 
+usecache = True
+do_stats = True
+
 def sigint_handler(sig, frame):
     sys.exit(0)
 signal.signal(signal.SIGINT, sigint_handler)
@@ -33,7 +36,6 @@ def get_peak(data):
             maxthreads = int(d['num_threads'])
     return maxthruput, maxthreads
 
-usecache = True
 def load_cache(fname):
     if not usecache:
         return None
@@ -72,7 +74,7 @@ def num_threads_lite(i):
 
 
 outfilename = "./data/redis_vs_grove/peak-table-lite.tex"
-with open(outfilename, 'a+') as f:
+with open(outfilename, 'w') as f:
     pass
 
 peak_threads = []
@@ -113,6 +115,9 @@ def single_thread_fn(n):
     return f
 
 def get_latencies():
+    with open("./data/redis_vs_grove/latency.tex", "w") as f:
+        pass
+
     grove_read = with_cache("./data/redis_vs_grove/grove_read.txt",
                             lambda:
                             lt_pb_single.run("/tmp/gokv/grovekv-lts.txt",
@@ -148,10 +153,16 @@ def get_latencies():
         print(f"Write latency under low load & {redis_write}~us & {grove_write}~us \\\\",
               file=f)
 
+print("Getting latencies under low load")
 get_latencies()
+print("Done getting latencies")
+
+print("Getting stats")
+if not do_stats:
+    sys.exit(0)
 
 outfilename = "./data/redis_vs_grove/peak-table.tex"
-with open(outfilename, 'a+') as f:
+with open(outfilename, 'w') as f:
     pass
 num_samples = 10
 
@@ -198,6 +209,7 @@ for (readratio, threads_grove, threads_redis) in peak_threads:
         print(f"Throughput for YCSB {str(100 - int(100*readratio))}\\% writes & {redis_avg}~req/s & {grove_avg}~req/s \\\\",
             file=f)
 
+print("Done getting stats")
 
 # Example output:
 # Throughput for YCSB 100\% writes & 68,594~req/s & 72,005~req/s \\
