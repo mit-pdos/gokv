@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from os import system as do
+import os
 
 # Set up SSH key between the cloudlab machines and downloads some packages
 # (e.g. Go) on them. Also turn off hyperthreading.
