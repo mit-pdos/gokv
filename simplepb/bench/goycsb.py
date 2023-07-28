@@ -101,7 +101,7 @@ def closed_lt(kvname, config, reset_fn, thread_fn, ycsb_args):
 
         # restart and reload every single time
         reset_fn()
-        goycsb_load(kvname, 10, config['valuesize'], config['recordcount'], ycsb_args)
+        goycsb_load(kvname, 200, config['valuesize'], config['recordcount'], ycsb_args)
 
         a = goycsb_bench(kvname, threads, config['warmuptime'], config['runtime'],
                          config['valuesize'], config['reads'], config['writes'],

@@ -1,10 +1,29 @@
 #!/usr/bin/env python3
 
+print("""
 # Generates raw data for latency/throughput curves for Redis and GroveKV for
-# various read ratios.
-# Puts final data in `gokv/simplepb/bench/data/redis_vs_grove/`.
-# This is intended to help find the peak throughput of the two systems and the
-# latency under low load.
+# various read ratios.  This is intended to help find the # peak throughput of
+# the two systems and the latency under low load.  Data is put in
+# `./data/redis_vs_grove`.
+#
+# If you want to run this experiment from scratch, make sure to clear out that
+# directory. This experiment makes use of some "caching", and skips parts that
+# have already been run and saved previously (which helps in case you kill this
+# long experiment halfway through and want to resume).
+#
+# The last part of this experiment collects many samples for the peak throughput
+# numbers. It emits a comment ../data/redis_vs_grove/peak-table.tex that
+# contains the 95% confidence interval for the different configurations. The
+# confidence interval validates the paper's note that GroveKV experiences much
+# more performance variance on 1 core compared to Redis. You can set `do_stats =
+# False` below to skip the this last part, which takes over 2.5 hours on its
+# own.
+#
+# Finally, to get the `5.1x` number for multicore scaling mentioned in section
+# 6, compare the 1 core peak throughput from this experiment with the peak
+# throughput numbers from e3.py, which runs 1 server with 8 cores as one of its
+# configs.
+""")
 
 from os import system as do
 import os
@@ -25,12 +44,15 @@ def sigint_handler(sig, frame):
 signal.signal(signal.SIGINT, sigint_handler)
 
 os.chdir(os.path.expanduser('~/gokv/simplepb/bench'))
-do("mkdir data/redis_vs_grove")
+do("mkdir ./data/redis_vs_grove")
 
 def get_peak(data):
     maxthruput = 0
     maxthreads = 0
     for d in data:
+        print(d)
+        if 'TOTAL' not in d['lts']:
+            print(f"EXPERIMENT ERROR: {d['num_threads']} does not contain TOTAL throughput")
         thru = float(d['lts']['TOTAL']['thruput'])
         if thru > maxthruput:
             maxthruput = thru

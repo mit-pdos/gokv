@@ -35,6 +35,7 @@ do(f"""ssh node{totalreplicas} <<ENDSSH
 ENDSSH
     """)
 
+time.sleep(1) # make sure config service is up
 conf_addr = f"10.10.1.{totalreplicas + 1}:12000"
 # Start all replicas
 for i in range(totalreplicas):

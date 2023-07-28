@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
 
-# Runs GroveKV, and kills one of the servers and triggers reconfiguration in the
-# middle. Outputs the instantaneous throughput of some read clients and some
-# write clients during the reconfiguration.
-#!/usr/bin/env python3
+print("""# Runs GroveKV, and kills one of the servers and triggers reconfiguration in the
+# middle. Outputs the instantaneous throughput of some read clients
+# and some write clients during the reconfiguration.
+# Data is put in `./data/reconfig`
+""")
 
 from os import system as do
 import os
 import time
-
-print("""# Prints out the instantaneous latency and throughput of GroveKV with a
-# crash and then a reconfiguration in the middle""")
 
 os.chdir(os.path.expanduser('~/gokv/simplepb/bench'))
 do(f"./start-pb.py --totalreplicas 4 --ncores 8 2 > /tmp/ephemeral.out 2>/tmp/ephemeral.err")
@@ -41,5 +39,6 @@ do("killall go-ycsb")
 do("./stop-pb.py")
 
 # Analyze the file
+do ("mkdir -p ./data/reconfig")
 do("./get-inst-thruput.py /tmp/reads.txt > ./data/reconfig/reads.dat")
 do("./get-inst-thruput.py /tmp/writes.txt > ./data/reconfig/writes.dat")
