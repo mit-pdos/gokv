@@ -25,6 +25,7 @@ def sigint_handler(sig, frame):
 signal.signal(signal.SIGINT, sigint_handler)
 
 os.chdir(os.path.expanduser('~/gokv/simplepb/bench'))
+do("mkdir data/redis_vs_grove")
 
 def get_peak(data):
     maxthruput = 0
