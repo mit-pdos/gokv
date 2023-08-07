@@ -1,0 +1,6 @@
+Server-supported LeaseKV:
+State of each key:
+    `t1` time at which value should switch
+    `oldValue` until t1
+    outstanding lease for oldValue expires at t2
+    `newValue`
