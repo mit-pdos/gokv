@@ -43,8 +43,8 @@ func max(a, b uint64) uint64 {
 func (k *LeaseKv) Get(key string) string {
 	k.mu.Lock()
 	cv, ok := k.cache[key]
-	low, _ := grove_ffi.GetTimeRange()
-	if ok && cv.l < low {
+	_, high := grove_ffi.GetTimeRange()
+	if ok && high < cv.l {
 		k.mu.Unlock()
 		return cv.v
 	}
