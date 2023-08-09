@@ -17,13 +17,15 @@ func (s *LeaseKvServer) resolveStagedValue(key string) {
 	stagedVal, isStaged := s.stagedKvs[key]
 	if isStaged {
 		earliest, latest := grove_ffi.GetTimeRange()
+		// FIXME: deal with the case that key not in s.leases (i.e. no active lease)
 		if s.leases[key] >= latest {
-			// if lease is expired, then upgrade the stagedVal to the real value
+			// if lease is expired, then set the current value to the stagedVal
 			s.kvs[key] = stagedVal
 			delete(s.leases, key)
 			delete(s.stagedKvs, key)
 		} else if s.leases[key] <= earliest {
-			// if lease is valid, then ignore the staged value
+			// if lease is still valid, then the staged value should not take
+			// effect
 		} else {
 			// if lease is not valid, but the new value has not taken over,
 			// return the new value and tell the client to wait
