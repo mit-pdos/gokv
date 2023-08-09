@@ -60,7 +60,7 @@ func (k *LeaseKv) GetAndCache(key string, cachetime uint64) string {
 		old := DecodeValue(enc)
 
 		_, latest := grove_ffi.GetTimeRange()
-		var newLeaseExpiration = max(latest+cachetime, old.l)
+		newLeaseExpiration := max(latest+cachetime, old.l)
 
 		// Try to update the lease expiration time
 		resp := k.kv.ConditionalPut(key, enc, EncodeValue(cacheValue{v: old.v, l: newLeaseExpiration}))
