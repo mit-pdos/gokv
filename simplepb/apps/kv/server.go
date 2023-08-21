@@ -34,7 +34,9 @@ type PutArgs struct {
 }
 
 func EncodePutArgs(args *PutArgs) []byte {
-	var enc = make([]byte, 1, 1+8+uint64(len(args.Key))+uint64(len(args.Val)))
+	// XXX: potential overflow with
+	// `... + uint64(len(args.Key))+uint64(len(args.Val)))` in capacity
+	var enc = make([]byte, 1, 1+8)
 	enc[0] = OP_PUT
 	enc = marshal.WriteInt(enc, uint64(len(args.Key)))
 	enc = marshal.WriteBytes(enc, []byte(args.Key))
@@ -57,7 +59,7 @@ func DecodePutArgs(raw_args []byte) *PutArgs {
 type getArgs = string
 
 func EncodeGetArgs(args getArgs) []byte {
-	var enc = make([]byte, 1, 1+uint64(len(args)))
+	var enc = make([]byte, 1, 1) // NOTE: potential overflow `+uint64(len(args)))`
 	enc[0] = OP_GET
 	enc = marshal.WriteBytes(enc, []byte(args))
 	return enc
@@ -96,7 +98,7 @@ func (s *KVState) applyReadonly(args []byte) (uint64, []byte) {
 		panic("expected a GET as readonly-operation")
 	}
 	key := decodeGetArgs(args[1:])
-	reply := s.get(decodeGetArgs(args[1:]))
+	reply := s.get(key)
 	vnum, ok := s.vnums[string(key)]
 	if ok {
 		return vnum, reply
@@ -112,12 +114,7 @@ func (s *KVState) getState() []byte {
 func (s *KVState) setState(snap []byte, nextIndex uint64) {
 	s.minVnum = nextIndex
 	s.vnums = make(map[string]uint64)
-
-	if len(snap) == 0 {
-		s.kvs = make(map[string]string, 0)
-	} else {
-		s.kvs = map_string_marshal.DecodeStringMap(snap)
-	}
+	s.kvs = map_string_marshal.DecodeStringMap(snap)
 }
 
 // func MakeKVStateMachine() *simplelog.InMemoryStateMachine {
