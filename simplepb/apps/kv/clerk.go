@@ -18,9 +18,9 @@ func (ck *Clerk) Put(key, val string) {
 		Key: key,
 		Val: val,
 	}
-	ck.cl.ApplyExactlyOnce(EncodePutArgs(putArgs))
+	ck.cl.ApplyExactlyOnce(encodePutArgs(putArgs))
 }
 
 func (ck *Clerk) Get(key string) string {
-	return string(ck.cl.ApplyReadonly(EncodeGetArgs(key)))
+	return string(ck.cl.ApplyReadonly(encodeGetArgs(key)))
 }

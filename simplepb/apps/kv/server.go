@@ -33,7 +33,7 @@ type PutArgs struct {
 	Val string
 }
 
-func EncodePutArgs(args *PutArgs) []byte {
+func encodePutArgs(args *PutArgs) []byte {
 	// XXX: potential overflow with
 	// `... + uint64(len(args.Key))+uint64(len(args.Val)))` in capacity
 	var enc = make([]byte, 1, 1+8)
@@ -44,8 +44,8 @@ func EncodePutArgs(args *PutArgs) []byte {
 	return enc
 }
 
-func DecodePutArgs(raw_args []byte) *PutArgs {
-	var enc = raw_args
+func decodePutArgs(raw_args []byte) *PutArgs {
+	var enc = raw_args[1:]
 	args := new(PutArgs)
 
 	var l uint64
@@ -58,7 +58,7 @@ func DecodePutArgs(raw_args []byte) *PutArgs {
 
 type getArgs = string
 
-func EncodeGetArgs(args getArgs) []byte {
+func encodeGetArgs(args getArgs) []byte {
 	var enc = make([]byte, 1, 1) // NOTE: potential overflow `+uint64(len(args)))`
 	enc[0] = OP_GET
 	enc = marshal.WriteBytes(enc, []byte(args))
@@ -66,7 +66,7 @@ func EncodeGetArgs(args getArgs) []byte {
 }
 
 func decodeGetArgs(raw_args []byte) getArgs {
-	return string(raw_args)
+	return string(raw_args[1:])
 }
 
 // end of marshalling
@@ -81,11 +81,11 @@ func (s *KVState) get(args getArgs) []byte {
 
 func (s *KVState) apply(args []byte, vnum uint64) []byte {
 	if args[0] == OP_PUT {
-		args := DecodePutArgs(args[1:])
+		args := decodePutArgs(args)
 		s.vnums[string(args.Key)] = vnum
 		return s.put(args)
 	} else if args[0] == OP_GET {
-		key := decodeGetArgs(args[1:])
+		key := decodeGetArgs(args)
 		s.vnums[string(key)] = vnum
 		return s.get(key)
 	} else {
@@ -97,7 +97,7 @@ func (s *KVState) applyReadonly(args []byte) (uint64, []byte) {
 	if args[0] != OP_GET {
 		panic("expected a GET as readonly-operation")
 	}
-	key := decodeGetArgs(args[1:])
+	key := decodeGetArgs(args)
 	reply := s.get(key)
 	vnum, ok := s.vnums[string(key)]
 	if ok {
