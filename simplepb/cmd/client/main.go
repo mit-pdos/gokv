@@ -36,17 +36,12 @@ func main() {
 	usage_assert(len(a) > 0)
 	if a[0] == "put" {
 		usage_assert(len(a) == 3)
-
-		k := []byte(a[1])
-		v := []byte(a[2])
-		ck.Put(k, v)
-		fmt.Printf("PUT %d ↦ %v\n", k, v)
+		ck.Put(a[1], a[2])
+		fmt.Printf("PUT %s ↦ %s\n", a[1], a[2])
 	} else if a[0] == "get" {
 		usage_assert(len(a) == 2)
-		k := []byte(a[1])
-
-		v := ck.Get(k)
-		fmt.Printf("GET %d ↦ %v\n", k, v)
+		v := ck.Get(a[1])
+		fmt.Printf("GET %s ↦ %s\n", a[1], v)
 	} else {
 		usage_assert(false)
 	}

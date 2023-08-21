@@ -54,14 +54,14 @@ func (ck *ClerkPool) doWithClerk(f func(ck *Clerk)) {
 	}
 }
 
-func (ck *ClerkPool) Put(key []byte, val []byte) {
+func (ck *ClerkPool) Put(key, val string) {
 	ck.doWithClerk(func(ck *Clerk) {
 		ck.Put(key, val)
 	})
 }
 
-func (ck *ClerkPool) Get(key []byte) []byte {
-	var ret []byte
+func (ck *ClerkPool) Get(key string) string {
+	var ret string
 	ck.doWithClerk(func(ck *Clerk) {
 		ret = ck.Get(key)
 	})

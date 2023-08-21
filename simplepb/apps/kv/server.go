@@ -6,13 +6,13 @@ package kv
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/map_string_marshal"
-	"github.com/mit-pdos/gokv/simplepb/apps/eesm"
+	"github.com/mit-pdos/gokv/simplepb/apps/esm"
 	"github.com/mit-pdos/gokv/simplepb/simplelog"
 	"github.com/tchajed/marshal"
 )
 
 type KVState struct {
-	kvs     map[string][]byte
+	kvs     map[string]string
 	vnums   map[string]uint64
 	minVnum uint64
 }
@@ -29,16 +29,16 @@ const (
 
 // begin arg structs and marshalling
 type PutArgs struct {
-	Key []byte
-	Val []byte
+	Key string
+	Val string
 }
 
 func EncodePutArgs(args *PutArgs) []byte {
 	var enc = make([]byte, 1, 1+8+uint64(len(args.Key))+uint64(len(args.Val)))
 	enc[0] = OP_PUT
 	enc = marshal.WriteInt(enc, uint64(len(args.Key)))
-	enc = marshal.WriteBytes(enc, args.Key)
-	enc = marshal.WriteBytes(enc, args.Val)
+	enc = marshal.WriteBytes(enc, []byte(args.Key))
+	enc = marshal.WriteBytes(enc, []byte(args.Val))
 	return enc
 }
 
@@ -48,23 +48,23 @@ func DecodePutArgs(raw_args []byte) *PutArgs {
 
 	var l uint64
 	l, enc = marshal.ReadInt(enc)
-	args.Key = enc[:l]
-	args.Val = enc[l:]
+	args.Key = string(enc[:l])
+	args.Val = string(enc[l:])
 
 	return args
 }
 
-type getArgs []byte
+type getArgs = string
 
 func EncodeGetArgs(args getArgs) []byte {
 	var enc = make([]byte, 1, 1+uint64(len(args)))
 	enc[0] = OP_GET
-	enc = marshal.WriteBytes(enc, args)
+	enc = marshal.WriteBytes(enc, []byte(args))
 	return enc
 }
 
 func decodeGetArgs(raw_args []byte) getArgs {
-	return raw_args
+	return string(raw_args)
 }
 
 // end of marshalling
@@ -74,7 +74,7 @@ func (s *KVState) put(args *PutArgs) []byte {
 }
 
 func (s *KVState) get(args getArgs) []byte {
-	return s.kvs[string(args)]
+	return []byte(s.kvs[string(args)])
 }
 
 func (s *KVState) apply(args []byte, vnum uint64) []byte {
@@ -92,21 +92,21 @@ func (s *KVState) apply(args []byte, vnum uint64) []byte {
 }
 
 func (s *KVState) applyReadonly(args []byte) (uint64, []byte) {
-	if args[0] == OP_PUT {
-		panic("got a put as a readonly op")
-	} else if args[0] == OP_GET {
-		key := decodeGetArgs(args[1:])
-		reply := s.get(decodeGetArgs(args[1:]))
-		if vnum, ok := s.vnums[string(key)]; ok {
-			return vnum, reply
-		}
+	if args[0] != OP_GET {
+		panic("expected a GET as readonly-operation")
+	}
+	key := decodeGetArgs(args[1:])
+	reply := s.get(decodeGetArgs(args[1:]))
+	vnum, ok := s.vnums[string(key)]
+	if ok {
+		return vnum, reply
+	} else {
 		return s.minVnum, reply
 	}
-	panic("unexpected op type")
 }
 
 func (s *KVState) getState() []byte {
-	return map_string_marshal.EncodeMapStringToBytes(s.kvs)
+	return map_string_marshal.EncodeStringMap(s.kvs)
 }
 
 func (s *KVState) setState(snap []byte, nextIndex uint64) {
@@ -114,9 +114,9 @@ func (s *KVState) setState(snap []byte, nextIndex uint64) {
 	s.vnums = make(map[string]uint64)
 
 	if len(snap) == 0 {
-		s.kvs = make(map[string][]byte, 0)
+		s.kvs = make(map[string]string, 0)
 	} else {
-		s.kvs = map_string_marshal.DecodeMapStringToBytes(snap)
+		s.kvs = map_string_marshal.DecodeStringMap(snap)
 	}
 }
 
@@ -133,12 +133,12 @@ func (s *KVState) setState(snap []byte, nextIndex uint64) {
 // 	}
 // }
 
-func MakeKVStateMachine() *eesm.VersionedStateMachine {
+func makeVersionedStateMachine() *esm.VersionedStateMachine {
 	s := new(KVState)
-	s.kvs = make(map[string][]byte, 0)
+	s.kvs = make(map[string]string, 0)
 	s.vnums = make(map[string]uint64)
 
-	return &eesm.VersionedStateMachine{
+	return &esm.VersionedStateMachine{
 		ApplyVolatile: s.apply,
 		ApplyReadonly: s.applyReadonly,
 		GetState:      func() []byte { return s.getState() },
@@ -146,7 +146,6 @@ func MakeKVStateMachine() *eesm.VersionedStateMachine {
 	}
 }
 
-func Start(fname string, me grove_ffi.Address, confHost grove_ffi.Address) {
-	r := simplelog.MakePbServer(eesm.MakeEEKVStateMachine(MakeKVStateMachine()), fname, confHost)
-	r.Serve(me)
+func Start(fname string, host grove_ffi.Address, confHost grove_ffi.Address) {
+	simplelog.MakePbServer(esm.MakeExactlyOnceStateMachine(makeVersionedStateMachine()), fname, confHost).Serve(host)
 }

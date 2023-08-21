@@ -1,4 +1,4 @@
-package eesm
+package esm
 
 import (
 	"github.com/goose-lang/std"
@@ -16,7 +16,7 @@ type VersionedStateMachine struct {
 	GetState      func() []byte
 }
 
-type EEStateMachine struct {
+type eStateMachine struct {
 	lastSeq     map[uint64]uint64
 	lastReply   map[uint64][]byte
 	nextCID     uint64
@@ -30,7 +30,7 @@ const (
 	OPTYPE_RO          = byte(2)
 )
 
-func (s *EEStateMachine) applyVolatile(op []byte) []byte {
+func (s *eStateMachine) applyVolatile(op []byte) []byte {
 	var ret []byte
 	// op[0] is 1 for a GetFreshCID request, 0 for a RW op, and 2 for an RO op.
 	s.eeNextIndex = std.SumAssumeNoOverflow(s.eeNextIndex, 1)
@@ -62,7 +62,7 @@ func (s *EEStateMachine) applyVolatile(op []byte) []byte {
 	return ret
 }
 
-func (s *EEStateMachine) applyReadonly(op []byte) (uint64, []byte) {
+func (s *eStateMachine) applyReadonly(op []byte) (uint64, []byte) {
 	// op[0] is 1 for a GetFreshCID request, 0 for a RW op, and 2 for an RO op.
 	if op[0] == OPTYPE_GETFRESHCID {
 		panic("Got GETFRESHCID as a read-only op")
@@ -76,7 +76,7 @@ func (s *EEStateMachine) applyReadonly(op []byte) (uint64, []byte) {
 	return s.sm.ApplyReadonly(realOp)
 }
 
-func (s *EEStateMachine) getState() []byte {
+func (s *eStateMachine) getState() []byte {
 	appState := s.sm.GetState()
 	// var enc = make([]byte, 0, uint64(8)+uint64(8)*uint64(len(s.lastSeq))+uint64(len(appState)))
 	var enc = make([]byte, 0, 0) // XXX: reservation causes potential overflow in proof
@@ -89,7 +89,7 @@ func (s *EEStateMachine) getState() []byte {
 	return enc
 }
 
-func (s *EEStateMachine) setState(state []byte, nextIndex uint64) {
+func (s *eStateMachine) setState(state []byte, nextIndex uint64) {
 	var enc = state
 	s.nextCID, enc = marshal.ReadInt(enc)
 	s.lastSeq, enc = map_marshal.DecodeMapU64ToU64(enc)
@@ -98,8 +98,8 @@ func (s *EEStateMachine) setState(state []byte, nextIndex uint64) {
 	s.eeNextIndex = nextIndex
 }
 
-func MakeEEKVStateMachine(sm *VersionedStateMachine) *simplelog.InMemoryStateMachine {
-	s := new(EEStateMachine)
+func MakeExactlyOnceStateMachine(sm *VersionedStateMachine) *simplelog.InMemoryStateMachine {
+	s := new(eStateMachine)
 	s.lastSeq = make(map[uint64]uint64)
 	s.lastReply = make(map[uint64][]byte)
 	s.nextCID = 0
