@@ -21,7 +21,7 @@ type eStateMachine struct {
 	lastReply   map[uint64][]byte
 	nextCID     uint64
 	sm          *VersionedStateMachine
-	eeNextIndex uint64
+	esmNextIndex uint64
 }
 
 const (
@@ -33,7 +33,7 @@ const (
 func (s *eStateMachine) applyVolatile(op []byte) []byte {
 	var ret []byte
 	// op[0] is 1 for a GetFreshCID request, 0 for a RW op, and 2 for an RO op.
-	s.eeNextIndex = std.SumAssumeNoOverflow(s.eeNextIndex, 1)
+	s.esmNextIndex = std.SumAssumeNoOverflow(s.esmNextIndex, 1)
 	if op[0] == OPTYPE_GETFRESHCID {
 		// get fresh cid
 		ret = make([]byte, 0, 8)
@@ -48,7 +48,7 @@ func (s *eStateMachine) applyVolatile(op []byte) []byte {
 		if s.lastSeq[cid] >= seq {
 			ret = s.lastReply[cid]
 		} else {
-			ret = s.sm.ApplyVolatile(realOp, s.eeNextIndex)
+			ret = s.sm.ApplyVolatile(realOp, s.esmNextIndex)
 			s.lastReply[cid] = ret
 			s.lastSeq[cid] = seq
 		}
@@ -95,7 +95,7 @@ func (s *eStateMachine) setState(state []byte, nextIndex uint64) {
 	s.lastSeq, enc = map_marshal.DecodeMapU64ToU64(enc)
 	s.lastReply, enc = map_marshal.DecodeMapU64ToBytes(enc)
 	s.sm.SetState(enc, nextIndex)
-	s.eeNextIndex = nextIndex
+	s.esmNextIndex = nextIndex
 }
 
 func MakeExactlyOnceStateMachine(sm *VersionedStateMachine) *simplelog.InMemoryStateMachine {
