@@ -17,10 +17,10 @@ type VersionedStateMachine struct {
 }
 
 type eStateMachine struct {
-	lastSeq     map[uint64]uint64
-	lastReply   map[uint64][]byte
-	nextCID     uint64
-	sm          *VersionedStateMachine
+	lastSeq      map[uint64]uint64
+	lastReply    map[uint64][]byte
+	nextCID      uint64
+	sm           *VersionedStateMachine
 	esmNextIndex uint64
 }
 

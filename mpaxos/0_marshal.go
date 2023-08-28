@@ -121,3 +121,11 @@ func decodeApplyReply(s []byte) *applyReply {
 	o.ret = enc
 	return o
 }
+
+func encodePaxosState(ps *paxosState) []byte {
+	panic("impl")
+}
+
+func decodePaxosState([]byte) *paxosState {
+	panic("impl")
+}

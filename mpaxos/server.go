@@ -5,50 +5,60 @@ import (
 	"sync"
 
 	"github.com/goose-lang/std"
+	"github.com/mit-pdos/gokv/asyncfile"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc"
 )
 
-type Server struct {
-	mu            *sync.Mutex
+type paxosState struct {
 	epoch         uint64
 	acceptedEpoch uint64
+	nextIndex     uint64
+	state         []byte
+	isLeader      bool
+}
 
-	nextIndex uint64
-	state     []byte
+type Server struct {
+	mu      *sync.Mutex
+	ps      *paxosState
+	storage *asyncfile.File
+	clerks  []*singleClerk
+}
 
-	clerks   []*singleClerk
-	isLeader bool
-
-	applyFn func(state []byte, op []byte) ([]byte, []byte)
+func (s *Server) withLock(f func(ps *paxosState)) {
+	s.mu.Lock()
+	f(s.ps)
+	waitFn := s.storage.AsyncWrite(encodePaxosState(s.ps))
+	s.mu.Unlock()
+	waitFn()
 }
 
 func (s *Server) applyAsFollower(args *applyAsFollowerArgs, reply *applyAsFollowerReply) {
-	s.mu.Lock()
-	if s.epoch <= args.epoch {
-		s.isLeader = false
-		if s.acceptedEpoch == args.epoch {
-			if s.nextIndex <= args.nextIndex {
-				s.nextIndex = args.nextIndex + 1
-				s.state = args.state
-				reply.err = ENone
-			} else { // args.nextIndex < s.nextIndex
+	s.withLock(func(ps *paxosState) {
+		if ps.epoch <= args.epoch {
+			ps.isLeader = false
+			if ps.acceptedEpoch == args.epoch {
+				if ps.nextIndex <= args.nextIndex {
+					ps.nextIndex = args.nextIndex + 1
+					ps.state = args.state
+					reply.err = ENone
+				} else { // args.nextIndex < s.nextIndex
+					reply.err = ENone
+				}
+			} else { // s.acceptedEpoch < args.epoch, because s.acceptedEpoch <= s.epoch <= args.epoch
+				ps.acceptedEpoch = args.epoch
+				ps.epoch = args.epoch
+				ps.state = args.state
+				ps.nextIndex = args.nextIndex
 				reply.err = ENone
 			}
-		} else { // s.acceptedEpoch < args.epoch, because s.acceptedEpoch <= s.epoch <= args.epoch
-			s.acceptedEpoch = args.epoch
-			s.epoch = args.epoch
-			s.state = args.state
-			s.nextIndex = args.nextIndex
-			reply.err = ENone
+		} else {
+			reply.err = EEpochStale
 		}
-	} else {
-		reply.err = EEpochStale
-	}
-	s.mu.Unlock()
+	})
 }
 
-// FIXME:
+// NOTE:
 // This will vote yes only the first time it's called in an epoch.
 // If you have too aggressive of a timeout and end up retrying this, the retry
 // might fail because it may be the second execution of enterNewEpoch(epoch) on
@@ -56,33 +66,33 @@ func (s *Server) applyAsFollower(args *applyAsFollowerArgs, reply *applyAsFollow
 // Solution: either conservative (maybe double) timeouts, or don't use this for
 // leader election, only for coming up with a valid proposal.
 func (s *Server) enterNewEpoch(args *enterNewEpochArgs, reply *enterNewEpochReply) {
-	s.mu.Lock()
-	if s.epoch >= args.epoch {
+	s.withLock(func(ps *paxosState) {
+		if ps.epoch >= args.epoch {
+			reply.err = EEpochStale
+			return
+		}
+		// else, s.epoch < args.epoch
+		ps.isLeader = false
+		ps.epoch = args.epoch
+		reply.acceptedEpoch = ps.acceptedEpoch
+		reply.nextIndex = ps.nextIndex
+		reply.state = ps.state
 		s.mu.Unlock()
-		reply.err = EEpochStale
-		return
-	}
-	// else, s.epoch < args.epoch
-	s.isLeader = false
-	s.epoch = args.epoch
-	reply.acceptedEpoch = s.acceptedEpoch
-	reply.nextIndex = s.nextIndex
-	reply.state = s.state
-	s.mu.Unlock()
+	})
 }
 
 func (s *Server) becomeLeader() {
 	log.Println("started trybecomeleader")
 	// defer log.Println("finished trybecomeleader")
 	s.mu.Lock()
-	if s.isLeader {
+	if s.ps.isLeader {
 		log.Println("already leader")
 		s.mu.Unlock()
 		return
 	}
 	// pick a new epoch number
 	clerks := s.clerks
-	args := &enterNewEpochArgs{epoch: s.epoch + 1}
+	args := &enterNewEpochArgs{epoch: s.ps.epoch + 1}
 	s.mu.Unlock()
 
 	var numReplies = uint64(0)
@@ -135,35 +145,45 @@ func (s *Server) becomeLeader() {
 
 	if 2*numSuccesses > n {
 		log.Printf("succeeded becomeleader in epoch %d\n", args.epoch)
-		s.mu.Lock() // RULE: lock s.mu after mu
-		if s.epoch < args.epoch {
-			s.epoch = args.epoch
-			s.isLeader = true
-			s.acceptedEpoch = s.epoch
-			s.nextIndex = latestReply.nextIndex
-			s.state = latestReply.state
-		}
-		s.mu.Unlock()
+		// RULE: lock s.mu after mu
+		// XXX: withLock has a disk write inside of it, so `mu` will be held for
+		// a long time here. This is ok because it only blocks the late RPC
+		// replies from replica servers, which we anyways won't look at.
+		s.withLock(func(ps *paxosState) {
+			if ps.epoch < args.epoch {
+				ps.epoch = args.epoch
+				ps.isLeader = true
+				ps.acceptedEpoch = ps.epoch
+				ps.nextIndex = latestReply.nextIndex
+				ps.state = latestReply.state
+			}
+		})
 		mu.Unlock()
 	} else {
 		mu.Unlock()
 		log.Println("failed becomeleader")
-		// failed
 	}
 }
 
-func (s *Server) apply(op []byte, reply *applyReply) {
-	s.mu.Lock()
-	if !s.isLeader {
-		s.mu.Unlock()
-		reply.err = ENotLeader
-		return
-	}
-	s.state, reply.ret = s.applyFn(s.state, op)
-	args := &applyAsFollowerArgs{epoch: s.epoch, nextIndex: s.nextIndex, state: s.state}
-	s.nextIndex = std.SumAssumeNoOverflow(s.nextIndex, 1)
+func (s *Server) apply(applyFn func([]byte) ([]byte, []byte)) (Error, []byte) {
+	var retErr Error
+	var retVal []byte
+	var args *applyAsFollowerArgs
+
+	// make proposal
+	s.withLock(func(ps *paxosState) {
+		if !ps.isLeader {
+			retErr = ENotLeader
+			return
+		}
+		ps.state, retVal = applyFn(ps.state)
+		args = &applyAsFollowerArgs{epoch: ps.epoch, nextIndex: ps.nextIndex, state: ps.state}
+		ps.nextIndex = std.SumAssumeNoOverflow(ps.nextIndex, 1)
+	})
 	clerks := s.clerks
-	s.mu.Unlock()
+	if retErr != 0 {
+		return retErr, nil
+	}
 
 	var numReplies = uint64(0)
 	replies := make([]*applyAsFollowerReply, uint64(len(clerks)))
@@ -203,10 +223,11 @@ func (s *Server) apply(op []byte, reply *applyReply) {
 	}
 
 	if 2*numSuccesses > n {
-		reply.err = ENone
+		retErr = ENone
 	} else {
-		reply.err = EEpochStale
+		retErr = EEpochStale
 	}
+	return retErr, retVal
 }
 
 func makeServer(fname string, applyFn func([]byte, []byte) ([]byte, []byte),
@@ -214,8 +235,9 @@ func makeServer(fname string, applyFn func([]byte, []byte) ([]byte, []byte),
 	s := new(Server)
 	s.mu = new(sync.Mutex)
 
-	s.state = make([]byte, 0)
-	s.applyFn = applyFn
+	var encstate []byte
+	encstate, s.storage = asyncfile.MakeFile(fname)
+	s.ps = decodePaxosState(encstate)
 
 	s.clerks = make([]*singleClerk, len(config))
 	n := uint64(len(s.clerks))
@@ -245,12 +267,6 @@ func StartServer(fname string, me grove_ffi.Address,
 		args := decodeEnterNewEpochArgs(raw_args)
 		s.enterNewEpoch(args, reply)
 		*raw_reply = encodeEnterNewEpochReply(reply)
-	}
-
-	handlers[RPC_APPLY] = func(raw_args []byte, raw_reply *[]byte) {
-		reply := new(applyReply)
-		s.apply(raw_args, reply)
-		*raw_reply = encodeApplyReply(reply)
 	}
 
 	handlers[RPC_BECOME_LEADER] = func(raw_args []byte, raw_reply *[]byte) {
