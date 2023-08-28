@@ -92,7 +92,7 @@ func MakeFile(filename string) ([]byte, *File) {
 	s.closed = false
 	s.closeRequested = false
 
-	go s.flushThread()
+	go func() { s.flushThread() }()
 
 	return s.data, s
 }
