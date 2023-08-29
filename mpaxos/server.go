@@ -179,10 +179,10 @@ func (s *Server) apply(applyFn func([]byte) ([]byte, []byte)) (Error, []byte) {
 		args = &applyAsFollowerArgs{epoch: ps.epoch, nextIndex: ps.nextIndex, state: ps.state}
 		ps.nextIndex = std.SumAssumeNoOverflow(ps.nextIndex, 1)
 	})
-	clerks := s.clerks
 	if retErr != 0 {
 		return retErr, nil
 	}
+	clerks := s.clerks
 
 	var numReplies = uint64(0)
 	replies := make([]*applyAsFollowerReply, uint64(len(clerks)))
