@@ -6,7 +6,7 @@ import (
 	"github.com/mit-pdos/gokv/grove_ffi"
 )
 
-type File struct {
+type AsyncFile struct {
 	mu               *sync.Mutex
 	data             []byte
 	filename         string
@@ -20,7 +20,7 @@ type File struct {
 	closedCond     *sync.Cond
 }
 
-func (s *File) AsyncWrite(data []byte) func() {
+func (s *AsyncFile) Write(data []byte) func() {
 	// XXX: can read index here because it's owned by the owner of the File object
 	s.mu.Lock()
 	s.data = data
@@ -30,7 +30,7 @@ func (s *File) AsyncWrite(data []byte) func() {
 	return func() { s.wait(index) }
 }
 
-func (s *File) wait(index uint64) {
+func (s *AsyncFile) wait(index uint64) {
 	s.mu.Lock()
 	for s.durableIndex < index {
 		s.durableIndexCond.Wait()
@@ -38,7 +38,7 @@ func (s *File) wait(index uint64) {
 	s.mu.Unlock()
 }
 
-func (s *File) flushThread() {
+func (s *AsyncFile) flushThread() {
 	s.mu.Lock()
 	for {
 		if s.closeRequested {
@@ -66,7 +66,7 @@ func (s *File) flushThread() {
 	}
 }
 
-func (s *File) Close() {
+func (s *AsyncFile) Close() {
 	s.mu.Lock()
 	s.closeRequested = true
 	s.indexCond.Signal()
@@ -77,8 +77,8 @@ func (s *File) Close() {
 }
 
 // returns the state, then the File object
-func MakeFile(filename string) ([]byte, *File) {
-	s := new(File)
+func MakeAsyncFile(filename string) ([]byte, *AsyncFile) {
+	s := new(AsyncFile)
 	s.mu = new(sync.Mutex)
 	s.indexCond = sync.NewCond(s.mu)
 	s.durableIndexCond = sync.NewCond(s.mu)

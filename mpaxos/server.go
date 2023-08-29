@@ -21,14 +21,14 @@ type paxosState struct {
 type Server struct {
 	mu      *sync.Mutex
 	ps      *paxosState
-	storage *asyncfile.File
+	storage *asyncfile.AsyncFile
 	clerks  []*singleClerk
 }
 
 func (s *Server) withLock(f func(ps *paxosState)) {
 	s.mu.Lock()
 	f(s.ps)
-	waitFn := s.storage.AsyncWrite(encodePaxosState(s.ps))
+	waitFn := s.storage.Write(encodePaxosState(s.ps))
 	s.mu.Unlock()
 	waitFn()
 }
@@ -236,7 +236,7 @@ func makeServer(fname string, applyFn func([]byte, []byte) ([]byte, []byte),
 	s.mu = new(sync.Mutex)
 
 	var encstate []byte
-	encstate, s.storage = asyncfile.MakeFile(fname)
+	encstate, s.storage = asyncfile.MakeAsyncFile(fname)
 	s.ps = decodePaxosState(encstate)
 
 	s.clerks = make([]*singleClerk, len(config))
