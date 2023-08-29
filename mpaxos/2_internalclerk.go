@@ -2,6 +2,7 @@ package mpaxos
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
+	"github.com/mit-pdos/gokv/reconnectclient"
 )
 
 const (
@@ -12,14 +13,14 @@ const (
 
 // these clerks hide connection failures, and retry forever
 type singleClerk struct {
-	cl   *ReconnectingClient
+	cl   *reconnectclient.ReconnectingClient
 	addr grove_ffi.Address
 }
 
 func makeSingleClerk(addr grove_ffi.Address) *singleClerk {
 	// make a bunch of urpc clients
 	ck := &singleClerk{
-		cl: MakeReconnectingClient(addr),
+		cl: reconnectclient.MakeReconnectingClient(addr),
 	}
 
 	return ck

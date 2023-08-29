@@ -85,7 +85,6 @@ func MakeFile(filename string) ([]byte, *File) {
 	s.closedCond = sync.NewCond(s.mu)
 	s.filename = filename
 
-	// try recovery
 	s.data = grove_ffi.FileRead(filename)
 	s.index = 0
 	s.durableIndex = 0

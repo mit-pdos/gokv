@@ -38,8 +38,8 @@ func (s *Server) applyAsFollower(args *applyAsFollowerArgs, reply *applyAsFollow
 		if ps.epoch <= args.epoch {
 			ps.isLeader = false
 			if ps.acceptedEpoch == args.epoch {
-				if ps.nextIndex <= args.nextIndex {
-					ps.nextIndex = args.nextIndex + 1
+				if ps.nextIndex < args.nextIndex {
+					ps.nextIndex = args.nextIndex
 					ps.state = args.state
 					reply.err = ENone
 				} else { // args.nextIndex < s.nextIndex
