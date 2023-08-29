@@ -77,7 +77,6 @@ func (s *Server) enterNewEpoch(args *enterNewEpochArgs, reply *enterNewEpochRepl
 		reply.acceptedEpoch = ps.acceptedEpoch
 		reply.nextIndex = ps.nextIndex
 		reply.state = ps.state
-		s.mu.Unlock()
 	})
 }
 
