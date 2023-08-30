@@ -164,7 +164,7 @@ func (s *Server) becomeLeader() {
 	}
 }
 
-func (s *Server) apply(applyFn func([]byte) ([]byte, []byte)) (Error, []byte) {
+func (s *Server) Apply(applyFn func([]byte) ([]byte, []byte)) (Error, []byte) {
 	var retErr Error
 	var retVal []byte
 	var args *applyAsFollowerArgs
@@ -227,6 +227,13 @@ func (s *Server) apply(applyFn func([]byte) ([]byte, []byte)) (Error, []byte) {
 		retErr = EEpochStale
 	}
 	return retErr, retVal
+}
+
+func (s *Server) WeakRead() []byte {
+	s.mu.Lock()
+	ret := s.ps.state
+	s.mu.Unlock()
+	return ret
 }
 
 func makeServer(fname string, applyFn func([]byte, []byte) ([]byte, []byte),
