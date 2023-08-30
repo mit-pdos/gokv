@@ -176,8 +176,8 @@ func (s *Server) apply(applyFn func([]byte) ([]byte, []byte)) (Error, []byte) {
 			return
 		}
 		ps.state, retVal = applyFn(ps.state)
-		args = &applyAsFollowerArgs{epoch: ps.epoch, nextIndex: ps.nextIndex, state: ps.state}
 		ps.nextIndex = std.SumAssumeNoOverflow(ps.nextIndex, 1)
+		args = &applyAsFollowerArgs{epoch: ps.epoch, nextIndex: ps.nextIndex, state: ps.state}
 	})
 	if retErr != 0 {
 		return retErr, nil
