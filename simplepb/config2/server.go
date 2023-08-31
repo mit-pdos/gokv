@@ -2,7 +2,6 @@ package config2
 
 import (
 	"log"
-	"sync"
 
 	"github.com/goose-lang/std"
 	"github.com/mit-pdos/gokv/grove_ffi"
