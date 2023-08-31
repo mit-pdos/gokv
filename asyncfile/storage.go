@@ -3,6 +3,7 @@ package asyncfile
 import (
 	"sync"
 
+	"github.com/goose-lang/std"
 	"github.com/mit-pdos/gokv/grove_ffi"
 )
 
@@ -24,8 +25,9 @@ func (s *AsyncFile) Write(data []byte) func() {
 	// XXX: can read index here because it's owned by the owner of the File object
 	s.mu.Lock()
 	s.data = data
-	s.index += 1
+	s.index = std.SumAssumeNoOverflow(s.index, 1)
 	index := s.index
+	s.indexCond.Signal()
 	s.mu.Unlock()
 	return func() { s.wait(index) }
 }
@@ -90,8 +92,9 @@ func MakeAsyncFile(filename string) ([]byte, *AsyncFile) {
 	s.durableIndex = 0
 	s.closed = false
 	s.closeRequested = false
+	data := s.data
 
 	go func() { s.flushThread() }()
 
-	return s.data, s
+	return data, s
 }
