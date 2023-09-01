@@ -164,69 +164,74 @@ func (s *Server) becomeLeader() {
 	}
 }
 
-func (s *Server) Apply(applyFn func([]byte) ([]byte, []byte)) (Error, []byte) {
+func (s *Server) TryAcquire() (Error, *[]byte, func() Error) {
 	var retErr Error
-	var retVal []byte
-	var args *applyAsFollowerArgs
 
-	// make proposal
-	s.withLock(func(ps *paxosState) {
-		if !ps.isLeader {
-			retErr = ENotLeader
-			return
+	s.mu.Lock()
+	if !s.ps.isLeader {
+		s.mu.Unlock()
+		var n *[]byte // XXX: hack for Goose; want to just return nil pointer,
+		// but Goose translates that into a nil slice.
+		return ENotLeader, n, nil
+	}
+
+	// between the previous lines of code and the invocation of tryRelease, the user is allowed to
+	// modify the state however they wish.
+
+	tryRelease := func() Error {
+		s.ps.nextIndex = std.SumAssumeNoOverflow(s.ps.nextIndex, 1)
+		args := &applyAsFollowerArgs{epoch: s.ps.epoch, nextIndex: s.ps.nextIndex, state: s.ps.state}
+		waitFn := s.storage.Write(encodePaxosState(s.ps))
+		s.mu.Unlock()
+		waitFn()
+
+		clerks := s.clerks
+
+		var numReplies = uint64(0)
+		replies := make([]*applyAsFollowerReply, uint64(len(clerks)))
+		mu := new(sync.Mutex)
+		numReplies_cond := sync.NewCond(mu)
+		n := uint64(len(clerks))
+
+		for i, ck := range clerks {
+			ck := ck
+			i := i
+			go func() {
+				reply := ck.applyAsFollower(args)
+
+				mu.Lock()
+				numReplies += 1
+				replies[i] = reply
+				if 2*numReplies > n {
+					numReplies_cond.Signal()
+				}
+				mu.Unlock()
+			}()
 		}
-		ps.state, retVal = applyFn(ps.state)
-		ps.nextIndex = std.SumAssumeNoOverflow(ps.nextIndex, 1)
-		args = &applyAsFollowerArgs{epoch: ps.epoch, nextIndex: ps.nextIndex, state: ps.state}
-	})
-	if retErr != 0 {
-		return retErr, nil
-	}
-	clerks := s.clerks
 
-	var numReplies = uint64(0)
-	replies := make([]*applyAsFollowerReply, uint64(len(clerks)))
-	mu := new(sync.Mutex)
-	numReplies_cond := sync.NewCond(mu)
-	n := uint64(len(clerks))
+		mu.Lock()
+		// wait for a quorum of replies
+		for 2*numReplies <= n {
+			numReplies_cond.Wait()
+		}
 
-	for i, ck := range clerks {
-		ck := ck
-		i := i
-		go func() {
-			reply := ck.applyAsFollower(args)
-
-			mu.Lock()
-			numReplies += 1
-			replies[i] = reply
-			if 2*numReplies > n {
-				numReplies_cond.Signal()
-			}
-			mu.Unlock()
-		}()
-	}
-
-	mu.Lock()
-	// wait for a quorum of replies
-	for 2*numReplies <= n {
-		numReplies_cond.Wait()
-	}
-
-	var numSuccesses = uint64(0)
-	for _, reply := range replies {
-		if reply != nil {
-			if reply.err == ENone {
-				numSuccesses += 1
+		var numSuccesses = uint64(0)
+		for _, reply := range replies {
+			if reply != nil {
+				if reply.err == ENone {
+					numSuccesses += 1
+				}
 			}
 		}
-	}
 
-	if 2*numSuccesses > n {
-		retErr = ENone
-	} else {
-		retErr = EEpochStale
+		if 2*numSuccesses > n {
+			retErr = ENone
+		} else {
+			retErr = EEpochStale
+		}
+		return retErr
 	}
-	return retErr, retVal
+	return ENone, &s.ps.state, tryRelease
 }
 
 func (s *Server) WeakRead() []byte {

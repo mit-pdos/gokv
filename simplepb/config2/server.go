@@ -56,21 +56,34 @@ type Server struct {
 }
 
 // TODO: mpaxos doesn't need to return reply anymore
-func (s *Server) withLock(f func(st *state)) {
-	s.s.Apply(func(e []byte) ([]byte, []byte) {
-		st := decodeState(e)
-		f(st)
-		return encodeState(st), nil
-	})
+func (s *Server) tryAcquire() (bool, *state, func() bool) {
+	err, e, relF := s.s.TryAcquire()
+	if err != 0 {
+		return false, nil, nil
+	}
+	st := decodeState(*e)
+	releaseFn := func() bool {
+		*e = encodeState(st)
+		return (relF() == 0)
+	}
+	return true, st, releaseFn
 }
 
 func (s *Server) ReserveEpochAndGetConfig(args []byte, reply *[]byte) {
-	s.withLock(func(st *state) {
-		st.reservedEpoch = std.SumAssumeNoOverflow(st.reservedEpoch, 1)
-		*reply = make([]byte, 0, 8+8+8*len(st.config))
-		*reply = marshal.WriteInt(*reply, st.reservedEpoch)
-		*reply = marshal.WriteBytes(*reply, EncodeConfig(st.config))
-	})
+	*reply = marshal.WriteInt(nil, e.NotLeader)
+	ok, st, tryReleaseFn := s.tryAcquire()
+	if !ok {
+		return
+	}
+	st.reservedEpoch = std.SumAssumeNoOverflow(st.reservedEpoch, 1)
+	config := st.config
+	reservedEpoch := st.reservedEpoch
+	if !tryReleaseFn() {
+		return
+	}
+	*reply = make([]byte, 0, 8+8+8*len(config))
+	*reply = marshal.WriteInt(*reply, reservedEpoch)
+	*reply = marshal.WriteBytes(*reply, EncodeConfig(config))
 }
 
 func (s *Server) GetConfig(args []byte, reply *[]byte) {
@@ -79,75 +92,86 @@ func (s *Server) GetConfig(args []byte, reply *[]byte) {
 }
 
 func (s *Server) TryWriteConfig(args []byte, reply *[]byte) {
+	*reply = marshal.WriteInt(nil, e.NotLeader)
+
 	// check if lease is expired
 	epoch, enc := marshal.ReadInt(args)
+	config := DecodeConfig(enc)
 	for {
-		var done bool = false
-		var timeToSleep uint64
-		s.withLock(func(st *state) {
-			if epoch < st.reservedEpoch {
-				*reply = marshal.WriteInt(nil, e.Stale)
-				log.Printf("Stale: %d < %d", epoch, st.reservedEpoch)
-				done = true
-				return
-			} else if epoch > st.epoch {
-				l, _ := grove_ffi.GetTimeRange()
-				if l >= st.leaseExpiration {
-					st.wantLeaseToExpire = false
-					st.epoch = epoch
-
-					st.config = DecodeConfig(enc)
-					log.Println("New config is:", st.config)
-					*reply = marshal.WriteInt(nil, e.None)
-					done = true
-					return
-				} else {
-					st.wantLeaseToExpire = true
-					timeToSleep = st.leaseExpiration - l
-					done = false
-					return
-				}
-			} else {
-				// already in the epoch
-				st.config = DecodeConfig(enc)
-				// TODO: avoid putting marshalling in the critical section
-				// s.mu.Unlock()
-				*reply = marshal.WriteInt(nil, e.None)
-				done = true
-				return
-			}
-		})
-		if done {
+		ok, st, tryReleaseFn := s.tryAcquire()
+		if !ok {
 			break
 		}
-		machine.Sleep(timeToSleep) // sleep long enough for lease to be expired
-		continue
+
+		if epoch < st.reservedEpoch {
+			if !tryReleaseFn() {
+				break
+			}
+			*reply = marshal.WriteInt(nil, e.Stale)
+			log.Printf("Stale: %d < %d", epoch, st.reservedEpoch)
+			break
+		} else if epoch > st.epoch {
+			l, _ := grove_ffi.GetTimeRange()
+			if l >= st.leaseExpiration {
+				st.wantLeaseToExpire = false
+				st.epoch = epoch
+				st.config = config
+				if !tryReleaseFn() {
+					break
+				}
+				log.Println("New config is:", st.config)
+				*reply = marshal.WriteInt(nil, e.None)
+				break
+			} else {
+				st.wantLeaseToExpire = true
+				timeToSleep := st.leaseExpiration - l
+				if !tryReleaseFn() {
+					break
+				}
+				machine.Sleep(timeToSleep) // sleep long enough for lease to be expired
+				continue
+			}
+		} else {
+			// already in the epoch
+			st.config = config
+			if !tryReleaseFn() {
+				break
+			}
+			*reply = marshal.WriteInt(nil, e.None)
+			break
+		}
 	}
 }
 
 func (s *Server) GetLease(args []byte, reply *[]byte) {
+	*reply = marshal.WriteInt(nil, e.NotLeader)
 	epoch, _ := marshal.ReadInt(args)
-	var newLeaseExpiration uint64
-	s.withLock(func(st *state) {
-		if st.epoch != epoch || st.wantLeaseToExpire {
-			// s.mu.Unlock()
-			*reply = marshal.WriteInt(nil, e.Stale)
-			*reply = marshal.WriteInt(*reply, 0)
-			log.Println("Rejected lease request", epoch, st.epoch, st.wantLeaseToExpire)
+	ok, st, tryReleaseFn := s.tryAcquire()
+	if !ok {
+		return
+	}
+
+	if st.epoch != epoch || st.wantLeaseToExpire {
+		log.Println("Rejected lease request", epoch, st.epoch, st.wantLeaseToExpire)
+		if !tryReleaseFn() {
 			return
 		}
-
-		l, _ := grove_ffi.GetTimeRange()
-		newLeaseExpiration := l + LeaseInterval
-		if newLeaseExpiration > st.leaseExpiration {
-			st.leaseExpiration = newLeaseExpiration
-		}
-	})
-
-	if len(*reply) == 0 {
-		*reply = marshal.WriteInt(nil, e.None)
-		*reply = marshal.WriteInt(*reply, newLeaseExpiration)
+		*reply = marshal.WriteInt(nil, e.Stale)
+		*reply = marshal.WriteInt(*reply, 0)
+		return
 	}
+
+	l, _ := grove_ffi.GetTimeRange()
+	newLeaseExpiration := l + LeaseInterval
+	if newLeaseExpiration > st.leaseExpiration {
+		st.leaseExpiration = newLeaseExpiration
+	}
+	if !tryReleaseFn() {
+		return
+	}
+
+	*reply = marshal.WriteInt(nil, e.None)
+	*reply = marshal.WriteInt(*reply, newLeaseExpiration)
 }
 
 func MakeServer(initconfig []grove_ffi.Address) *Server {

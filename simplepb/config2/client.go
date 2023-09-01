@@ -22,6 +22,7 @@ func MakeClerk(host grove_ffi.Address) *Clerk {
 	return &Clerk{cl: urpc.MakeClient(host)}
 }
 
+// FIXME: potentially return error
 func (ck *Clerk) ReserveEpochAndGetConfig() (uint64, []grove_ffi.Address) {
 	reply := new([]byte)
 	for {
