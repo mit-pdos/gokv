@@ -55,7 +55,6 @@ type Server struct {
 	s *mpaxos.Server
 }
 
-// TODO: mpaxos doesn't need to return reply anymore
 func (s *Server) tryAcquire() (bool, *state, func() bool) {
 	err, e, relF := s.s.TryAcquire()
 	if err != 0 {
@@ -82,6 +81,7 @@ func (s *Server) ReserveEpochAndGetConfig(args []byte, reply *[]byte) {
 		return
 	}
 	*reply = make([]byte, 0, 8+8+8*len(config))
+	*reply = marshal.WriteInt(*reply, e.None)
 	*reply = marshal.WriteInt(*reply, reservedEpoch)
 	*reply = marshal.WriteBytes(*reply, EncodeConfig(config))
 }
