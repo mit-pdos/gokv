@@ -145,6 +145,7 @@ func (s *Server) TryWriteConfig(args []byte, reply *[]byte) {
 
 func (s *Server) GetLease(args []byte, reply *[]byte) {
 	*reply = marshal.WriteInt(nil, e.NotLeader)
+	*reply = marshal.WriteInt(*reply, 0) // placeholder lease expiration time
 	epoch, _ := marshal.ReadInt(args)
 	ok, st, tryReleaseFn := s.tryAcquire()
 	if !ok {
