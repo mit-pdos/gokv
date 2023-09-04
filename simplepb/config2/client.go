@@ -53,7 +53,9 @@ func (ck *Clerk) ReserveEpochAndGetConfig() (uint64, []grove_ffi.Address) {
 			ck.mu.Unlock()
 			continue
 		}
-		break
+		if err2 == e.None {
+			break
+		}
 	}
 
 	var epoch uint64
@@ -65,7 +67,7 @@ func (ck *Clerk) ReserveEpochAndGetConfig() (uint64, []grove_ffi.Address) {
 func (ck *Clerk) GetConfig() []grove_ffi.Address {
 	reply := new([]byte)
 	for {
-		i := machine.RandomUint64()
+		i := machine.RandomUint64() % uint64(len(ck.cls))
 		err := ck.cls[i].Call(RPC_GETCONFIG, make([]byte, 0), reply, 100 /* ms */)
 		if err == 0 {
 			break
