@@ -58,7 +58,8 @@ type Server struct {
 func (s *Server) tryAcquire() (bool, *state, func() bool) {
 	err, e, relF := s.s.TryAcquire()
 	if err != 0 {
-		return false, nil, nil
+		var p *state // XXX: hack to return nil pointer for goose
+		return false, p, nil
 	}
 	st := decodeState(*e)
 	releaseFn := func() bool {
