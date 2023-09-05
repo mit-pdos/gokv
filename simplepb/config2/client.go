@@ -28,7 +28,7 @@ func MakeClerk(hosts []grove_ffi.Address) *Clerk {
 	for _, host := range hosts {
 		cls = append(cls, reconnectclient.MakeReconnectingClient(host))
 	}
-	return &Clerk{cls: cls}
+	return &Clerk{cls: cls, mu: new(sync.Mutex)}
 }
 
 func (ck *Clerk) ReserveEpochAndGetConfig() (uint64, []grove_ffi.Address) {
