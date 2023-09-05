@@ -6,13 +6,9 @@ import (
 	"sync"
 
 	"github.com/mit-pdos/gokv/grove_ffi"
+	"github.com/mit-pdos/gokv/kv"
+	"github.com/tchajed/marshal"
 )
-
-type Kv struct {
-	Put            func(key, value string)
-	Get            func(key string) string
-	ConditionalPut func(key, expect, value string) string
-}
 
 type cacheValue struct {
 	v string
@@ -20,17 +16,25 @@ type cacheValue struct {
 }
 
 type LeaseKv struct {
-	kv    *Kv
+	kv    *kv.Kv
 	mu    *sync.Mutex
 	cache map[string]cacheValue
 }
 
 func DecodeValue(v string) cacheValue {
-	panic("TODO")
+	var e = []byte(v)
+	l, vBytes := marshal.ReadInt(e)
+	return cacheValue{
+		l: l,
+		v: string(vBytes),
+	}
 }
 
 func EncodeValue(c cacheValue) string {
-	panic("TODO")
+	var e = make([]byte, 0)
+	e = marshal.WriteInt(e, c.l)
+	e = marshal.WriteBytes(e, []byte(c.v))
+	return string(e)
 }
 
 func max(a, b uint64) uint64 {
@@ -38,6 +42,14 @@ func max(a, b uint64) uint64 {
 		return a
 	}
 	return b
+}
+
+func Make(kv *kv.Kv) *LeaseKv {
+	return &LeaseKv{
+		kv:    kv,
+		mu:    new(sync.Mutex),
+		cache: make(map[string]cacheValue),
+	}
 }
 
 func (k *LeaseKv) Get(key string) string {
