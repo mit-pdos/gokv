@@ -44,11 +44,7 @@ func (ck *ClerkPool) doWithClerk(f func(ck *Clerk)) {
 		cl = MakeClerk(ck.confHost)
 
 		f(cl)
-		// put the new cl into the list many times
 		ck.mu.Lock()
-		ck.cls = append(ck.cls, cl)
-		ck.cls = append(ck.cls, cl)
-		ck.cls = append(ck.cls, cl)
 		ck.cls = append(ck.cls, cl)
 		ck.mu.Unlock()
 	}
