@@ -245,6 +245,11 @@ func makeServer(fname string, initstate []byte, config []grove_ffi.Address) *Ser
 	s := new(Server)
 	s.mu = new(sync.Mutex)
 
+	s.clerks = make([]*singleClerk, 0)
+	for _, host := range config {
+		s.clerks = append(s.clerks, makeSingleClerk(host))
+	}
+
 	var encstate []byte
 	encstate, s.storage = asyncfile.MakeAsyncFile(fname)
 	if len(encstate) == 0 {
@@ -252,14 +257,6 @@ func makeServer(fname string, initstate []byte, config []grove_ffi.Address) *Ser
 		s.ps.state = initstate
 	} else {
 		s.ps = decodePaxosState(encstate)
-	}
-
-	s.clerks = make([]*singleClerk, len(config))
-	n := uint64(len(s.clerks))
-	var i = uint64(0)
-	for i < n {
-		s.clerks[i] = makeSingleClerk(config[i])
-		i += 1
 	}
 	return s
 }
