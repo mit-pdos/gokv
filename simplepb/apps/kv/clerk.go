@@ -14,13 +14,22 @@ func MakeClerk(confHost grove_ffi.Address) *Clerk {
 }
 
 func (ck *Clerk) Put(key, val string) {
-	putArgs := &PutArgs{
+	args := &PutArgs{
 		Key: key,
 		Val: val,
 	}
-	ck.cl.ApplyExactlyOnce(encodePutArgs(putArgs))
+	ck.cl.ApplyExactlyOnce(encodePutArgs(args))
 }
 
 func (ck *Clerk) Get(key string) string {
 	return string(ck.cl.ApplyReadonly(encodeGetArgs(key)))
+}
+
+func (ck *Clerk) CondPut(key, expect, val string) string {
+	args := &CondPutArgs{
+		Key:    key,
+		Expect: expect,
+		Val:    val,
+	}
+	return string(ck.cl.ApplyExactlyOnce(encodeCondPutArgs(args)))
 }

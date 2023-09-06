@@ -1,7 +1,6 @@
 package kv
 
 // Replicated KV server using simplelog for durability.
-// This does not use a reply table for deduplication.
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
@@ -22,9 +21,9 @@ type KVState struct {
 // Get(k)
 // // ConditionalPut(k, v, expected_v)
 const (
-	OP_PUT = byte(0)
-	OP_GET = byte(1)
-	// OP_CONDITIONALPUT = byte(2)
+	OP_PUT      = byte(0)
+	OP_GET      = byte(1)
+	OP_COND_PUT = byte(2)
 )
 
 // begin arg structs and marshalling
@@ -69,6 +68,41 @@ func decodeGetArgs(raw_args []byte) getArgs {
 	return string(raw_args[1:])
 }
 
+// begin arg structs and marshalling
+type CondPutArgs struct {
+	Key    string
+	Expect string
+	Val    string
+}
+
+func encodeCondPutArgs(args *CondPutArgs) []byte {
+	// XXX: potential overflow with
+	// `... + uint64(len(args.Key))+uint64(len(args.Val)))` in capacity
+	var enc = make([]byte, 1, 1+8)
+	enc[0] = OP_COND_PUT
+	enc = marshal.WriteInt(enc, uint64(len(args.Key)))
+	enc = marshal.WriteBytes(enc, []byte(args.Key))
+	enc = marshal.WriteInt(enc, uint64(len(args.Expect)))
+	enc = marshal.WriteBytes(enc, []byte(args.Expect))
+	enc = marshal.WriteBytes(enc, []byte(args.Val))
+	return enc
+}
+
+func decodeCondPutArgs(raw_args []byte) *CondPutArgs {
+	var enc = raw_args[1:]
+	args := new(CondPutArgs)
+
+	var l uint64
+	l, enc = marshal.ReadInt(enc)
+	keybytes, enc2 := marshal.ReadBytes(enc, l)
+	args.Key = string(keybytes)
+	l, enc = marshal.ReadInt(enc2)
+	args.Expect = string(enc[:l])
+	args.Val = string(enc[l:])
+
+	return args
+}
+
 // end of marshalling
 func (s *KVState) put(args *PutArgs) []byte {
 	s.kvs[string(args.Key)] = args.Val
@@ -88,6 +122,14 @@ func (s *KVState) apply(args []byte, vnum uint64) []byte {
 		key := decodeGetArgs(args)
 		s.vnums[string(key)] = vnum
 		return s.get(key)
+	} else if args[0] == OP_COND_PUT {
+		args := decodeCondPutArgs(args)
+		if s.kvs[args.Key] == args.Expect {
+			s.vnums[string(args.Key)] = vnum
+			s.kvs[args.Key] = args.Val
+			return []byte("ok")
+		}
+		return []byte("")
 	} else {
 		panic("unexpected op type")
 	}

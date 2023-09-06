@@ -1,8 +1,10 @@
 package kv
 
 import (
-	"github.com/mit-pdos/gokv/grove_ffi"
 	"sync"
+
+	"github.com/mit-pdos/gokv/grove_ffi"
+	"github.com/mit-pdos/gokv/kv"
 )
 
 type ClerkPool struct {
@@ -22,8 +24,6 @@ func MakeClerkPool(confHost grove_ffi.Address) *ClerkPool {
 // TODO: get rid of stale clerks from the ck.cls list?
 // TODO: keep failed clerks out of ck.cls list? Maybe f(cl) can return an
 // optional error saying "get rid of cl".
-// XXX: what's the performance overhead of function pointer here v.s. manually
-// inlining the body each time?
 func (ck *ClerkPool) doWithClerk(f func(ck *Clerk)) {
 	ck.mu.Lock()
 	var cl *Clerk
@@ -66,4 +66,21 @@ func (ck *ClerkPool) Get(key string) string {
 		ret = ck.Get(key)
 	})
 	return ret
+}
+
+func (ck *ClerkPool) CondPut(key, expect, val string) string {
+	var ret string
+	ck.doWithClerk(func(ck *Clerk) {
+		ret = ck.CondPut(key, expect, val)
+	})
+	return ret
+}
+
+func MakeKv(confHost grove_ffi.Address) *kv.Kv {
+	ck := MakeClerkPool(confHost)
+	return &kv.Kv{
+		Put:            ck.Put,
+		Get:            ck.Get,
+		ConditionalPut: ck.CondPut,
+	}
 }
