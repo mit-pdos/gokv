@@ -241,14 +241,18 @@ func (s *Server) WeakRead() []byte {
 	return ret
 }
 
-func makeServer(fname string, applyFn func([]byte, []byte) ([]byte, []byte),
-	config []grove_ffi.Address) *Server {
+func makeServer(fname string, initstate []byte, config []grove_ffi.Address) *Server {
 	s := new(Server)
 	s.mu = new(sync.Mutex)
 
 	var encstate []byte
 	encstate, s.storage = asyncfile.MakeAsyncFile(fname)
-	s.ps = decodePaxosState(encstate)
+	if len(encstate) == 0 {
+		s.ps = new(paxosState)
+		s.ps.state = initstate
+	} else {
+		s.ps = decodePaxosState(encstate)
+	}
 
 	s.clerks = make([]*singleClerk, len(config))
 	n := uint64(len(s.clerks))
@@ -260,10 +264,8 @@ func makeServer(fname string, applyFn func([]byte, []byte) ([]byte, []byte),
 	return s
 }
 
-func StartServer(fname string, me grove_ffi.Address,
-	applyFn func([]byte, []byte) ([]byte, []byte),
-	config []grove_ffi.Address) {
-	s := makeServer(fname, applyFn, config)
+func StartServer(fname string, initstate []byte, me grove_ffi.Address, config []grove_ffi.Address) {
+	s := makeServer(fname, initstate, config)
 
 	handlers := make(map[uint64]func([]byte, *[]byte))
 	handlers[RPC_APPLY_AS_FOLLOWER] = func(raw_args []byte, raw_reply *[]byte) {

@@ -122,10 +122,32 @@ func decodeApplyReply(s []byte) *applyReply {
 	return o
 }
 
-func encodePaxosState(ps *paxosState) []byte {
-	panic("impl")
+func boolToU64(b bool) uint64 {
+	if b {
+		return 1
+	} else {
+		return 0
+	}
 }
 
-func decodePaxosState([]byte) *paxosState {
-	panic("impl")
+func encodePaxosState(ps *paxosState) []byte {
+	var e = make([]byte, 0)
+	e = marshal.WriteInt(e, ps.epoch)
+	e = marshal.WriteInt(e, ps.acceptedEpoch)
+	e = marshal.WriteInt(e, ps.nextIndex)
+	e = marshal.WriteInt(e, boolToU64(ps.isLeader))
+	e = marshal.WriteBytes(e, ps.state)
+	return e
+}
+
+func decodePaxosState(enc []byte) *paxosState {
+	var e []byte = enc
+	var leaderInt uint64
+	ps := new(paxosState)
+	ps.epoch, e = marshal.ReadInt(e)
+	ps.acceptedEpoch, e = marshal.ReadInt(e)
+	ps.nextIndex, e = marshal.ReadInt(e)
+	leaderInt, ps.state = marshal.ReadInt(e)
+	ps.isLeader = (leaderInt == 1)
+	return ps
 }
