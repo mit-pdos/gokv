@@ -185,6 +185,6 @@ func makeVersionedStateMachine() *esm.VersionedStateMachine {
 	}
 }
 
-func Start(fname string, host grove_ffi.Address, confHost grove_ffi.Address) {
-	simplelog.MakePbServer(esm.MakeExactlyOnceStateMachine(makeVersionedStateMachine()), fname, confHost).Serve(host)
+func Start(fname string, host grove_ffi.Address, confHosts []grove_ffi.Address) {
+	simplelog.MakePbServer(esm.MakeExactlyOnceStateMachine(makeVersionedStateMachine()), fname, confHosts).Serve(host)
 }

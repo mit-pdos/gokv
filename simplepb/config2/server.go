@@ -176,14 +176,19 @@ func (s *Server) GetLease(args []byte, reply *[]byte) {
 	*reply = marshal.WriteInt(*reply, newLeaseExpiration)
 }
 
-func MakeServer(initconfig []grove_ffi.Address) *Server {
+func makeServer(fname string, paxosMe grove_ffi.Address,
+	hosts []grove_ffi.Address, initconfig []grove_ffi.Address) *Server {
 	s := new(Server)
-	// TODO: init
-	// s.s = new(sync.Mutex)
+	initEnc := encodeState(&state{config: initconfig})
+
+	s.s = mpaxos.StartServer(fname, initEnc, paxosMe, hosts)
+
 	return s
 }
 
-func (s *Server) Serve(me grove_ffi.Address) {
+func StartServer(fname string, me grove_ffi.Address, paxosMe grove_ffi.Address,
+	hosts []grove_ffi.Address, initconfig []grove_ffi.Address) *Server {
+	s := makeServer(fname, paxosMe, hosts, initconfig)
 	handlers := make(map[uint64]func([]byte, *[]byte))
 
 	handlers[RPC_RESERVEEPOCH] = s.ReserveEpochAndGetConfig
@@ -193,4 +198,5 @@ func (s *Server) Serve(me grove_ffi.Address) {
 
 	rs := urpc.MakeServer(handlers)
 	rs.Serve(me)
+	return s
 }

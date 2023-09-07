@@ -119,9 +119,9 @@ type Clerk struct {
 	seq uint64
 }
 
-func MakeClerk(confHost grove_ffi.Address) *Clerk {
+func MakeClerk(confHosts []grove_ffi.Address) *Clerk {
 	ck := new(Clerk)
-	ck.ck = clerk.Make(confHost)
+	ck.ck = clerk.Make(confHosts)
 
 	v := make([]byte, 1)
 	v[0] = OPTYPE_GETFRESHCID

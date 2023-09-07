@@ -2,7 +2,7 @@ package clerk
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
-	"github.com/mit-pdos/gokv/simplepb/config"
+	"github.com/mit-pdos/gokv/simplepb/config2"
 	"github.com/mit-pdos/gokv/simplepb/e"
 	"github.com/mit-pdos/gokv/simplepb/pb"
 	"github.com/mit-pdos/gokv/trusted_proph"
@@ -10,7 +10,7 @@ import (
 )
 
 type Clerk struct {
-	confCk           *config.Clerk
+	confCk           *config2.Clerk
 	replicaClerks    []*pb.Clerk
 	preferredReplica uint64
 }
@@ -25,9 +25,9 @@ func makeClerks(servers []grove_ffi.Address) []*pb.Clerk {
 	return clerks
 }
 
-func Make(confHost grove_ffi.Address) *Clerk {
+func Make(confHosts []grove_ffi.Address) *Clerk {
 	ck := new(Clerk)
-	ck.confCk = config.MakeClerk(confHost)
+	ck.confCk = config2.MakeClerk(confHosts)
 	for {
 		config := ck.confCk.GetConfig()
 		if len(config) == 0 {

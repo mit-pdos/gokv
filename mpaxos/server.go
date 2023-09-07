@@ -261,7 +261,7 @@ func makeServer(fname string, initstate []byte, config []grove_ffi.Address) *Ser
 	return s
 }
 
-func StartServer(fname string, initstate []byte, me grove_ffi.Address, config []grove_ffi.Address) {
+func StartServer(fname string, initstate []byte, me grove_ffi.Address, config []grove_ffi.Address) *Server {
 	s := makeServer(fname, initstate, config)
 
 	handlers := make(map[uint64]func([]byte, *[]byte))
@@ -285,4 +285,5 @@ func StartServer(fname string, initstate []byte, me grove_ffi.Address, config []
 
 	r := urpc.MakeServer(handlers)
 	r.Serve(me)
+	return s
 }

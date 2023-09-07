@@ -187,7 +187,7 @@ func recoverStateMachine(smMem *InMemoryStateMachine, fname string) *StateMachin
 // index, epoch, etc.
 //
 // Maybe we should make those be a part of pb.StateMachine
-func MakePbServer(smMem *InMemoryStateMachine, fname string, confHost grove_ffi.Address) *pb.Server {
+func MakePbServer(smMem *InMemoryStateMachine, fname string, confHosts []grove_ffi.Address) *pb.Server {
 	s := recoverStateMachine(smMem, fname)
 	sm := &pb.StateMachine{
 		StartApply: func(op []byte) ([]byte, func()) {
@@ -203,5 +203,5 @@ func MakePbServer(smMem *InMemoryStateMachine, fname string, confHost grove_ffi.
 			return s.getStateAndSeal()
 		},
 	}
-	return pb.MakeServer(sm, confHost, s.nextIndex, s.epoch, s.sealed)
+	return pb.MakeServer(sm, confHosts, s.nextIndex, s.epoch, s.sealed)
 }

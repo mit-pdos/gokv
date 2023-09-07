@@ -5,19 +5,19 @@ import (
 	"sync"
 
 	"github.com/mit-pdos/gokv/grove_ffi"
-	"github.com/mit-pdos/gokv/simplepb/config"
+	"github.com/mit-pdos/gokv/simplepb/config2"
 	"github.com/mit-pdos/gokv/simplepb/e"
 	"github.com/mit-pdos/gokv/simplepb/pb"
 	"github.com/tchajed/goose/machine"
 )
 
-func EnterNewConfig(configHost grove_ffi.Address, servers []grove_ffi.Address) e.Error {
+func EnterNewConfig(configHosts []grove_ffi.Address, servers []grove_ffi.Address) e.Error {
 	if len(servers) == 0 {
 		log.Println("Tried creating empty config")
 		return e.EmptyConfig
 	}
 
-	configCk := config.MakeClerk(configHost)
+	configCk := config2.MakeClerk(configHosts)
 	// Get new epoch number from config service.
 	// Read from config service, fenced with that epoch.
 	epoch, oldServers := configCk.ReserveEpochAndGetConfig()

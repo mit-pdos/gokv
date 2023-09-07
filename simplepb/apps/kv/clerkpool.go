@@ -8,16 +8,16 @@ import (
 )
 
 type ClerkPool struct {
-	mu       *sync.Mutex
-	cls      []*Clerk
-	confHost grove_ffi.Address
+	mu        *sync.Mutex
+	cls       []*Clerk
+	confHosts []grove_ffi.Address
 }
 
-func MakeClerkPool(confHost grove_ffi.Address) *ClerkPool {
+func MakeClerkPool(confHosts []grove_ffi.Address) *ClerkPool {
 	return &ClerkPool{
-		mu:       new(sync.Mutex),
-		cls:      make([]*Clerk, 0),
-		confHost: confHost,
+		mu:        new(sync.Mutex),
+		cls:       make([]*Clerk, 0),
+		confHosts: confHosts,
 	}
 }
 
@@ -41,7 +41,7 @@ func (ck *ClerkPool) doWithClerk(f func(ck *Clerk)) {
 
 	} else {
 		ck.mu.Unlock()
-		cl = MakeClerk(ck.confHost)
+		cl = MakeClerk(ck.confHosts)
 
 		f(cl)
 		ck.mu.Lock()
@@ -72,8 +72,8 @@ func (ck *ClerkPool) CondPut(key, expect, val string) string {
 	return ret
 }
 
-func MakeKv(confHost grove_ffi.Address) *kv.Kv {
-	ck := MakeClerkPool(confHost)
+func MakeKv(confHosts []grove_ffi.Address) *kv.Kv {
+	ck := MakeClerkPool(confHosts)
 	return &kv.Kv{
 		Put:            ck.Put,
 		Get:            ck.Get,

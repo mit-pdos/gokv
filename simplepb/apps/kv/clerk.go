@@ -9,8 +9,8 @@ type Clerk struct {
 	cl *esm.Clerk
 }
 
-func MakeClerk(confHost grove_ffi.Address) *Clerk {
-	return &Clerk{cl: esm.MakeClerk(confHost)}
+func MakeClerk(confHosts []grove_ffi.Address) *Clerk {
+	return &Clerk{cl: esm.MakeClerk(confHosts)}
 }
 
 func (ck *Clerk) Put(key, val string) {

@@ -6,7 +6,7 @@ import (
 
 	"github.com/goose-lang/std"
 	"github.com/mit-pdos/gokv/grove_ffi"
-	"github.com/mit-pdos/gokv/simplepb/config"
+	"github.com/mit-pdos/gokv/simplepb/config2"
 	"github.com/mit-pdos/gokv/simplepb/e"
 	"github.com/mit-pdos/gokv/urpc"
 	"github.com/tchajed/goose/machine"
@@ -37,7 +37,7 @@ type Server struct {
 	leaseValid              bool
 	committedNextIndex      uint64
 	committedNextIndex_cond *sync.Cond
-	confCk                  *config.Clerk
+	confCk                  *config2.Clerk
 }
 
 // Applies the RO op immediately, but then waits for it to be committed before
@@ -424,7 +424,7 @@ func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {
 	return e.None
 }
 
-func MakeServer(sm *StateMachine, confHost grove_ffi.Address, nextIndex uint64, epoch uint64, sealed bool) *Server {
+func MakeServer(sm *StateMachine, confHosts []grove_ffi.Address, nextIndex uint64, epoch uint64, sealed bool) *Server {
 	s := new(Server)
 	s.mu = new(sync.Mutex)
 	s.epoch = epoch
@@ -436,7 +436,7 @@ func MakeServer(sm *StateMachine, confHost grove_ffi.Address, nextIndex uint64, 
 	s.leaseValid = false
 	s.canBecomePrimary = false
 	s.opAppliedConds = make(map[uint64]*sync.Cond)
-	s.confCk = config.MakeClerk(confHost)
+	s.confCk = config2.MakeClerk(confHosts)
 	s.committedNextIndex_cond = sync.NewCond(s.mu)
 	s.isPrimary_cond = sync.NewCond(s.mu)
 
