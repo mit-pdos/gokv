@@ -44,9 +44,7 @@ func decodeState(e []byte) *state {
 	st.leaseExpiration, e2 = marshal.ReadInt(e2)
 	var wantExp uint64
 	wantExp, e2 = marshal.ReadInt(e2)
-	if wantExp != 0 {
-		st.wantLeaseToExpire = true
-	}
+	st.wantLeaseToExpire = (wantExp == 1)
 	st.config = DecodeConfig(e2)
 	return st
 }
