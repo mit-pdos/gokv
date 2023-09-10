@@ -34,18 +34,28 @@ func mk_dconfig_hosts() []grove_ffi.Address {
 	return append(configHosts, dconfigHost)
 }
 
+func mk_lconfig_paxosHosts() []grove_ffi.Address {
+	var configHosts = make([]grove_ffi.Address, 0)
+	return append(configHosts, lconfigHostPaxos)
+}
+
+func mk_dconfig_paxosHosts() []grove_ffi.Address {
+	var configHosts = make([]grove_ffi.Address, 0)
+	return append(configHosts, dconfigHostPaxos)
+}
+
 func lconfig_main(fname string) {
 	var servers = make([]uint64, 0)
 	servers = append(servers, lr1)
 	servers = append(servers, lr2)
-	config2.StartServer(fname, lconfigHost, lconfigHostPaxos, mk_lconfig_hosts(), servers)
+	config2.StartServer(fname, lconfigHost, lconfigHostPaxos, mk_lconfig_paxosHosts(), servers)
 }
 
 func dconfig_main(fname string) {
 	var servers = make([]uint64, 0)
 	servers = append(servers, dr1)
 	servers = append(servers, dr2)
-	config2.StartServer(fname, dconfigHost, dconfigHostPaxos, mk_dconfig_hosts(), servers)
+	config2.StartServer(fname, dconfigHost, dconfigHostPaxos, mk_dconfig_paxosHosts(), servers)
 }
 
 func kv_replica_main(fname string, me, configHost grove_ffi.Address) {
