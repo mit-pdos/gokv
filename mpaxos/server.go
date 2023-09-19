@@ -36,7 +36,6 @@ func (s *Server) withLock(f func(ps *paxosState)) {
 func (s *Server) applyAsFollower(args *applyAsFollowerArgs, reply *applyAsFollowerReply) {
 	s.withLock(func(ps *paxosState) {
 		if ps.epoch <= args.epoch {
-			ps.isLeader = false
 			if ps.acceptedEpoch == args.epoch {
 				if ps.nextIndex < args.nextIndex {
 					ps.nextIndex = args.nextIndex
@@ -50,6 +49,7 @@ func (s *Server) applyAsFollower(args *applyAsFollowerArgs, reply *applyAsFollow
 				ps.epoch = args.epoch
 				ps.state = args.state
 				ps.nextIndex = args.nextIndex
+				ps.isLeader = false
 				reply.err = ENone
 			}
 		} else {
@@ -80,7 +80,7 @@ func (s *Server) enterNewEpoch(args *enterNewEpochArgs, reply *enterNewEpochRepl
 	})
 }
 
-func (s *Server) becomeLeader() {
+func (s *Server) TryBecomeLeader() {
 	log.Println("started trybecomeleader")
 	// defer log.Println("finished trybecomeleader")
 	s.mu.Lock()
@@ -143,13 +143,13 @@ func (s *Server) becomeLeader() {
 	}
 
 	if 2*numSuccesses > n {
-		log.Printf("succeeded becomeleader in epoch %d\n", args.epoch)
 		// RULE: lock s.mu after mu
 		// XXX: withLock has a disk write inside of it, so `mu` will be held for
 		// a long time here. This is ok because it only blocks the late RPC
 		// replies from replica servers, which we anyways won't look at.
 		s.withLock(func(ps *paxosState) {
-			if ps.epoch < args.epoch {
+			if ps.epoch <= args.epoch {
+				log.Printf("succeeded becomeleader in epoch %d\n", args.epoch)
 				ps.epoch = args.epoch
 				ps.isLeader = true
 				ps.acceptedEpoch = ps.epoch
@@ -247,7 +247,7 @@ func makeServer(fname string, initstate []byte, config []grove_ffi.Address) *Ser
 
 	s.clerks = make([]*singleClerk, 0)
 	for _, host := range config {
-		s.clerks = append(s.clerks, makeSingleClerk(host))
+		s.clerks = append(s.clerks, MakeSingleClerk(host))
 	}
 
 	var encstate []byte
@@ -280,7 +280,7 @@ func StartServer(fname string, initstate []byte, me grove_ffi.Address, config []
 	}
 
 	handlers[RPC_BECOME_LEADER] = func(raw_args []byte, raw_reply *[]byte) {
-		s.becomeLeader()
+		s.TryBecomeLeader()
 	}
 
 	r := urpc.MakeServer(handlers)

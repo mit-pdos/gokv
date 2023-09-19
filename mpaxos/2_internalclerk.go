@@ -13,11 +13,10 @@ const (
 
 // these clerks hide connection failures, and retry forever
 type singleClerk struct {
-	cl   *reconnectclient.ReconnectingClient
-	addr grove_ffi.Address
+	cl *reconnectclient.ReconnectingClient
 }
 
-func makeSingleClerk(addr grove_ffi.Address) *singleClerk {
+func MakeSingleClerk(addr grove_ffi.Address) *singleClerk {
 	// make a bunch of urpc clients
 	ck := &singleClerk{
 		cl: reconnectclient.MakeReconnectingClient(addr),
@@ -49,7 +48,7 @@ func (s *singleClerk) applyAsFollower(args *applyAsFollowerArgs) *applyAsFollowe
 	}
 }
 
-func (s *singleClerk) becomeLeader() {
+func (s *singleClerk) TryBecomeLeader() {
 	// make the server the primary
 	reply := new([]byte)
 	s.cl.Call(RPC_BECOME_LEADER, make([]byte, 0), reply, 500 /* ms */)
