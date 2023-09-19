@@ -1,28 +1,16 @@
-## Running
-`go run ./cmd/srv` will start the GoKV server. It will put durable state in a
-file called `kvdur` in the root project directory.
+# Overview
+The code for the replicated state machine library vRSM and the key-value store
+vKV are in the `simplepb` directory. Inside, there are packages for
+primary/backup replica servers (`pb`), a config service (`config`), a
+storage library (`simplelog`), a clerk (`clerk`), and some applications
+including the key-value store vKV (`apps`).
 
-After that, you can run `go run ./bench` to run benchmarks against the GoKV
-server.
+The proofs for all of this code are in the [Perennial
+repository](https://github.com/mit-pdos/perennial/tree/master/src/program_proof/simplepb).
 
-To start redis, run `/path/to/redis/src/redis-server ./bench/redis.conf` to run
-redis with AOF persistence; its snapshot at aof files get saved in
-`./redis-db`.
+# Grove SOSP'23 artifact
 
-Then, you can run the redis put benchmark in `./bench`
-
-## Goosing
-An annoying thing about goosing: need to put lockservice/ in `$GOPATH/src/...`.
-I just did that by temporarily getting rid of `go.mod` and doing `go get`.
-
-With go.mod, it'll end up in `$GOPATH/pkg/mod/...`, which makes it so that
-goose has to be run from the directory with the `go.mod` file, instead of from
-the perennial directory.
-
-Run `export GOPRIVATE=github.com/mit-pdos` before `go get`.
-
-## Updating dependencies
-
-Use `GOPROXY=direct go get -u` to fetch very recent updates from dependencies by bypassing the Go proxy.
-You have to be in some package subfolder to do this.
-You might also have to set a tag in the dependency repo so it is considered a new published version.
+The Grove artifact is in its own repository (with its own README)
+[here](https://github.com/mit-pdos/grove-artifact). It includes a specific
+commit of this repository as a git submodule. The artifact repository describes
+how to run the experiments described in the SOSP'23 paper.

@@ -42,7 +42,7 @@ func main() {
 		for _, srvStr := range a[1:] {
 			servers = append(servers, grove_ffi.MakeAddress(srvStr))
 		}
-		err := admin.InitializeSystem(confHost, servers)
+		err := admin.InitializeSystem([]grove_ffi.Address{confHost}, servers)
 		if err != 0 {
 			fmt.Printf("Error %d while initializing system\n", err)
 		} else {
@@ -54,7 +54,7 @@ func main() {
 			servers = append(servers, grove_ffi.MakeAddress(srvStr))
 		}
 		for {
-			err := admin.EnterNewConfig(confHost, servers)
+			err := admin.EnterNewConfig([]grove_ffi.Address{confHost}, servers)
 			if err == 0 {
 				fmt.Printf("Finished switching configuration\n")
 				break

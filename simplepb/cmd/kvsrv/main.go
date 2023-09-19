@@ -41,7 +41,7 @@ func main() {
 
 	confHost := grove_ffi.MakeAddress(confStr)
 	me := grove_ffi.MakeAddress(fmt.Sprintf("0.0.0.0:%d", port))
-	kv.Start(fname, me, confHost)
+	kv.Start(fname, me, []grove_ffi.Address{confHost})
 	log.Printf("Started kv server on port %d; id %d", port, me)
 	select {}
 }

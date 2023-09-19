@@ -30,7 +30,7 @@ func main() {
 	}
 
 	conf := grove_ffi.MakeAddress(confStr)
-	ck := kv.MakeClerk(conf)
+	ck := kv.MakeClerk([]grove_ffi.Address{conf})
 
 	a := flag.Args()
 	usage_assert(len(a) > 0)
