@@ -1,8 +1,8 @@
 # Overview
 The code for the replicated state machine library vRSM and the key-value store
-vKV are in the `simplepb` directory. Inside, there are packages for
-primary/backup replica servers (`pb`), a config service (`config`), a
-storage library (`simplelog`), a clerk (`clerk`), and some applications
+vKV are in the `vrsm` directory. Inside, there are packages for
+primary/backup replica servers (`replica`), a config service (`configservice`), a
+storage library (`storage`), a clerk (`clerk`), and some applications
 including the key-value store vKV (`apps`).
 
 The proofs for all of this code are in the [Perennial
