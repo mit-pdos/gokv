@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/mit-pdos/gokv/grove_ffi"
-	"github.com/mit-pdos/gokv/vrsm/admin"
 	"github.com/mit-pdos/gokv/vrsm/configservice"
 	"github.com/mit-pdos/gokv/vrsm/e"
+	"github.com/mit-pdos/gokv/vrsm/reconfig"
 )
 
 func main() {
@@ -42,7 +42,7 @@ func main() {
 		for _, srvStr := range a[1:] {
 			servers = append(servers, grove_ffi.MakeAddress(srvStr))
 		}
-		err := admin.InitializeSystem([]grove_ffi.Address{confHost}, servers)
+		err := reconfig.InitializeSystem([]grove_ffi.Address{confHost}, servers)
 		if err != 0 {
 			fmt.Printf("Error %d while initializing system\n", err)
 		} else {
@@ -54,7 +54,7 @@ func main() {
 			servers = append(servers, grove_ffi.MakeAddress(srvStr))
 		}
 		for {
-			err := admin.EnterNewConfig([]grove_ffi.Address{confHost}, servers)
+			err := reconfig.EnterNewConfig([]grove_ffi.Address{confHost}, servers)
 			if err == 0 {
 				fmt.Printf("Finished switching configuration\n")
 				break

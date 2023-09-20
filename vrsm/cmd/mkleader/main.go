@@ -17,6 +17,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	ck := mpaxos.MakeSingleClerk(grove_ffi.MakeAddress(host))
+	ck := paxos.MakeSingleClerk(grove_ffi.MakeAddress(host))
 	ck.TryBecomeLeader()
 }

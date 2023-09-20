@@ -1,4 +1,4 @@
-package simplelog
+package storage
 
 import (
 	"github.com/goose-lang/std"

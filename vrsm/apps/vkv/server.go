@@ -1,6 +1,6 @@
 package vkv
 
-// Replicated KV server using simplelog for durability.
+// Replicated and durable KV server
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
@@ -159,7 +159,7 @@ func (s *KVState) setState(snap []byte, nextIndex uint64) {
 	s.kvs = map_string_marshal.DecodeStringMap(snap)
 }
 
-// func MakeKVStateMachine() *simplelog.InMemoryStateMachine {
+// func MakeKVStateMachine() *storage.InMemoryStateMachine {
 // 	s := new(KVState)
 // 	s.kvs = make(map[string][]byte, 0)
 // 	s.vnums = make(map[string]uint64)
@@ -186,5 +186,5 @@ func makeVersionedStateMachine() *exactlyonce.VersionedStateMachine {
 }
 
 func Start(fname string, host grove_ffi.Address, confHosts []grove_ffi.Address) {
-	simplelog.MakePbServer(exactlyonce.MakeExactlyOnceStateMachine(makeVersionedStateMachine()), fname, confHosts).Serve(host)
+	storage.MakePbServer(exactlyonce.MakeExactlyOnceStateMachine(makeVersionedStateMachine()), fname, confHosts).Serve(host)
 }

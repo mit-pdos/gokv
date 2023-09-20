@@ -91,14 +91,14 @@ func (s *eStateMachine) setState(state []byte, nextIndex uint64) {
 	s.esmNextIndex = nextIndex
 }
 
-func MakeExactlyOnceStateMachine(sm *VersionedStateMachine) *simplelog.InMemoryStateMachine {
+func MakeExactlyOnceStateMachine(sm *VersionedStateMachine) *storage.InMemoryStateMachine {
 	s := new(eStateMachine)
 	s.lastSeq = make(map[uint64]uint64)
 	s.lastReply = make(map[uint64][]byte)
 	s.nextCID = 0
 	s.sm = sm
 
-	return &simplelog.InMemoryStateMachine{
+	return &storage.InMemoryStateMachine{
 		ApplyReadonly: s.applyReadonly,
 		ApplyVolatile: s.applyVolatile,
 		GetState:      func() []byte { return s.getState() },

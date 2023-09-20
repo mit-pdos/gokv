@@ -1,4 +1,4 @@
-package mpaxos
+package paxos
 
 import "github.com/tchajed/marshal"
 

@@ -1,4 +1,4 @@
-package admin
+package reconfig
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"

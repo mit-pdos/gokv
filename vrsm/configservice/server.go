@@ -50,7 +50,7 @@ func decodeState(e []byte) *state {
 }
 
 type Server struct {
-	s *mpaxos.Server
+	s *paxos.Server
 }
 
 func (s *Server) tryAcquire() (bool, *state, func() bool) {
@@ -179,7 +179,7 @@ func makeServer(fname string, paxosMe grove_ffi.Address,
 	s := new(Server)
 	initEnc := encodeState(&state{config: initconfig})
 
-	s.s = mpaxos.StartServer(fname, initEnc, paxosMe, hosts)
+	s.s = paxos.StartServer(fname, initEnc, paxosMe, hosts)
 
 	return s
 }

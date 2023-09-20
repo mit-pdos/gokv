@@ -1,4 +1,4 @@
-package mpaxos
+package paxos
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
