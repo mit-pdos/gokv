@@ -84,24 +84,35 @@ func (e *Election) Campaign(val string) Error {
 	l := e.lease
 	// k := fmt.Sprintf("%s%x", e.keyPrefix, e.lease)
 	k := e.keyPrefix + l
-	txn := StartTxn().IfCreateRevisionEq(k, 0)
+	var txn = StartTxn().IfCreateRevisionEq(k, 0)
 	txn = txn.Then(OpPutWithLease(k, val, e.lease))
 	txn = txn.Else(OpGet(k))
-	resp, err := txn.Commit()
+	var resp *TxnResponse
+	var err Error
+	resp, err = txn.Commit()
 	if err != ErrNone {
 		return err
 	}
-	e.leaderKey, e.leaderRev, e.leaderLease = k, resp.Header.Revision, l
+	e.leaderKey = k
+	e.leaderRev = resp.Header.Revision
+	e.leaderLease = l
+	var done = false
 	if !resp.Succeeded {
 		// kv := resp.Responses[0].GetResponseRange().Kvs[0]
 		kv := resp.Responses[0].Kvs[0]
 		e.leaderRev = kv.CreateRevision
 		if string(kv.Value) != val {
-			if err = e.Proclaim(val); err != ErrNone {
+			err = e.Proclaim(val)
+			if err != ErrNone {
 				e.Resign()
-				return err
+				// XXX: can't return from here
+				// return err
+				done = true
 			}
 		}
+	}
+	if done {
+		return err
 	}
 
 	err = waitDeletes(e.keyPrefix, e.leaderRev-1)
@@ -127,7 +138,7 @@ func (e *Election) Proclaim(val string) Error {
 	if e.leaderLease == "" {
 		return ErrElectionNotLeader
 	}
-	txn := StartTxn().IfCreateRevisionEq(e.leaderKey, e.leaderRev)
+	var txn = StartTxn().IfCreateRevisionEq(e.leaderKey, e.leaderRev)
 	txn = txn.Then(OpPutWithLease(e.leaderKey, val, e.leaderLease))
 	tresp, terr := txn.Commit()
 	if terr != ErrNone {
