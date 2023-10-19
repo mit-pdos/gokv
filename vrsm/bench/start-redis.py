@@ -12,15 +12,15 @@ args = parser.parse_args()
 ncores = args.ncores
 
 do(f"ssh node0 'killall go kvsrv config redis-server 2>/dev/null' ")
-do(f"ssh node0 'rm -rf ~/gokv/simplepb/durable/*'")
+do(f"ssh node0 'rm -rf ~/gokv/vrsm/durable/*'")
 
 do(f""" ssh node0 <<ENDSSH
-    cd ~/gokv/simplepb/;
+    cd ~/gokv/vrsm/;
     ./bench/set-cores.py {str(ncores)};
     nohup ~/redis/redis/src/redis-server \
         --port 5001 --dbfilename dbfilename, \
         --protected-mode no \
-        --dir ~/gokv/simplepb/durable \
+        --dir ~/gokv/vrsm/durable \
         --appendonly yes \
         --appendfsync always \
         --save "" \

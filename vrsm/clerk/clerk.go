@@ -9,10 +9,15 @@ import (
 	"github.com/tchajed/goose/machine"
 )
 
+const (
+	PreferenceRefreshTime = uint64(1_000_000_000) // 1 second
+)
+
 type Clerk struct {
-	confCk           *configservice.Clerk
-	replicaClerks    []*replica.Clerk
-	preferredReplica uint64
+	confCk                *configservice.Clerk
+	replicaClerks         []*replica.Clerk
+	preferredReplica      uint64
+	lastPreferenceRefresh uint64
 }
 
 func makeClerks(servers []grove_ffi.Address) []*replica.Clerk {
@@ -38,6 +43,7 @@ func Make(confHosts []grove_ffi.Address) *Clerk {
 		}
 	}
 	ck.preferredReplica = machine.RandomUint64() % uint64(len(ck.replicaClerks))
+	ck.lastPreferenceRefresh, _ = grove_ffi.GetTimeRange()
 	return ck
 }
 
@@ -62,11 +68,19 @@ func (ck *Clerk) Apply(op []byte) []byte {
 	return ret
 }
 
+func (ck *Clerk) maybeRefreshPreference() {
+	now, _ := grove_ffi.GetTimeRange()
+	if now > ck.lastPreferenceRefresh+PreferenceRefreshTime {
+		ck.preferredReplica = machine.RandomUint64() % uint64(len(ck.replicaClerks))
+		ck.lastPreferenceRefresh, _ = grove_ffi.GetTimeRange()
+	}
+}
+
 func (ck *Clerk) ApplyRo2(op []byte) []byte {
 	var ret []byte
+	ck.maybeRefreshPreference()
 	for {
-		// pick a random server to initially read from
-
+		// try to read initially from the "preferred" replica, then cycle around
 		offset := ck.preferredReplica
 		var err e.Error
 
@@ -80,15 +94,19 @@ func (ck *Clerk) ApplyRo2(op []byte) []byte {
 				break
 			}
 			i += 1
+			ck.lastPreferenceRefresh, _ = grove_ffi.GetTimeRange()
+			continue
 		}
 
 		if err == e.None {
 			break
 		} else {
-			machine.Sleep(uint64(10) * uint64(1_000_000)) // throttle retries to config server
+			timeToSleep := 5 + (machine.RandomUint64() % 10)
+			machine.Sleep(timeToSleep * uint64(1_000_000)) // throttle retries to config server
 			config := ck.confCk.GetConfig()
 			if len(config) > 0 {
 				ck.replicaClerks = makeClerks(config)
+				ck.lastPreferenceRefresh, _ = grove_ffi.GetTimeRange()
 				ck.preferredReplica = machine.RandomUint64() % uint64(len(ck.replicaClerks))
 			}
 			continue

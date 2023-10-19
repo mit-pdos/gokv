@@ -2,7 +2,7 @@
 # `/dev/sdb1 on / type ext4 (rw,noatime,discard)`
 #
 # Command:
-# numactl -N 0 ./redis/src/redis-server --port 5001 --dbfilename raft1.rdb --loadmodule ./redisraft.so --raft.log-filename raftlog1.db --dir /home/upamanyu/gokv/simplepb/durable --raft.log-fsync yes --raft.addr localhost:5001
+# numactl -N 0 ./redis/src/redis-server --port 5001 --dbfilename raft1.rdb --loadmodule ./redisraft.so --raft.log-filename raftlog1.db --dir /home/upamanyu/gokv/vrsm/durable --raft.log-fsync yes --raft.addr localhost:5001
 #    config = {
 #        'read': 0,
 #        'write': 1.0,

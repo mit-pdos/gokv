@@ -15,7 +15,7 @@ def get_thruput(other_client_machines, threads, reads, recordcount, runtime, coo
     for m in other_client_machines:
         sshcmd = f"""ssh node{m} <<ENDSSH
         killall go-ycsb 2>/dev/null;
-        cd ~/gokv/simplepb/bench/;
+        cd ~/gokv/vrsm/bench/;
         nohup {benchcmd} &
 ENDSSH
         """

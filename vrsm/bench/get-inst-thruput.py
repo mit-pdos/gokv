@@ -9,6 +9,7 @@ with open(sys.argv[1]) as f:
 
 # averaged over the last 1second, so keep 5 last data points
 lastops = [0 for i in range(6)]
+n = 0
 # XXX: the last line is
 for line in data.splitlines():
     if line.startswith("Run finished"):
@@ -17,4 +18,6 @@ for line in data.splitlines():
     if time is None:
         continue
     lastops = lastops[1:] + [ops]
-    print(f"{time}, {lastops[-1] - lastops[0]}")
+    n += 1
+    if n > 5: # skip the first few running averages that include negative time.
+        print(f"{time}, {lastops[-1] - lastops[0]}")

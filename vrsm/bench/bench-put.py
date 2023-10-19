@@ -18,7 +18,7 @@ args = parser.parse_args()
 gobin='/usr/local/go/bin/go'
 os.chdir('/users/upamanyu/go-ycsb/')
 do(f"""{gobin} run ./cmd/go-ycsb run pbkv
-    -P /users/upamanyu/gokv/simplepb/bench/pbkv_workload
+    -P /users/upamanyu/gokv/vrsm/bench/pbkv_workload
     --threads {str(args.threads)}
     --target -1
     --interval {str(args.interval)}

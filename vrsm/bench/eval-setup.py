@@ -20,4 +20,4 @@ do("./all-build-goycsb.py")
 do("./all-only-one-cpu.py")
 
 # Build redis now so it's ready to run later.
-do(f"ssh node0 'cd gokv/simplepb/bench; ./build-redis.py'")
+do(f"ssh node0 'cd gokv/vrsm/bench; ./build-redis.py'")

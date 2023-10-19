@@ -5,7 +5,7 @@ import (
 )
 
 func GetTimeRange() (uint64, uint64) {
-	// FIXME: implement this correctly
+	// XXX: get true error bounds using ntp
 	t := uint64(time.Now().UnixNano())
 	return t, t + 10e6
 }

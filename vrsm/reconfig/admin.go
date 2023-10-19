@@ -26,8 +26,8 @@ func EnterNewConfig(configHosts []grove_ffi.Address, servers []grove_ffi.Address
 	// Enter new epoch on one of the old servers.
 	// Get a copy of the state from that old server.
 
-	// FIXME: this +1 is a terrible hack; liveness bug.
-	// Should try all of the servers, starting from some random offset.
+	// TODO: maybe should try all of the servers, starting from some random
+	// offset. This "+1" can also go away.
 	id := (machine.RandomUint64() + 1) % uint64(len(oldServers))
 	oldClerk := replica.MakeClerk(oldServers[id])
 	reply := oldClerk.GetState(&replica.GetStateArgs{Epoch: epoch})

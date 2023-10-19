@@ -26,7 +26,7 @@ def goycsb_bench(kvname:str, threads:int, warmuptime:int, runtime:int, valuesize
 
     p = start_command([path.join(goycsbdir, './go-ycsb'),
                        'run', kvname,
-                       '-P', path.join(simplepbdir, "bench", kvname + '_workload'),
+                       '-P', path.join(vrsmdir, "bench", kvname + '_workload'),
                        '--threads', str(threads),
                        '--target', '-1',
                        '--interval', '200',
@@ -76,7 +76,7 @@ def parse_ycsb_output_totalops(output):
 def goycsb_load(kvname:str, threads:int, valuesize:int, keys:int, extra_args=[]):
     run_command([path.join(goycsbdir, './go-ycsb'),
                  'load', kvname,
-                 '-P', path.join(simplepbdir, "bench", kvname + '_workload'),
+                 '-P', path.join(vrsmdir, "bench", kvname + '_workload'),
                  '--threads', str(threads),
                  '-p', 'fieldlength=' + str(valuesize),
                  '-p', 'recordcount=' + str(keys),

@@ -27,14 +27,14 @@ if nreplicas > 3:
 # Start all replicas
 for i in range(5):
     do(f"""ssh upamanyu@node{str(i)} <<ENDSSH
-    cd /users/upamanyu/gokv/simplepb/;
+    cd /users/upamanyu/gokv/vrsm/;
     nohup {gobin} run ./cmd/kvsrv -filename kv.data -port 12100 1>/tmp/replica.out 2>/tmp/replica.err &
 ENDSSH
     """)
 
 # Start config server, on the next machine
 do(f"""ssh upamanyu@node3 <<ENDSSH
-    cd /users/upamanyu/gokv/simplepb/;
+    cd /users/upamanyu/gokv/vrsm/;
     nohup {gobin} run ./cmd/config -port 12000 1>/tmp/config.out 2>/tmp/config.err &
 ENDSSH
     """)

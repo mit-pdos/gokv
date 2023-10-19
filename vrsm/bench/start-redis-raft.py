@@ -12,18 +12,18 @@ args = parser.parse_args()
 ncores = args.ncores
 
 do(f"ssh node0 'killall go kvsrv config redis-server 2>/dev/null' ")
-do(f"ssh node0 'rm -f ~/gokv/simplepb/durable/*'")
+do(f"ssh node0 'rm -f ~/gokv/vrsm/durable/*'")
 
-do(f"ssh upamanyu@node0 'cp /users/upamanyu/redis/redisraft/redisraft.so /users/upamanyu/gokv/simplepb/durable/'")
+do(f"ssh upamanyu@node0 'cp /users/upamanyu/redis/redisraft/redisraft.so /users/upamanyu/gokv/vrsm/durable/'")
 do(f""" ssh upamanyu@node0 <<ENDSSH
-    cd /users/upamanyu/gokv/simplepb/;
+    cd /users/upamanyu/gokv/vrsm/;
     ./bench/set-cores.py {str(ncores)};
     nohup /users/upamanyu/redis/redis/src/redis-server \
         --port 5001 --dbfilename dbfilename, \
         --protected-mode no \
         --loadmodule ./redisraft.so \
         --raft.log-filename logfilename \
-        --dir /users/upamanyu/gokv/simplepb/durable \
+        --dir /users/upamanyu/gokv/vrsm/durable \
         --raft.log-fsync yes \
         --raft.addr 0.0.0.0:5001 1>/tmp/redis.out 2>/tmp/redis.err & ;
      sleep 2;

@@ -18,7 +18,7 @@ args = parser.parse_args()
 warmup = 10
 runtime = 10
 
-os.chdir("/users/upamanyu/gokv/simplepb/bench")
+os.chdir("/users/upamanyu/gokv/vrsm/bench")
 do("./set-cores 8")
 writeout(f"# average latency with {args.threads} client threads and increasing replicas ")
 writeout("nreplicas, avglatency")

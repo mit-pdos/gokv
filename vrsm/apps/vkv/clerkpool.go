@@ -7,6 +7,8 @@ import (
 	"github.com/mit-pdos/gokv/kv"
 )
 
+// TODO: should implement clerk pool at the exactlyonce level, so that we can
+// avoid aking ownership of a whole clerk just to do a Get().
 type ClerkPool struct {
 	mu        *sync.Mutex
 	cls       []*Clerk

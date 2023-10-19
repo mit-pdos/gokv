@@ -14,7 +14,7 @@ parser.add_argument('--threads', metavar='nthread', type=int,
                     default=100)
 args = parser.parse_args()
 
-os.chdir("/users/upamanyu/gokv/simplepb/bench")
+os.chdir("/users/upamanyu/gokv/vrsm/bench")
 
 do("./set-cores 8")
 writeout(f"# peak throughput with increasing replicas")

@@ -2,7 +2,7 @@
 from os import system as do
 import os
 
-os.chdir(os.path.expanduser("~/gokv/simplepb"))
+os.chdir(os.path.expanduser("~/gokv/vrsm"))
 do("python -m bench.experiments.e2 -v")
 print("Done with reconfiguration experiment")
 

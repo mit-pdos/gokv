@@ -10,7 +10,7 @@ import os
 from os import system as do
 from bench.find_peak import find_peak
 
-os.chdir(os.path.expanduser('~/gokv/simplepb/bench'))
+os.chdir(os.path.expanduser('~/gokv/vrsm/bench'))
 
 threadcounts = [50, 100, 150, 200, 250, 300, 400, 500, 600, 800, 1000, 1200]
 

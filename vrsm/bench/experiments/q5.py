@@ -17,7 +17,7 @@ for ncores in range(1,9):
     print("Killing server")
     # kill then restart the server.
     do(f"""ssh upamanyu@node1 <<ENDSSH
-    cd /users/upamanyu/gokv/simplepb/;
+    cd /users/upamanyu/gokv/vrsm/;
     killall kvsrv;
     nohup {gobin} run ./cmd/kvsrv -filename kv.data -port 12100 1>/tmp/replica.out 2>/tmp/replica.err &
 ENDSSH

@@ -12,7 +12,7 @@ args = parser.parse_args()
 gobin='/usr/local/go/bin/go'
 os.chdir('/users/upamanyu/go-ycsb/')
 do(f"""{gobin} run ./cmd/go-ycsb run rediskv
-    -P /users/upamanyu/gokv/simplepb/bench/rediskv_workload
+    -P /users/upamanyu/gokv/vrsm/bench/rediskv_workload
     --threads {str(args.threads)}
     --target -1
     --interval 100

@@ -27,11 +27,12 @@ if nreplicas > totalreplicas:
     print(f"too many replicas; can start at most {totalreplicas}")
     sys.exit(1)
 
+servers = ' '.join([f'10.10.1.{str(i + 1)}:12100' for i in range(nreplicas)])
 # Start config server, on the last machine that isn't the client, with all 8 cores
 do(f"""ssh node{totalreplicas} <<ENDSSH
-    cd ~/gokv/simplepb/;
+    cd ~/gokv/vrsm/;
     ./bench/set-cores.py 8;
-    nohup {gobin} run ./cmd/config -port 12000 1>/tmp/config.out 2>/tmp/config.err &
+    nohup {gobin} run ./cmd/config -port 12000 {servers} 1>/tmp/config.out 2>/tmp/config.err &
 ENDSSH
     """)
 
@@ -40,12 +41,12 @@ conf_addr = f"10.10.1.{totalreplicas + 1}:12000"
 # Start all replicas
 for i in range(totalreplicas):
     do(f"""ssh node{str(i)} <<ENDSSH
-    cd ~/gokv/simplepb/;
+    cd ~/gokv/vrsm/;
     ./bench/set-cores.py {ncores};
     nohup {gobin} run ./cmd/kvsrv -conf {conf_addr} -filename kv.data -port 12100 1>/tmp/replica.out 2>/tmp/replica.err &
 ENDSSH
     """)
 
 time.sleep(2.0)
-servers = ' '.join([f'10.10.1.{str(i + 1)}:12100' for i in range(nreplicas)])
+do(f"go run ../cmd/mkleader -host 10.10.1.{totalreplicas + 1}:12001")
 do(f"go run ../cmd/admin -conf 10.10.1.{totalreplicas + 1}:12000 init {servers}")

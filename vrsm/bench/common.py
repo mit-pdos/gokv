@@ -78,7 +78,7 @@ parser.add_argument(
 )
 
 global_args = parser.parse_args()
-simplepbdir = ''
+vrsmdir = ''
 goycsbdir = ''
 
 procs = []
@@ -86,7 +86,7 @@ atexit.register(cleanup_procs)
 
 # os.makedirs(global_args.outdir, exist_ok=True)
 scriptdir = os.path.dirname(os.path.abspath(__file__))
-simplepbdir = os.path.dirname(scriptdir)
-goycsbdir = os.path.join(os.path.dirname(os.path.dirname(simplepbdir)), "go-ycsb")
+vrsmdir = os.path.dirname(scriptdir)
+goycsbdir = os.path.join(os.path.dirname(os.path.dirname(vrsmdir)), "go-ycsb")
 
 resource.setrlimit(resource.RLIMIT_NOFILE, (100000, 100000))

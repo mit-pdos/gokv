@@ -8,7 +8,7 @@ import os
 import time
 from os import system as do
 
-os.chdir('/users/upamanyu/gokv/simplepb/bench')
+os.chdir('/users/upamanyu/gokv/vrsm/bench')
 
 starttime = int(time.time())
 filename = f"./data/peak-{str(starttime)}.txt"

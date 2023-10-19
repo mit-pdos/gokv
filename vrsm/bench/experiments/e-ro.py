@@ -36,7 +36,7 @@ def write_lts(data, outfilename):
         for xy in xys:
                 print('{0}, {1}'.format(xy[0], xy[1]), file=f)
 
-os.chdir('/users/upamanyu/gokv/simplepb/bench')
+os.chdir('/users/upamanyu/gokv/vrsm/bench')
 for readpercentage in [1.0, 0.95, 0.5]:
     do('mv /tmp/gokv/grovekv-ro-lts.txt /tmp/grovekv-ro-lts.old')
     do(f'./lt_pb_mult.py -v -e --reads {str(readpercentage)} --outfile /tmp/gokv/grovekv-ro-lts.txt 1>/tmp/pb.out 2>/tmp/pb.err')

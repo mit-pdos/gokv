@@ -43,7 +43,7 @@ def sigint_handler(sig, frame):
     sys.exit(0)
 signal.signal(signal.SIGINT, sigint_handler)
 
-os.chdir(os.path.expanduser('~/gokv/simplepb/bench'))
+os.chdir(os.path.expanduser('~/gokv/vrsm/bench'))
 do("mkdir ./data/redis_vs_grove")
 
 def get_peak(data):
