@@ -51,7 +51,7 @@ func (s *AsyncFile) flushThread() {
 			s.closed = true
 			s.mu.Unlock()
 			s.closedCond.Signal()
-			break
+			return
 		}
 		if s.durableIndex >= s.index {
 			s.indexCond.Wait()
