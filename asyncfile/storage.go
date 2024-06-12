@@ -80,19 +80,21 @@ func (s *AsyncFile) Close() {
 
 // returns the state, then the File object
 func MakeAsyncFile(filename string) ([]byte, *AsyncFile) {
-	var mu sync.Mutex
-	s := &AsyncFile{
-		mu:             &mu,
-		indexCond:      sync.NewCond(&mu),
-		closedCond:     sync.NewCond(&mu),
-		filename:       filename,
-		data:           grove_ffi.FileRead(filename),
-		index:          0,
-		durableIndex:   0,
-		closed:         false,
-		closeRequested: false,
-	}
+	s := new(AsyncFile)
+	s.mu = new(sync.Mutex)
+	s.indexCond = sync.NewCond(s.mu)
+	s.durableIndexCond = sync.NewCond(s.mu)
+	s.closedCond = sync.NewCond(s.mu)
+	s.filename = filename
+
+	s.data = grove_ffi.FileRead(filename)
+	s.index = 0
+	s.durableIndex = 0
+	s.closed = false
+	s.closeRequested = false
 	data := s.data
+
 	go func() { s.flushThread() }()
+
 	return data, s
 }
