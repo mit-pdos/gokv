@@ -194,8 +194,6 @@ func (s *Server) TryAcquire() (Error, *[]byte, func() Error) {
 		n := uint64(len(clerks))
 
 		for i, ck := range clerks {
-			ck := ck
-			i := i
 			go func() {
 				reply := ck.applyAsFollower(args)
 
