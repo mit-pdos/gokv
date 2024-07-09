@@ -19,15 +19,14 @@ type applyAsFollowerArgs struct {
 }
 
 func encodeApplyAsFollowerArgs(o *applyAsFollowerArgs) []byte {
-	var enc = make([]byte, 0, 8+8+len(o.state))
+	enc := make([]byte, 0, 8+8+len(o.state))
 	enc = marshal.WriteInt(enc, o.epoch)
 	enc = marshal.WriteInt(enc, o.nextIndex)
 	enc = marshal.WriteBytes(enc, o.state)
 	return enc
 }
 
-func decodeApplyAsFollowerArgs(s []byte) *applyAsFollowerArgs {
-	var enc = s
+func decodeApplyAsFollowerArgs(enc []byte) *applyAsFollowerArgs {
 	o := new(applyAsFollowerArgs)
 	o.epoch, enc = marshal.ReadInt(enc)
 	o.nextIndex, enc = marshal.ReadInt(enc)
@@ -40,14 +39,14 @@ type applyAsFollowerReply struct {
 }
 
 func decodeApplyAsFollowerReply(s []byte) *applyAsFollowerReply {
-	o := new(applyAsFollowerReply)
+	o := &applyAsFollowerReply{}
 	err, _ := marshal.ReadInt(s)
 	o.err = Error(err)
 	return o
 }
 
 func encodeApplyAsFollowerReply(o *applyAsFollowerReply) []byte {
-	var enc []byte = make([]byte, 0, 8)
+	enc := make([]byte, 0, 8)
 	enc = marshal.WriteInt(enc, uint64(o.err))
 	return enc
 }
@@ -57,7 +56,7 @@ type enterNewEpochArgs struct {
 }
 
 func encodeEnterNewEpochArgs(o *enterNewEpochArgs) []byte {
-	var enc []byte = make([]byte, 0, 8)
+	enc := make([]byte, 0, 8)
 	enc = marshal.WriteInt(enc, o.epoch)
 	return enc
 }
@@ -75,12 +74,10 @@ type enterNewEpochReply struct {
 	state         []byte
 }
 
-func decodeEnterNewEpochReply(s []byte) *enterNewEpochReply {
-	o := new(enterNewEpochReply)
-	var enc = s
+func decodeEnterNewEpochReply(enc []byte) *enterNewEpochReply {
+	o := &enterNewEpochReply{}
 
-	var err uint64
-	err, enc = marshal.ReadInt(enc)
+	err, enc := marshal.ReadInt(enc)
 	o.err = Error(err)
 
 	o.acceptedEpoch, enc = marshal.ReadInt(enc)
@@ -90,7 +87,7 @@ func decodeEnterNewEpochReply(s []byte) *enterNewEpochReply {
 }
 
 func encodeEnterNewEpochReply(o *enterNewEpochReply) []byte {
-	var enc = make([]byte, 0, 8+8+8+uint64(len(o.state)))
+	enc := make([]byte, 0, 8+8+8+uint64(len(o.state)))
 	enc = marshal.WriteInt(enc, uint64(o.err))
 	enc = marshal.WriteInt(enc, o.acceptedEpoch)
 	enc = marshal.WriteInt(enc, o.nextIndex)
@@ -104,18 +101,16 @@ type applyReply struct {
 }
 
 func encodeApplyReply(o *applyReply) []byte {
-	var enc = make([]byte, 0, 8+uint64(len(o.ret)))
+	enc := make([]byte, 0, 8+uint64(len(o.ret)))
 	enc = marshal.WriteInt(enc, uint64(o.err))
 	enc = marshal.WriteBytes(enc, o.ret)
 	return enc
 }
 
-func decodeApplyReply(s []byte) *applyReply {
-	var enc = s
-	o := new(applyReply)
+func decodeApplyReply(enc []byte) *applyReply {
+	o := &applyReply{}
 
-	var err uint64
-	err, enc = marshal.ReadInt(enc)
+	err, enc := marshal.ReadInt(enc)
 	o.err = Error(err)
 
 	o.ret = enc

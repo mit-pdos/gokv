@@ -102,8 +102,6 @@ func (s *Server) TryBecomeLeader() {
 	n := uint64(len(clerks))
 
 	for i, ck := range clerks {
-		ck := ck
-		i := i
 		go func() {
 			reply := ck.enterNewEpoch(args)
 			mu.Lock()
