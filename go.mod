@@ -1,6 +1,6 @@
 module github.com/mit-pdos/gokv
 
-go 1.18
+go 1.22
 
 require (
 	github.com/felixge/fgprof v0.9.3
