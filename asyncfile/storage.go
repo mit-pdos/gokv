@@ -93,6 +93,8 @@ func MakeAsyncFile(filename string) ([]byte, *AsyncFile) {
 	s.closed = false
 	s.closeRequested = false
 	data := s.data
+
 	go func() { s.flushThread() }()
+
 	return data, s
 }
