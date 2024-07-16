@@ -82,15 +82,16 @@ func (s *AsyncFile) Close() {
 func MakeAsyncFile(filename string) ([]byte, *AsyncFile) {
 	var mu sync.Mutex
 	s := &AsyncFile{
-		mu:             &mu,
-		indexCond:      sync.NewCond(&mu),
-		closedCond:     sync.NewCond(&mu),
-		filename:       filename,
-		data:           grove_ffi.FileRead(filename),
-		index:          0,
-		durableIndex:   0,
-		closed:         false,
-		closeRequested: false,
+		mu:               &mu,
+		indexCond:        sync.NewCond(&mu),
+		closedCond:       sync.NewCond(&mu),
+		durableIndexCond: sync.NewCond(&mu),
+		filename:         filename,
+		data:             grove_ffi.FileRead(filename),
+		index:            0,
+		durableIndex:     0,
+		closed:           false,
+		closeRequested:   false,
 	}
 	data := s.data
 	go s.flushThread()
