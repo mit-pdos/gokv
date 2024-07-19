@@ -1,8 +1,8 @@
 # First-time Perennial setup
-* Install Go (version 1.18 or newer): https://go.dev/doc/install
+* Install Go (version 1.22.5 as of writing): https://go.dev/doc/install
 * To install Coq, first install [opam](https://opam.ocaml.org/).  Here's a [link
   to opam's "how to install" page](https://opam.ocaml.org/doc/Install.html).
-* Install Coq version 8.17.0 as described [here](https://coq.inria.fr/opam-using.html).
+* Install Coq (version 8.19.2 as of writing) as described [here](https://coq.inria.fr/opam-using.html).
 * Set up an editor for Coq as described [here](https://coq.inria.fr/user-interfaces.html).
 * Clone the Perennial repository: https://github.com/mit-pdos/perennial
 * In the Perennial repo, run `git submodule update --init --recursive` to
