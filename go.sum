@@ -23,8 +23,8 @@ github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab/go.mod h1:
 github.com/josharian/intern v1.0.0/go.mod h1:5DoeVV0s6jJacbCEi61lwdGj/aVlrQvzHFFd8Hwg//Y=
 github.com/ledongthuc/pdf v0.0.0-20220302134840-0c2507a12d80/go.mod h1:imJHygn/1yfhB7XSJJKlFZKl/J+dCPAknuiaGOshXAs=
 github.com/mailru/easyjson v0.7.7/go.mod h1:xzfreul335JAWq5oZzymOObrkdz5UnU4kGfJJLY9Nlc=
-github.com/mit-pdos/vmvcc v0.0.0-20230803151915-116f2a360d43 h1:cDDSvu9gsR1JfynLZirsuhi/tKc93xMBz7Vf1g0A98E=
-github.com/mit-pdos/vmvcc v0.0.0-20230803151915-116f2a360d43/go.mod h1:fzuSriWmRv/JeMdRV0W7dgKlRmWXuHoWhycaT2vQLbs=
+github.com/mit-pdos/vmvcc v0.2.0 h1:UGiWDa+oWoO4VrnMwXyRaL2c+llDCujbpkEmHvkrmoM=
+github.com/mit-pdos/vmvcc v0.2.0/go.mod h1:ZQSGQ6wGWGD7jyD7F6R1ORRviHNB76dc0wgF7lTLaH0=
 github.com/orisano/pixelmatch v0.0.0-20220722002657-fb0b55479cde/go.mod h1:nZgzbfBr3hhjoZnS66nKrHmduYNpc34ny7RK4z5/HM0=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
@@ -34,8 +34,6 @@ github.com/stretchr/testify v1.7.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/
 github.com/stretchr/testify v1.8.0/go.mod h1:yNjHg4UonilssWZ8iaSj1OCr/vHnekPRkoO+kdMU+MU=
 github.com/stretchr/testify v1.9.0 h1:HtqpIVDClZ4nwg75+f6Lvsy/wHu+3BoSGCbBAcpTsTg=
 github.com/stretchr/testify v1.9.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
-github.com/tchajed/goose v0.5.3 h1:+Ag8wwWfsQZfsTSW953HfDvJmzQ6YopLsfnTNzcd/ZE=
-github.com/tchajed/goose v0.5.3/go.mod h1:ISQLiMmllwxTyKhi5wn/PKE3CeseL6Jnvv3CCWOHvVE=
 github.com/tchajed/marshal v0.6.1 h1:fSpd/Q/Fxc4Pn2BqqmBQyUUKGqRyZ4jdu3sQqwa2FW0=
 github.com/tchajed/marshal v0.6.1/go.mod h1:bpCjDLDucqTM51woyzbZP5ku3hT4TORx7YGhyWSUpA4=
 golang.org/x/sys v0.0.0-20220310020820-b874c991c1a5/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
