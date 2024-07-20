@@ -3,7 +3,7 @@ package configservice
 import (
 	"log"
 
-	"github.com/goose-lang/goose/machine"
+	"github.com/goose-lang/primitive"
 	"github.com/goose-lang/std"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc"
@@ -127,7 +127,7 @@ func (s *Server) TryWriteConfig(args []byte, reply *[]byte) {
 				if !tryReleaseFn() {
 					break
 				}
-				machine.Sleep(timeToSleep) // sleep long enough for lease to be expired
+				primitive.Sleep(timeToSleep) // sleep long enough for lease to be expired
 				continue
 			}
 		} else {

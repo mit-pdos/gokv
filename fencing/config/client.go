@@ -1,7 +1,7 @@
 package config
 
 import (
-	"github.com/goose-lang/goose/machine"
+	"github.com/goose-lang/primitive"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc"
 	"github.com/tchajed/marshal"
@@ -26,7 +26,7 @@ func (ck *Clerk) HeartbeatThread(epoch uint64) {
 		// XXX: make this statistically rigorous (e.g. aim for at most x% chance
 		// of spurious leader failure per hour)
 		reply_ptr := new([]byte)
-		machine.Sleep(TIMEOUT_MS * MILLION / 3)
+		primitive.Sleep(TIMEOUT_MS * MILLION / 3)
 		err := ck.cl.Call(RPC_HB, args, reply_ptr, 100 /* ms */)
 		if err != 0 || len(*reply_ptr) != 0 {
 			break
@@ -41,7 +41,7 @@ func (ck *Clerk) AcquireEpoch(newFrontend grove_ffi.Address) uint64 {
 	err := ck.cl.Call(RPC_ACQUIRE_EPOCH, enc.Finish(), reply_ptr, 100 /* ms */)
 	if err != 0 {
 		log.Println("config: client failed to run RPC on config server")
-		machine.Exit(1)
+		primitive.Exit(1)
 	}
 	dec := marshal.NewDec(*reply_ptr)
 	return dec.GetInt()
@@ -52,7 +52,7 @@ func (ck *Clerk) Get() uint64 {
 	err := ck.cl.Call(RPC_GET, make([]byte, 0), reply_ptr, 100 /* ms */)
 	if err != 0 {
 		log.Println("config: client failed to run RPC on config server")
-		machine.Exit(1)
+		primitive.Exit(1)
 	}
 	dec := marshal.NewDec(*reply_ptr)
 	return dec.GetInt()

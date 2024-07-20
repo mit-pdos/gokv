@@ -3,7 +3,7 @@ package replica
 import (
 	"sync"
 
-	"github.com/goose-lang/goose/machine"
+	"github.com/goose-lang/primitive"
 )
 
 type LogEntry = []byte
@@ -66,7 +66,7 @@ func (s *Server[ExtraT]) applyThread() {
 	for {
 		// TODO: add no overflow assumption
 		err, le := s.GetEntry(appliedIndex + 1)
-		machine.Assert(err == ENone)
+		primitive.Assert(err == ENone)
 		s.applyFn(le)
 	}
 }
@@ -330,7 +330,7 @@ func (s *Server[ExtraT]) RemainReplica(args *BecomeReplicaArgs) Error {
 
 	s.isPrimary = false
 
-	machine.Assert(args.StartIndex < s.startIndex+uint64(len(s.log)))
+	primitive.Assert(args.StartIndex < s.startIndex+uint64(len(s.log)))
 
 	if args.StartIndex+uint64(len(args.Log)) < s.startIndex+uint64(len(s.log)) {
 		// trim log

@@ -1,7 +1,7 @@
 package reconf
 
 import (
-	"github.com/goose-lang/goose/machine"
+	"github.com/goose-lang/primitive"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc"
 	"github.com/tchajed/marshal"
@@ -114,7 +114,7 @@ func (r *Replica) TryBecomeLeader() bool {
 	})
 
 	// FIXME: put this in a condvar loop with timeout
-	machine.Sleep(50 * 1_000_000) // 50 ms
+	primitive.Sleep(50 * 1_000_000) // 50 ms
 	mu.Lock()
 	if IsQuorum(highestVal.conf, prepared) {
 		// We successfully became the leader
@@ -175,7 +175,7 @@ func (r *Replica) tryCommit(mvalModifier func(*MonotonicValue), reply *TryCommit
 	})
 
 	// FIXME: put this in a condvar loop with timeout
-	machine.Sleep(100 * 1_000_000) // 100ms
+	primitive.Sleep(100 * 1_000_000) // 100ms
 	mu.Lock()
 	if IsQuorum(mval.conf, accepted) {
 		reply.err = ENone

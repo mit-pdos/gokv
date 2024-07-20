@@ -1,7 +1,7 @@
 package lockservice
 
 import (
-	"github.com/goose-lang/goose/machine"
+	"github.com/goose-lang/primitive"
 	"github.com/mit-pdos/gokv/grove_ffi"
 )
 
@@ -34,7 +34,7 @@ func (ck *Clerk) Acquire() *Locked {
 		for {
 			lockStatus, err := ck.rpcCl.tryAcquire(id)
 			if err != 0 || lockStatus == StatusRetry {
-				machine.Sleep(100 * 1_000_000) // 100 ms
+				primitive.Sleep(100 * 1_000_000) // 100 ms
 				continue
 			} else if lockStatus == StatusGranted {
 				l = &Locked{rpcCl: ck.rpcCl, id: id}

@@ -8,11 +8,11 @@ import (
 	"github.com/mit-pdos/vmvcc/trusted_proph"
 
 	// "github.com/mit-pdos/gokv/grove_ffi"
-	"github.com/goose-lang/goose/machine"
+	"github.com/goose-lang/primitive"
 )
 
 type Clerk struct {
-	p          machine.ProphId
+	p          primitive.ProphId
 	tid        uint64
 	writes     map[uint64]string
 	indexCk    *index.Clerk

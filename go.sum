@@ -15,10 +15,12 @@ github.com/gobwas/ws v1.2.1/go.mod h1:hRKAFb8wOxFROYNsT1bqfWnhX+b5MFeJM9r2ZSwg/K
 github.com/google/pprof v0.0.0-20240227163752-401108e1b7e7/go.mod h1:czg5+yv1E0ZGTi6S6vVK1mke0fV+FaUhNGcd6VRS9Ik=
 github.com/google/pprof v0.0.0-20240711041743-f6c9dda6c6da h1:xRmpO92tb8y+Z85iUOMOicpCfaYcv7o3Cg3wKrIpg8g=
 github.com/google/pprof v0.0.0-20240711041743-f6c9dda6c6da/go.mod h1:K1liHPHnj73Fdn/EKuT8nrFqBihUSKXoLYU0BuatOYo=
-github.com/goose-lang/goose v0.6.2 h1:Z39QWk7UowzisFL9rnLd4/C+Cg0VF8oPvqOUE+aGB+w=
-github.com/goose-lang/goose v0.6.2/go.mod h1:jSP/O+LNLVD4P4itkfh8Ly05NdJ1NYbLjYWkoZs86WU=
-github.com/goose-lang/std v0.3.3 h1:UjxgenvQFlWKpxqJjbIlbaXsqwP0Sh+FzY63sF+4NkY=
-github.com/goose-lang/std v0.3.3/go.mod h1:9sR9tiZzSzUGh5erxPX3gbWpVZ/4Kjs2C2zGfKUqoNk=
+github.com/goose-lang/goose v0.7.1 h1:o2XGywsaQgQmNyMsPDT4dwFBDAxeAflFQo+zGuF9OGw=
+github.com/goose-lang/goose v0.7.1/go.mod h1:Yf+T8Mii3tuRE+cKuN80JZlDkKdRIOm9+4k2kj0rBew=
+github.com/goose-lang/primitive v0.1.0 h1:JReOdFzUdGD7f8nWTC/uOlNpBdVFU4q8HzMSgn8edaY=
+github.com/goose-lang/primitive v0.1.0/go.mod h1:sDE72zVH81ASwPXc1m9OgSfaaY0aZHu4Ty19FgONpOc=
+github.com/goose-lang/std v0.4.1 h1:ezoEYbvePtF2TD8vuUUTt5lO893CA6QTgoBX896F8BU=
+github.com/goose-lang/std v0.4.1/go.mod h1:bnKHDHwU0lHf99eMI5PVM77UweRyu6qgM/h43qGBRto=
 github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab/go.mod h1:gx7rwoVhcfuVKG5uya9Hs3Sxj7EIvldVofAWIUtGouw=
 github.com/josharian/intern v1.0.0/go.mod h1:5DoeVV0s6jJacbCEi61lwdGj/aVlrQvzHFFd8Hwg//Y=
 github.com/ledongthuc/pdf v0.0.0-20220302134840-0c2507a12d80/go.mod h1:imJHygn/1yfhB7XSJJKlFZKl/J+dCPAknuiaGOshXAs=
@@ -34,8 +36,8 @@ github.com/stretchr/testify v1.7.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/
 github.com/stretchr/testify v1.8.0/go.mod h1:yNjHg4UonilssWZ8iaSj1OCr/vHnekPRkoO+kdMU+MU=
 github.com/stretchr/testify v1.9.0 h1:HtqpIVDClZ4nwg75+f6Lvsy/wHu+3BoSGCbBAcpTsTg=
 github.com/stretchr/testify v1.9.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
-github.com/tchajed/marshal v0.6.1 h1:fSpd/Q/Fxc4Pn2BqqmBQyUUKGqRyZ4jdu3sQqwa2FW0=
-github.com/tchajed/marshal v0.6.1/go.mod h1:bpCjDLDucqTM51woyzbZP5ku3hT4TORx7YGhyWSUpA4=
+github.com/tchajed/marshal v0.6.2 h1:DSrylV2Sc47G4RJG2KSOp7HrA76Hd5Bj2WVGtXB/bCw=
+github.com/tchajed/marshal v0.6.2/go.mod h1:nY/NmbQidx2CdBY4Y8NdUTnDXgWmhQ6Hg1es+PnxBx8=
 golang.org/x/sys v0.0.0-20220310020820-b874c991c1a5/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.6.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/text v0.16.0 h1:a94ExnEXNtEwYLGJSIUxnWoxoRz/ZcCsV63ROupILh4=

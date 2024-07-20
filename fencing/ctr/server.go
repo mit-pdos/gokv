@@ -1,7 +1,7 @@
 package ctr
 
 import (
-	"github.com/goose-lang/goose/machine"
+	"github.com/goose-lang/primitive"
 	"github.com/mit-pdos/gokv/erpc"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc"
@@ -44,7 +44,7 @@ func (s *Server) Get(epoch uint64, reply *GetReply) {
 	s.lastEpoch = epoch
 
 	reply.val = s.v
-	machine.Linearize()
+	primitive.Linearize()
 	s.mu.Unlock()
 	return
 }

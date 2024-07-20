@@ -1,7 +1,7 @@
 package bank
 
 import (
-	"github.com/goose-lang/goose/machine"
+	"github.com/goose-lang/primitive"
 	"github.com/mit-pdos/gokv/kv"
 	"github.com/mit-pdos/gokv/lockservice"
 	"github.com/tchajed/marshal"
@@ -64,9 +64,9 @@ func (bck *BankClerk) transfer_internal(acc_from string, acc_to string, amount u
 
 func (bck *BankClerk) SimpleTransfer() {
 	for {
-		src := machine.RandomUint64()
-		dst := machine.RandomUint64()
-		amount := machine.RandomUint64()
+		src := primitive.RandomUint64()
+		dst := primitive.RandomUint64()
+		amount := primitive.RandomUint64()
 		if src < uint64(len(bck.accts)) && dst < uint64(len(bck.accts)) && src != dst {
 			bck.transfer_internal(bck.accts[src], bck.accts[dst], amount)
 		}

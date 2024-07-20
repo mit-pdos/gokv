@@ -1,13 +1,13 @@
 package trusted_proph
 
 import (
-	"github.com/goose-lang/goose/machine"
+	"github.com/goose-lang/primitive"
 )
 
-type ProphId = machine.ProphId
+type ProphId = primitive.ProphId
 
 func NewProph() ProphId {
-	return machine.NewProph()
+	return primitive.NewProph()
 }
 
 func ResolveBytes(p ProphId, b []byte) {}

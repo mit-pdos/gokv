@@ -5,7 +5,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/goose-lang/goose/machine"
+	"github.com/goose-lang/primitive"
 	"github.com/mit-pdos/gokv/aof"
 	"github.com/mit-pdos/gokv/grove_ffi"
 )
@@ -30,11 +30,11 @@ func bench_onesize(fname string, writeSize uint64, numThreads uint64) float64 {
 			for j := uint64(0); j < warmup; j++ {
 				f.WaitAppend(f.Append(data))
 			}
-			start := machine.TimeNow()
+			start := primitive.TimeNow()
 			for j := uint64(0); j < n; j++ {
 				f.WaitAppend(f.Append(data))
 			}
-			end := machine.TimeNow()
+			end := primitive.TimeNow()
 
 			// first add our time to totalTime and give up ownership of our frac
 			// of totalTime

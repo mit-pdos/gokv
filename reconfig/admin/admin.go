@@ -1,7 +1,7 @@
 package admin
 
 import (
-	"github.com/goose-lang/goose/machine"
+	"github.com/goose-lang/primitive"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/reconfig/config"
 	"github.com/mit-pdos/gokv/reconfig/example"
@@ -111,7 +111,7 @@ func EnterNewConfig2(cfgHost grove_ffi.Address, servers []grove_ffi.Address) rep
 	}
 
 	// get log
-	oldLogCk := replica.MakeClerk(oldServers[machine.RandomUint64()%uint64(len(oldServers))])
+	oldLogCk := replica.MakeClerk(oldServers[primitive.RandomUint64()%uint64(len(oldServers))])
 	err, startIndex, log := oldLogCk.GetUncommittedLog(epoch)
 	if err != replica.ENone {
 		return err

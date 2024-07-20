@@ -4,7 +4,7 @@ import (
 	"log"
 	"sync"
 
-	"github.com/goose-lang/goose/machine"
+	"github.com/goose-lang/primitive"
 	"github.com/goose-lang/std"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc"
@@ -47,7 +47,7 @@ func (s *Server) ApplyRoWaitForCommit(op Op) *ApplyReply {
 	reply.Reply = nil
 	reply.Err = e.None
 
-	// x := machine.RandomUint64()
+	// x := primitive.RandomUint64()
 	// log.Printf("Got ro request %d", x)
 	s.mu.Lock()
 	if !s.leaseValid {
@@ -56,7 +56,7 @@ func (s *Server) ApplyRoWaitForCommit(op Op) *ApplyReply {
 		reply.Err = e.LeaseExpired
 		return reply
 	}
-	if machine.RandomUint64()%10000 == 0 {
+	if primitive.RandomUint64()%10000 == 0 {
 		log.Printf("Server nextIndex=%d commitIndex=%d", s.nextIndex, s.committedNextIndex)
 	}
 
@@ -109,7 +109,7 @@ func (s *Server) Apply(op Op) *ApplyReply {
 	// reply.Err = e.ENone
 	// return reply
 	s.mu.Lock()
-	// begin := machine.TimeNow()
+	// begin := primitive.TimeNow()
 	if !s.isPrimary {
 		// log.Println("Got request while not being primary")
 		s.mu.Unlock()
@@ -133,8 +133,8 @@ func (s *Server) Apply(op Op) *ApplyReply {
 	clerks := s.clerks
 
 	s.mu.Unlock()
-	// end := machine.TimeNow()
-	// if machine.RandomUint64()%1024 == 0 {
+	// end := primitive.TimeNow()
+	// if primitive.RandomUint64()%1024 == 0 {
 	// log.Printf("replica.mu crit section: %d ns", end-begin)
 	// }
 
@@ -146,7 +146,7 @@ func (s *Server) Apply(op Op) *ApplyReply {
 		op:    op,
 	}
 
-	clerks_inner := clerks[machine.RandomUint64()%uint64(len(clerks))]
+	clerks_inner := clerks[primitive.RandomUint64()%uint64(len(clerks))]
 	errs := make([]e.Error, len(clerks_inner))
 	for i, clerk := range clerks_inner {
 		// use a random socket
@@ -211,7 +211,7 @@ func (s *Server) leaseRenewalThread() {
 			s.leaseValid = true
 			s.mu.Unlock()
 			// log.Printf("Got lease")
-			machine.Sleep(uint64(250) * 1_000_000)
+			primitive.Sleep(uint64(250) * 1_000_000)
 		} else if latestEpoch != s.epoch {
 			latestEpoch = s.epoch
 			s.mu.Unlock()
@@ -220,7 +220,7 @@ func (s *Server) leaseRenewalThread() {
 			// lease to move to a new epoch. We should avoid sending requests
 			// too quickly to the config service in that case
 			s.mu.Unlock()
-			machine.Sleep(uint64(50) * 1_000_000)
+			primitive.Sleep(uint64(50) * 1_000_000)
 		}
 	}
 }
@@ -242,7 +242,7 @@ func (s *Server) sendIncreaseCommitThread() {
 		clerks := s.clerks
 		s.mu.Unlock()
 
-		clerks_inner := clerks[machine.RandomUint64()%uint64(len(clerks))] // use a random socket
+		clerks_inner := clerks[primitive.RandomUint64()%uint64(len(clerks))] // use a random socket
 		wg := new(sync.WaitGroup)
 		for _, clerk := range clerks_inner {
 			clerk := clerk
@@ -263,7 +263,7 @@ func (s *Server) sendIncreaseCommitThread() {
 		wg.Wait()
 		// XXX: this is so the primary does not flood the backups with RPCs
 		// (e.g. when the system should be idle).
-		machine.Sleep(5_000_000) // 5 ms
+		primitive.Sleep(5_000_000) // 5 ms
 	}
 }
 
