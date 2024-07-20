@@ -3,7 +3,7 @@ package configservice
 import (
 	"sync"
 
-	"github.com/goose-lang/goose/machine"
+	"github.com/goose-lang/primitive"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/reconnectclient"
 	"github.com/mit-pdos/gokv/vrsm/e"
@@ -67,7 +67,7 @@ func (ck *Clerk) ReserveEpochAndGetConfig() (uint64, []grove_ffi.Address) {
 func (ck *Clerk) GetConfig() []grove_ffi.Address {
 	reply := new([]byte)
 	for {
-		i := machine.RandomUint64() % uint64(len(ck.cls))
+		i := primitive.RandomUint64() % uint64(len(ck.cls))
 		err := ck.cls[i].Call(RPC_GETCONFIG, make([]byte, 0), reply, 100 /* ms */)
 		if err == 0 {
 			break

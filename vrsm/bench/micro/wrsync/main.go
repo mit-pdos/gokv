@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/goose-lang/goose/machine"
+	"github.com/goose-lang/primitive"
 	"github.com/mit-pdos/gokv/grove_ffi"
 )
 
@@ -15,12 +15,12 @@ func bench_onesize(fname string, writeSize uint64) float64 {
 	for i := uint64(0); i < warmup; i += 1 {
 		grove_ffi.FileAppend(fname, data)
 	}
-	start := machine.TimeNow()
+	start := primitive.TimeNow()
 
 	for i := uint64(0); i < n; i += 1 {
 		grove_ffi.FileAppend(fname, data)
 	}
-	end := machine.TimeNow()
+	end := primitive.TimeNow()
 	numWritesPerSec := float64(n) / (float64(end-start) / 1e9)
 	// numBytesPerSec = float64(writeSize*n) / float64(end-start)
 	return numWritesPerSec

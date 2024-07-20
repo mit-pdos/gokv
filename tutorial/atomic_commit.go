@@ -3,7 +3,7 @@ package atomic_commit
 import (
 	"sync"
 
-	"github.com/goose-lang/goose/machine"
+	"github.com/goose-lang/primitive"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc"
 )
@@ -74,7 +74,7 @@ func (ck *ParticipantClerk) GetPreference() bool {
 	req := make([]byte, 0)
 	var reply = make([]byte, 0)
 	err := ck.client.Call(GetPreferenceId, req, &reply, 1000)
-	machine.Assume(err == 0) // no timeout or disconnect from participant
+	primitive.Assume(err == 0) // no timeout or disconnect from participant
 	b := reply[0]
 	return byteToPref(b)
 }
@@ -138,7 +138,7 @@ func (ck *CoordinatorClerk) GetDecision() Decision {
 	req := make([]byte, 0)
 	var reply = make([]byte, 1)
 	err := ck.client.Call(GetDecisionId, req, &reply, 1000)
-	machine.Assume(err == 0) // no timeout or disconnect from participant
+	primitive.Assume(err == 0) // no timeout or disconnect from participant
 	return reply[0]
 }
 

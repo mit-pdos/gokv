@@ -3,7 +3,7 @@ package minlease
 import (
 	"sync"
 
-	"github.com/goose-lang/goose/machine"
+	"github.com/goose-lang/primitive"
 	"github.com/goose-lang/std"
 	"github.com/mit-pdos/gokv/grove_ffi"
 )
@@ -65,7 +65,7 @@ func client(s *Server) {
 		if l > s.leaseExpiration {
 			break
 		}
-		machine.Sleep(s.leaseExpiration - l)
+		primitive.Sleep(s.leaseExpiration - l)
 	}
 
 	// now the client has the lease
@@ -73,7 +73,7 @@ func client(s *Server) {
 	newv := std.SumAssumeNoOverflow(v, 1)
 	s.Put(newv)
 	v2 := s.Get()
-	machine.Assert(v2 == newv)
+	primitive.Assert(v2 == newv)
 }
 
 func main() {

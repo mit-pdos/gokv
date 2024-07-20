@@ -1,7 +1,7 @@
 package clerk
 
 import (
-	"github.com/goose-lang/goose/machine"
+	"github.com/goose-lang/primitive"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/trusted_proph"
 	"github.com/mit-pdos/gokv/vrsm/configservice"
@@ -42,7 +42,7 @@ func Make(confHosts []grove_ffi.Address) *Clerk {
 			break
 		}
 	}
-	ck.preferredReplica = machine.RandomUint64() % uint64(len(ck.replicaClerks))
+	ck.preferredReplica = primitive.RandomUint64() % uint64(len(ck.replicaClerks))
 	ck.lastPreferenceRefresh, _ = grove_ffi.GetTimeRange()
 	return ck
 }
@@ -57,7 +57,7 @@ func (ck *Clerk) Apply(op []byte) []byte {
 			break
 		} else {
 			// log.Println("Error during apply(): ", err)
-			machine.Sleep(uint64(100) * uint64(1_000_000)) // throttle retries to config server
+			primitive.Sleep(uint64(100) * uint64(1_000_000)) // throttle retries to config server
 			config := ck.confCk.GetConfig()
 			if len(config) > 0 {
 				ck.replicaClerks = makeClerks(config)
@@ -71,7 +71,7 @@ func (ck *Clerk) Apply(op []byte) []byte {
 func (ck *Clerk) maybeRefreshPreference() {
 	now, _ := grove_ffi.GetTimeRange()
 	if now > ck.lastPreferenceRefresh+PreferenceRefreshTime {
-		ck.preferredReplica = machine.RandomUint64() % uint64(len(ck.replicaClerks))
+		ck.preferredReplica = primitive.RandomUint64() % uint64(len(ck.replicaClerks))
 		ck.lastPreferenceRefresh, _ = grove_ffi.GetTimeRange()
 	}
 }
@@ -101,13 +101,13 @@ func (ck *Clerk) ApplyRo2(op []byte) []byte {
 		if err == e.None {
 			break
 		} else {
-			timeToSleep := 5 + (machine.RandomUint64() % 10)
-			machine.Sleep(timeToSleep * uint64(1_000_000)) // throttle retries to config server
+			timeToSleep := 5 + (primitive.RandomUint64() % 10)
+			primitive.Sleep(timeToSleep * uint64(1_000_000)) // throttle retries to config server
 			config := ck.confCk.GetConfig()
 			if len(config) > 0 {
 				ck.replicaClerks = makeClerks(config)
 				ck.lastPreferenceRefresh, _ = grove_ffi.GetTimeRange()
-				ck.preferredReplica = machine.RandomUint64() % uint64(len(ck.replicaClerks))
+				ck.preferredReplica = primitive.RandomUint64() % uint64(len(ck.replicaClerks))
 			}
 			continue
 		}

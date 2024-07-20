@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	pb "github.com/mit-pdos/gokv/reconfig/replica"
-	// "github.com/goose-lang/goose/machine"
+	// "github.com/goose-lang/primitive"
 	"github.com/tchajed/marshal"
 )
 

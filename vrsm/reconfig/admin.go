@@ -4,7 +4,7 @@ import (
 	"log"
 	"sync"
 
-	"github.com/goose-lang/goose/machine"
+	"github.com/goose-lang/primitive"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/vrsm/configservice"
 	"github.com/mit-pdos/gokv/vrsm/e"
@@ -28,7 +28,7 @@ func EnterNewConfig(configHosts []grove_ffi.Address, servers []grove_ffi.Address
 
 	// TODO: maybe should try all of the servers, starting from some random
 	// offset. This "+1" can also go away.
-	id := (machine.RandomUint64() + 1) % uint64(len(oldServers))
+	id := (primitive.RandomUint64() + 1) % uint64(len(oldServers))
 	oldClerk := replica.MakeClerk(oldServers[id])
 	reply := oldClerk.GetState(&replica.GetStateArgs{Epoch: epoch})
 	if reply.Err != e.None {

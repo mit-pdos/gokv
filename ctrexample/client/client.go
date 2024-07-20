@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/goose-lang/goose/machine"
+	"github.com/goose-lang/primitive"
 	"github.com/mit-pdos/gokv/urpc"
 	"github.com/tchajed/marshal"
 )
@@ -26,7 +26,7 @@ func main() {
 		dec := marshal.NewDec(*rep)
 		v := dec.GetInt()
 
-		machine.Assert(v >= localBound)
+		primitive.Assert(v >= localBound)
 		localBound = v
 		fmt.Println("One")
 	}

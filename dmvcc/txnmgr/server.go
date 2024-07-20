@@ -1,18 +1,18 @@
 package txnmgr
 
 import (
-	"github.com/goose-lang/goose/machine"
+	"github.com/goose-lang/primitive"
 	"sync"
 )
 
 type Server struct {
 	mu      *sync.Mutex
-	p       machine.ProphId
+	p       primitive.ProphId
 	nextTid uint64
 }
 
 func MakeServer() *Server {
-	p := machine.NewProph()
+	p := primitive.NewProph()
 	txnMgr := &Server{p: p, nextTid: 1}
 	txnMgr.mu = new(sync.Mutex)
 	return txnMgr

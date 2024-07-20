@@ -3,7 +3,7 @@ package reconnectclient
 import (
 	"sync"
 
-	"github.com/goose-lang/goose/machine"
+	"github.com/goose-lang/primitive"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc"
 )
@@ -44,7 +44,7 @@ func (cl *ReconnectingClient) getClient() (uint64, *urpc.Client) {
 
 	if err != 0 {
 		// FIXME: get rid of this throttling, now that there's no loop?
-		machine.Sleep(10_000_000) // 10ms
+		primitive.Sleep(10_000_000) // 10ms
 	}
 
 	cl.mu.Lock()

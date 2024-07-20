@@ -1,7 +1,7 @@
 package config
 
 import (
-	"github.com/goose-lang/goose/machine"
+	"github.com/goose-lang/primitive"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc"
 	"github.com/tchajed/marshal"
@@ -33,7 +33,7 @@ func (s *Server) AcquireEpoch(newFrontend grove_ffi.Address) uint64 {
 	s.data = newFrontend
 	s.currentEpoch += 1
 
-	now := machine.TimeNow()
+	now := primitive.TimeNow()
 	s.heartbeatExpiration = now + TIMEOUT_MS*MILLION
 
 	ret := s.currentEpoch
@@ -58,12 +58,12 @@ func (s *Server) HeartbeatListener() {
 
 		// loops until the heartbeat expiration time is passed
 		for {
-			now := machine.TimeNow()
+			now := primitive.TimeNow()
 			s.mu.Lock()
 			if now < s.heartbeatExpiration {
 				delay := s.heartbeatExpiration - now
 				s.mu.Unlock()
-				machine.Sleep(delay)
+				primitive.Sleep(delay)
 			} else {
 				s.currHolderActive = false
 				s.currHolderActive_cond.Signal()
@@ -82,7 +82,7 @@ func (s *Server) Heartbeat(epoch uint64) bool {
 	s.mu.Lock()
 	var ret bool = false
 	if s.currentEpoch == epoch {
-		now := machine.TimeNow()
+		now := primitive.TimeNow()
 		s.heartbeatExpiration = now + TIMEOUT_MS
 		ret = true
 	}

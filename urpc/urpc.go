@@ -6,7 +6,7 @@ import (
 	"sync"
 	// "time"
 
-	"github.com/goose-lang/goose/machine"
+	"github.com/goose-lang/primitive"
 	"github.com/goose-lang/std"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/tchajed/marshal"
@@ -46,7 +46,7 @@ func (srv *Server) readThread(conn grove_ffi.Connection) {
 		seqno, data := marshal.ReadInt(data)
 		req := data // remaining data
 		// thisRpcTime := time.Now()
-		// if machine.RandomUint64()%1024 == 0 {
+		// if primitive.RandomUint64()%1024 == 0 {
 		// log.Printf("urpc time between RPCs: %v\n", thisRpcTime.Sub(lastRpcTime))
 		// }
 		// lastRpcTime = thisRpcTime
@@ -142,7 +142,7 @@ func MakeClient(host_name grove_ffi.Address) *Client {
 	if err != 0 {
 		log.Printf("Unable to connect to %s", grove_ffi.AddressToStr(host_name))
 	}
-	machine.Assume(err == 0)
+	primitive.Assume(err == 0)
 	return cl
 }
 
@@ -193,7 +193,7 @@ func (cl *Client) CallComplete(cb *Callback, reply *[]byte, timeout_ms uint64) E
 		// No reply yet (and `replyThread` hasn't aborted either).
 		// Wait just a single time; Go guarantees no spurious wakeups.
 		// log.Printf("Waiting for reply for call %d(%d)\n", seqno, rpcid)
-		machine.WaitTimeout(cb.cond, timeout_ms) // make sure we don't get stuck waiting forever
+		primitive.WaitTimeout(cb.cond, timeout_ms) // make sure we don't get stuck waiting forever
 	}
 	state := *cb.state
 	if state == callbackStateDone {
