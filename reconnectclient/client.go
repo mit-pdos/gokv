@@ -3,9 +3,9 @@ package reconnectclient
 import (
 	"sync"
 
+	"github.com/goose-lang/goose/machine"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc"
-	"github.com/tchajed/goose/machine"
 )
 
 type ReconnectingClient struct {

@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/goose-lang/goose/machine"
 	"github.com/mit-pdos/gokv/grove_ffi"
-	"github.com/tchajed/goose/machine"
 )
 
 // copied from grove_ffi/filesys.go and modified

@@ -4,11 +4,11 @@ import (
 	"log"
 	"sync"
 
+	"github.com/goose-lang/goose/machine"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/vrsm/configservice"
 	"github.com/mit-pdos/gokv/vrsm/e"
 	"github.com/mit-pdos/gokv/vrsm/replica"
-	"github.com/tchajed/goose/machine"
 )
 
 func EnterNewConfig(configHosts []grove_ffi.Address, servers []grove_ffi.Address) e.Error {

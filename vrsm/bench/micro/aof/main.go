@@ -5,9 +5,9 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/goose-lang/goose/machine"
 	"github.com/mit-pdos/gokv/aof"
 	"github.com/mit-pdos/gokv/grove_ffi"
-	"github.com/tchajed/goose/machine"
 )
 
 func bench_onesize(fname string, writeSize uint64, numThreads uint64) float64 {

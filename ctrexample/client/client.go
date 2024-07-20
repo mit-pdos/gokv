@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
+	"github.com/goose-lang/goose/machine"
 	"github.com/mit-pdos/gokv/urpc"
-	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/marshal"
 )
 

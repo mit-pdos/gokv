@@ -1,9 +1,9 @@
 package config
 
 import (
+	"github.com/goose-lang/goose/machine"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc"
-	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/marshal"
 	"log"
 )

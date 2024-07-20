@@ -8,7 +8,7 @@ import (
 	"github.com/mit-pdos/vmvcc/trusted_proph"
 
 	// "github.com/mit-pdos/gokv/grove_ffi"
-	"github.com/tchajed/goose/machine"
+	"github.com/goose-lang/goose/machine"
 )
 
 type Clerk struct {

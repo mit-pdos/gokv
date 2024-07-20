@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 
+	"github.com/goose-lang/goose/machine"
 	"github.com/mit-pdos/gokv/grove_ffi"
-	"github.com/tchajed/goose/machine"
 )
 
 func bench_onesize(fname string, writeSize uint64) float64 {

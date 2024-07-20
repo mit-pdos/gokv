@@ -3,12 +3,12 @@ package configservice
 import (
 	"log"
 
+	"github.com/goose-lang/goose/machine"
 	"github.com/goose-lang/std"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc"
 	"github.com/mit-pdos/gokv/vrsm/e"
 	"github.com/mit-pdos/gokv/vrsm/paxos"
-	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/marshal"
 )
 

@@ -6,9 +6,9 @@ import (
 	"sync"
 	// "time"
 
+	"github.com/goose-lang/goose/machine"
 	"github.com/goose-lang/std"
 	"github.com/mit-pdos/gokv/grove_ffi"
-	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/marshal"
 )
 

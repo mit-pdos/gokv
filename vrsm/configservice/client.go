@@ -3,10 +3,10 @@ package configservice
 import (
 	"sync"
 
+	"github.com/goose-lang/goose/machine"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/reconnectclient"
 	"github.com/mit-pdos/gokv/vrsm/e"
-	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/marshal"
 )
 

@@ -1,9 +1,9 @@
 package loopclient
 
 import (
+	"github.com/goose-lang/goose/machine"
 	"github.com/mit-pdos/gokv/fencing/client"
 	"github.com/mit-pdos/gokv/grove_ffi"
-	"github.com/tchajed/goose/machine"
 	"log"
 )
 
