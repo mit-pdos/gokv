@@ -1,11 +1,11 @@
 package admin
 
 import (
+	"github.com/goose-lang/goose/machine"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/reconfig/config"
 	"github.com/mit-pdos/gokv/reconfig/example"
 	"github.com/mit-pdos/gokv/reconfig/replica"
-	"github.com/tchajed/goose/machine"
 )
 
 func EnterNewConfig(cfgHost grove_ffi.Address, servers []grove_ffi.Address) replica.Error {

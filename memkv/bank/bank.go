@@ -1,11 +1,11 @@
 package bank
 
 import (
+	"github.com/goose-lang/goose/machine"
 	"github.com/goose-lang/std"
 	"github.com/mit-pdos/gokv/connman"
 	"github.com/mit-pdos/gokv/memkv"
 	"github.com/mit-pdos/gokv/memkv/lockservice"
-	"github.com/tchajed/goose/machine"
 )
 
 // The maximum money supply, initially will all belong to accts[0]

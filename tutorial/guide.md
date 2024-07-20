@@ -49,7 +49,7 @@ Coq proofs with Perennial are connected to actual Go code.
 For example, to translate the `gokv/tutorial/basics` code, you can follow
 these steps:
 
-- Clone https://github.com/tchajed/goose somewhere.
+- Clone https://github.com/goose-lang/goose somewhere.
 - Clone https://github.com/mit-pdos/gokv somewhere.
 - From the root of the Perennial repository, run
   ```

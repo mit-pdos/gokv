@@ -1,12 +1,12 @@
 package clerk
 
 import (
+	"github.com/goose-lang/goose/machine"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/trusted_proph"
 	"github.com/mit-pdos/gokv/vrsm/configservice"
 	"github.com/mit-pdos/gokv/vrsm/e"
 	"github.com/mit-pdos/gokv/vrsm/replica"
-	"github.com/tchajed/goose/machine"
 )
 
 const (

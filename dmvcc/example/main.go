@@ -3,11 +3,11 @@ package main
 import (
 	"log"
 
+	"github.com/goose-lang/goose/machine"
 	"github.com/mit-pdos/gokv/dmvcc/index"
 	"github.com/mit-pdos/gokv/dmvcc/txn"
 	"github.com/mit-pdos/gokv/dmvcc/txncoordinator"
 	"github.com/mit-pdos/gokv/dmvcc/txnmgr"
-	"github.com/tchajed/goose/machine"
 )
 
 func main() {

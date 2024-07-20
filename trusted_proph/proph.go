@@ -1,7 +1,7 @@
 package trusted_proph
 
 import (
-	"github.com/tchajed/goose/machine"
+	"github.com/goose-lang/goose/machine"
 )
 
 type ProphId = machine.ProphId

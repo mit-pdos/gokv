@@ -1,9 +1,9 @@
 package bank
 
 import (
+	"github.com/goose-lang/goose/machine"
 	"github.com/mit-pdos/gokv/kv"
 	"github.com/mit-pdos/gokv/lockservice"
-	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/marshal"
 )
 

@@ -4,12 +4,12 @@ import (
 	"log"
 	"sync"
 
+	"github.com/goose-lang/goose/machine"
 	"github.com/goose-lang/std"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc"
 	"github.com/mit-pdos/gokv/vrsm/configservice"
 	"github.com/mit-pdos/gokv/vrsm/e"
-	"github.com/tchajed/goose/machine"
 )
 
 type Server struct {
