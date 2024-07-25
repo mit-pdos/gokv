@@ -5,7 +5,7 @@ import (
 )
 
 type LockClerk struct {
-	kv *kv.Kv
+	kv kv.KvCput
 }
 
 func (ck *LockClerk) Lock(key string) {
@@ -17,7 +17,7 @@ func (ck *LockClerk) Unlock(key string) {
 	ck.kv.Put(key, "")
 }
 
-func MakeLockClerk(kv *kv.Kv) *LockClerk {
+func MakeLockClerk(kv kv.KvCput) *LockClerk {
 	return &LockClerk{
 		kv: kv,
 	}

@@ -16,7 +16,7 @@ type cacheValue struct {
 }
 
 type CacheKv struct {
-	kv    *kv.Kv
+	kv    kv.KvCput
 	mu    *sync.Mutex
 	cache map[string]cacheValue
 }
@@ -44,7 +44,7 @@ func max(a, b uint64) uint64 {
 	return b
 }
 
-func Make(kv *kv.Kv) *CacheKv {
+func Make(kv kv.KvCput) *CacheKv {
 	return &CacheKv{
 		kv:    kv,
 		mu:    new(sync.Mutex),

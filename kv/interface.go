@@ -1,7 +1,11 @@
 package kv
 
-type Kv struct {
-	Put            func(key, value string)
-	Get            func(key string) string
-	ConditionalPut func(key, expect, value string) string
+type Kv interface {
+	Put(key, value string)
+	Get(key string) string
+}
+
+type KvCput interface {
+	Kv
+	ConditionalPut(key, expect, value string) string
 }

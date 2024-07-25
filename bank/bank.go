@@ -12,7 +12,7 @@ const BAL_TOTAL = uint64(1000)
 
 type BankClerk struct {
 	lck   *lockservice.LockClerk
-	kvck  *kv.Kv
+	kvck  kv.Kv
 	accts []string
 }
 
@@ -97,7 +97,7 @@ func (bck *BankClerk) SimpleAudit() {
 	}
 }
 
-func MakeBankClerkSlice(lck *lockservice.LockClerk, kv *kv.Kv, init_flag string, accts []string) *BankClerk {
+func MakeBankClerkSlice(lck *lockservice.LockClerk, kv kv.Kv, init_flag string, accts []string) *BankClerk {
 	bck := new(BankClerk)
 	bck.lck = lck
 	bck.kvck = kv
@@ -117,7 +117,7 @@ func MakeBankClerkSlice(lck *lockservice.LockClerk, kv *kv.Kv, init_flag string,
 	return bck
 }
 
-func MakeBankClerk(lck *lockservice.LockClerk, kv *kv.Kv, init_flag string, acc1 string, acc2 string) *BankClerk {
+func MakeBankClerk(lck *lockservice.LockClerk, kv kv.Kv, init_flag string, acc1 string, acc2 string) *BankClerk {
 	var accts []string
 	accts = append(accts, acc1)
 	accts = append(accts, acc2)

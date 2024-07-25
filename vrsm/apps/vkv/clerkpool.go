@@ -66,7 +66,7 @@ func (ck *ClerkPool) Get(key string) string {
 	return ret
 }
 
-func (ck *ClerkPool) CondPut(key, expect, val string) string {
+func (ck *ClerkPool) ConditionalPut(key, expect, val string) string {
 	var ret string
 	ck.doWithClerk(func(ck *Clerk) {
 		ret = ck.CondPut(key, expect, val)
@@ -74,11 +74,7 @@ func (ck *ClerkPool) CondPut(key, expect, val string) string {
 	return ret
 }
 
-func MakeKv(confHosts []grove_ffi.Address) *kv.Kv {
+func MakeKv(confHosts []grove_ffi.Address) kv.KvCput {
 	ck := MakeClerkPool(confHosts)
-	return &kv.Kv{
-		Put:            ck.Put,
-		Get:            ck.Get,
-		ConditionalPut: ck.CondPut,
-	}
+	return ck
 }

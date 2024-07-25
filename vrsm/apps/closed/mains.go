@@ -2,6 +2,7 @@ package closed
 
 import (
 	"github.com/mit-pdos/gokv/bank"
+	"github.com/mit-pdos/gokv/cachekv"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/lockservice"
 	"github.com/mit-pdos/gokv/vrsm/apps/vkv"
@@ -67,7 +68,8 @@ func kv_replica_main(fname string, me, configHost grove_ffi.Address) {
 }
 
 func makeBankClerk() *bank.BankClerk {
-	kvck := vkv.MakeKv(mk_dconfig_hosts())
+	// data server is used via cachekv; all clients must follow the cachekv protocol.
+	kvck := cachekv.Make(vkv.MakeKv(mk_dconfig_hosts()))
 	lck := lockservice.MakeLockClerk(vkv.MakeKv(mk_lconfig_hosts()))
 	return bank.MakeBankClerk(lck, kvck, "init", "a1", "a2")
 }
