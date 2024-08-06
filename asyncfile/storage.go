@@ -24,20 +24,22 @@ type AsyncFile struct {
 func (s *AsyncFile) Write(data []byte) func() {
 	// XXX: can read index here because it's owned by the owner of the File object
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	s.data = data
 	s.index = std.SumAssumeNoOverflow(s.index, 1)
 	index := s.index
 	s.indexCond.Signal()
-	s.mu.Unlock()
 	return func() { s.wait(index) }
 }
 
 func (s *AsyncFile) wait(index uint64) {
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	for s.durableIndex < index {
 		s.durableIndexCond.Wait()
 	}
-	s.mu.Unlock()
 }
 
 func (s *AsyncFile) flushThread() {
@@ -70,12 +72,13 @@ func (s *AsyncFile) flushThread() {
 
 func (s *AsyncFile) Close() {
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	s.closeRequested = true
 	s.indexCond.Signal()
 	for !s.closed {
 		s.closedCond.Wait()
 	}
-	s.mu.Unlock()
 }
 
 // returns the state, then the File object
