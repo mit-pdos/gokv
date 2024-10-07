@@ -1,15 +1,14 @@
-"use strict";
-exports.__esModule = true;
-var fs = require("fs");
+import * as fs from 'fs';
 
 /**
  * 
  * To run this example in the terminal:
  *  - have npm installed: https://docs.npmjs.com/downloading-and-installing-node-js-and-npm or https://nodejs.org/en/download/package-manager
  *  - have typescript installed: https://www.typescriptlang.org/download
- *  - run node node_examples.ts
+ *  - run ./run-ts-file node_examples (no filename extension)
+ * https://stackoverflow.com/questions/76035802/priority-order-between-nexttick-and-promise-in-nodejs
  */
-function main(summary) {
+function main(summary: string) {
     console.log('----------In main----------');
     setImmediate(() => {
         console.log('   setImmediate 1 (check phase)');
@@ -82,7 +81,7 @@ function main(summary) {
     process.nextTick(() => {
         console.log('   process.nextTick 2 (microtask)');
     });
-    console.log('Queued netTick 2');
+    console.log('Queued nextTick 2');
     console.log('----------Done in main----------');
 }
 

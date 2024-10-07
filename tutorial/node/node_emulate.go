@@ -5,6 +5,15 @@ import (
 	"time"
 )
 
+var DEBUG = false
+
+func Debug(format string, a ...interface{}) {
+	if DEBUG {
+		debugString := fmt.Sprintf(format, a...)
+		fmt.Println(debugString)
+	}
+}
+
 // Define task types
 type Task func()
 
@@ -16,274 +25,331 @@ const (
 	rejected  PromiseState = 2 // 2
 )
 
+type PromiseResult[S any, F any] struct {
+	successValue  S
+	failureValue  F
+	nestedPromise *Promise[S, F]
+}
+
 // Define a Promise struct
-type Promise struct {
-	result    interface{}
-	callbacks []*PromiseCallback // Store multiple then callbacks
+type Promise[S any, F any] struct {
+	result    *PromiseResult[S, F]
+	err       error
+	callbacks []*PromiseCallback[S, F] // Store multiple then callbacks
 	state     PromiseState
+
+	// internal for debugging
+	id uint64
 }
 
-type PromiseCallback struct {
-	onFulfilled func(result interface{}) interface{}
-	onRejected  func(result interface{}) interface{}
-}
-
-type Runtime struct {
-	eventLoop *EventLoop
+type PromiseCallback[S any, F any] struct {
+	onFulfilled func(result *PromiseResult[S, F]) interface{}
+	onRejected  func(err error) interface{}
 }
 
 // Event loop struct with task queues and a channel for timers
 type EventLoop struct {
-	taskQueue       []Task
-	microtaskQueue  []Task
-	immediateQueue  []Task
-	timerChan       chan Task
-	activeTimers    uint64
-	pendingPromises uint64
-	running         bool
+	taskQueue              []Task
+	promisesMicrotaskQueue []Task
+	nextTickMicrotaskQueue []Task
+	immediateQueue         []Task
+	timerChan              chan Task
+	activeTimers           uint64
+	pendingPromises        uint64
+	totalPromises          uint64
+	running                bool
 }
 
 // Add a task (e.g., regular async tasks)
-func (r *Runtime) AddTask(task Task) {
-	r.eventLoop.taskQueue = append(r.eventLoop.taskQueue, task)
+func AddTask(task Task, eventLoop *EventLoop) {
+	eventLoop.taskQueue = append(eventLoop.taskQueue, task)
 }
 
 // Add a microtask (e.g., process.nextTick, promises)
-func (r *Runtime) AddMicrotask(microtask Task) {
-	r.eventLoop.microtaskQueue = append(r.eventLoop.microtaskQueue, microtask)
+func AddPromiseMicrotask(microtask Task, eventLoop *EventLoop) {
+	eventLoop.promisesMicrotaskQueue = append(eventLoop.promisesMicrotaskQueue, microtask)
+}
+
+func AddNextTickMicroTask(microtask Task, eventLoop *EventLoop) {
+	eventLoop.nextTickMicrotaskQueue = append(eventLoop.nextTickMicrotaskQueue, microtask)
 }
 
 // Add a task to be run in the immediate phase (setImmediate)
-func (r *Runtime) AddImmediateTask(immediate Task) {
-	r.eventLoop.immediateQueue = append(r.eventLoop.immediateQueue, immediate)
+func AddImmediateTask(immediate Task, eventLoop *EventLoop) {
+	eventLoop.immediateQueue = append(eventLoop.immediateQueue, immediate)
 }
 
 // Non-blocking AddTimerTask using goroutines and a timer channel
-func (r *Runtime) AddTimerTask(task Task, duration time.Duration) {
-	// fmt.Println("Adding timer task")
-	r.eventLoop.activeTimers++ // Increment active timers
+func AddTimerTask(task Task, duration time.Duration, eventLoop *EventLoop) {
+	Debug("Adding timer task")
+	eventLoop.activeTimers++ // Increment active timers
 	go func() {
 		time.Sleep(duration)
-		// fmt.Println("Woke up in subroutine")
-		r.eventLoop.timerChan <- task
-		// fmt.Println("Send to channel in subroutine")
+		Debug("Woke up in subroutine")
+		eventLoop.timerChan <- task
+		Debug("Send to channel in subroutine")
 	}()
 }
 
 // Process microtasks first (includes promises)
-func (r *Runtime) processMicrotasks() {
-	for len(r.eventLoop.microtaskQueue) > 0 {
-		microtask := r.eventLoop.microtaskQueue[0]
-		r.eventLoop.microtaskQueue = r.eventLoop.microtaskQueue[1:]
+func processMicrotasks(eventLoop *EventLoop) {
+	// TODO See if this should jump between queues before going back to main task queue
+	// first process nexTick queue entirely
+	for len(eventLoop.nextTickMicrotaskQueue) > 0 {
+		microtask := eventLoop.nextTickMicrotaskQueue[0]
+		eventLoop.nextTickMicrotaskQueue = eventLoop.nextTickMicrotaskQueue[1:]
+		microtask()
+	}
+
+	// process promises queue entirely
+	for len(eventLoop.promisesMicrotaskQueue) > 0 {
+		microtask := eventLoop.promisesMicrotaskQueue[0]
+		eventLoop.promisesMicrotaskQueue = eventLoop.promisesMicrotaskQueue[1:]
 		microtask()
 	}
 }
 
-func (r *Runtime) processTimers() {
-Loop:
-	for {
+func processTimers(eventLoop *EventLoop) {
+	Debug("here5")
+	shouldContinue := true
+	for shouldContinue {
 		select {
-		case timerTask := <-r.eventLoop.timerChan:
+		case timerTask := <-eventLoop.timerChan:
 			// Process timer tasks
-			// fmt.Println("got a timer task done")
+			Debug("got a timer task done")
 			timerTask()
-			r.processMicrotasks()
-			r.eventLoop.activeTimers-- // Decrement the active timer counter here
-			// fmt.Printf("active timers is now %v", r.eventLoop.activeTimers)
+			processMicrotasks(eventLoop)
+			eventLoop.activeTimers-- // Decrement the active timer counter here
+			Debug("active timers is now %v", eventLoop.activeTimers)
 		default:
-			break Loop
+			shouldContinue = false
 		}
 	}
 }
 
 // Process immediate tasks (setImmediate phase)
-func (r *Runtime) processImmediateTasks() {
-	for len(r.eventLoop.immediateQueue) > 0 {
-		immediateTask := r.eventLoop.immediateQueue[0]
-		r.eventLoop.immediateQueue = r.eventLoop.immediateQueue[1:]
+func processImmediateTasks(eventLoop *EventLoop) {
+	for len(eventLoop.immediateQueue) > 0 {
+		immediateTask := eventLoop.immediateQueue[0]
+		eventLoop.immediateQueue = eventLoop.immediateQueue[1:]
 		immediateTask()
-		r.processMicrotasks()
+		processMicrotasks(eventLoop)
 	}
 }
 
 // Process the main task queue
-func (r *Runtime) processTasks() {
-	for len(r.eventLoop.taskQueue) > 0 {
-		task := r.eventLoop.taskQueue[0]
-		r.eventLoop.taskQueue = r.eventLoop.taskQueue[1:]
+func processTasks(eventLoop *EventLoop) {
+	for len(eventLoop.taskQueue) > 0 {
+		task := eventLoop.taskQueue[0]
+		eventLoop.taskQueue = eventLoop.taskQueue[1:]
 		task()
-		r.processMicrotasks()
+		processMicrotasks(eventLoop)
 	}
 }
 
 // Method to resolve the Promise with a result
-func (r *Runtime) resolve(p *Promise, result interface{}) {
+func resolve[S any, F any](p *Promise[S, F], result *PromiseResult[S, F], eventLoop *EventLoop) {
 	// Once the promise is resolved, schedule all .then callbacks in the microtask queue
-	// fmt.Printf("resolving function, num callbacks are %v\n", le(p.callbacks))
+	Debug("resolving function, num callbacks are %v\n", len(p.callbacks))
 	p.result = result
 	p.state = fulfilled
 	for _, thenFunc := range p.callbacks {
-		// fmt.Println("Scheduling a microtask")
-		r.AddMicrotask(func() {
-			// fmt.Printf("removing promise with result %v\n", result)
-			// fmt.Println("calling a callback")
-			thenFunc.onFulfilled(result)
-		})
+		Debug("Scheduling a microtask")
+		AddPromiseMicrotask(func() {
+			Debug("removing promise with result %v\n", result)
+			Debug("calling a callback")
+			thenFunc.onFulfilled(p.result)
+		}, eventLoop)
 	}
 
-	r.eventLoop.pendingPromises--
+	Debug("resolving promise with id %v", p.id)
+	eventLoop.pendingPromises--
 }
 
 // Method to resolve the Promise with a result
-func (r *Runtime) reject(p *Promise, result interface{}) {
+func reject[S any, F any](p *Promise[S, F], err error, eventLoop *EventLoop) {
 	// Once the promise is resolved, schedule all .then callbacks in the microtask queue
-	p.result = result
+	p.err = err
 	p.state = rejected
 	for _, thenFunc := range p.callbacks {
-		r.AddMicrotask(func() {
-			// fmt.Printf("removing promise with result %v\n", result)
-			thenFunc.onRejected(result)
-		})
+		AddPromiseMicrotask(func() {
+			Debug("removing promise with result %v\n", p.result)
+			thenFunc.onRejected(err)
+		}, eventLoop)
 	}
 
-	r.eventLoop.pendingPromises--
+	Debug("rejecting promise with id %v", p.id)
+	eventLoop.pendingPromises--
+}
+
+func resolveOrReject[S2 any, F2 any](result *PromiseResult[S2, F2], err error, newPromise *Promise[S2, F2], eventLoop *EventLoop) {
+	if err != nil {
+		reject(newPromise, err, eventLoop)
+	} else if result == nil {
+		resolve(newPromise, result, eventLoop)
+	} else if result.nestedPromise != nil {
+		// TODO Check with node source code here for behavior/think about what makes most sense to put here
+		// Could instead check if nestedPromise is already resolved/rejected, and immediately resolve or reject this promise
+		then(result.nestedPromise,
+			func(result *PromiseResult[S2, F2]) (*PromiseResult[uint64, uint64], error) {
+				resolveOrReject(result, nil, newPromise, eventLoop)
+				return nil, nil
+			}, func(err error) (*PromiseResult[uint64, uint64], error) {
+				resolveOrReject(nil, err, newPromise, eventLoop)
+				return nil, nil
+			}, eventLoop)
+	} else {
+		resolve(newPromise, result, eventLoop)
+	}
 }
 
 // Create a new Promise
-func (r *Runtime) NewPromise(executor func(resolveFunc func(interface{}), rejectFunc func(interface{}))) *Promise {
-	p := &Promise{}
-	executor(func(result interface{}) { r.resolve(p, result) }, func(result interface{}) { r.reject(p, result) })
-	// fmt.Println("Adding promise in constructor")
-	r.eventLoop.pendingPromises++
+func NewPromise[S any, F any](executor func(resolveFunc func(result *PromiseResult[S, F]), rejectFunc func(error)), eventLoop *EventLoop) *Promise[S, F] {
+	p := &Promise[S, F]{
+		id: eventLoop.totalPromises,
+	}
+
+	executor(func(result *PromiseResult[S, F]) { resolve(p, result, eventLoop) }, func(err error) { reject(p, err, eventLoop) })
+	Debug("Adding promise in constructor with id %v", eventLoop.totalPromises)
+	eventLoop.pendingPromises++
+	eventLoop.totalPromises++
 	return p
 }
 
 // Then method to chain multiple callbacks once the promise resolves
-func (r *Runtime) then(p *Promise, onFulfilled func(result interface{}) interface{}, onRejected func(result interface{}) interface{}) *Promise {
-	if onRejected == nil {
-		onRejected = func(result interface{}) interface{} {
-			return result
-		}
-	}
+func then[S any, F any, S2 any, F2 any](p *Promise[S, F], onFulfilled func(result *PromiseResult[S, F]) (*PromiseResult[S2, F2], error), onRejected func(err error) (*PromiseResult[S2, F2], error), eventLoop *EventLoop) *Promise[S2, F2] {
+	// if onRejected == nil {
+	// 	onRejected = func(result R) R2 {
+	// 		// switch
+	// 		return
+	// 	}
+	// }
 
 	// Create a new Promise for chaining
-	newPromise := &Promise{}
-
-	if p.state == fulfilled {
-		r.AddMicrotask(func() {
-			r.resolve(newPromise, onFulfilled(p.result))
-		})
-	} else if p.state == rejected {
-		r.AddMicrotask(func() {
-			r.reject(newPromise, onRejected(p.result))
-		})
-	} else {
-		p.callbacks = append(p.callbacks, &PromiseCallback{onFulfilled: func(result interface{}) interface{} {
-			// fmt.Println("resolving promise in then")
-			r.resolve(newPromise, onFulfilled(result))
-			return nil
-		}, onRejected: func(result interface{}) interface{} {
-			r.reject(newPromise, onRejected(result))
-			return nil
-		}})
+	newPromise := &Promise[S2, F2]{
+		id: eventLoop.totalPromises,
 	}
 
-	// fmt.Println("Adding promise in then")
-	r.eventLoop.pendingPromises++
+	if p.state == fulfilled {
+		AddPromiseMicrotask(func() {
+			newResult, err := onFulfilled(p.result)
+			resolveOrReject(newResult, err, newPromise, eventLoop)
+		}, eventLoop)
+	} else if p.state == rejected {
+		AddPromiseMicrotask(func() {
+			newResult, err := onRejected(p.err)
+			resolveOrReject(newResult, err, newPromise, eventLoop)
+		}, eventLoop)
+	} else {
+		p.callbacks = append(p.callbacks, &PromiseCallback[S, F]{
+			onFulfilled: func(result *PromiseResult[S, F]) interface{} {
+				Debug("resolving promise in then with result %v", result)
+				newResult, err := onFulfilled(result)
+				Debug("newResult is %v", newResult)
+				resolveOrReject(newResult, err, newPromise, eventLoop)
+				return nil
+			},
+			onRejected: func(err error) interface{} {
+				newResult, err := onRejected(err)
+				resolveOrReject(newResult, err, newPromise, eventLoop)
+				return nil
+			}})
+	}
+
+	Debug("Adding promise in then with id %v", eventLoop.totalPromises)
+	eventLoop.pendingPromises++
+	eventLoop.totalPromises++
 	return newPromise
 }
 
 // Start the event loop, incorporating non-blocking timers
-func (r *Runtime) Run() {
-	r.eventLoop.running = true
-	for r.eventLoop.running {
-
+func Run(eventLoop *EventLoop) {
+	eventLoop.running = true
+	for eventLoop.running {
+		Debug("Here %v  %v %v %v %v", len(eventLoop.taskQueue), len(eventLoop.immediateQueue), len(eventLoop.promisesMicrotaskQueue), len(eventLoop.nextTickMicrotaskQueue), eventLoop.activeTimers)
 		// timer phase
-		r.processTimers()
+		processTimers(eventLoop)
 		// pending callbacks phase
-		r.processTasks()
+		processTasks(eventLoop)
+
 		// check phase
-		r.processImmediateTasks()
+		processImmediateTasks(eventLoop)
 
 		// If no more tasks and no active timers, stop the loop
-		if len(r.eventLoop.taskQueue) == 0 && len(r.eventLoop.microtaskQueue) == 0 && len(r.eventLoop.immediateQueue) == 0 && r.eventLoop.activeTimers == 0 {
-			if r.eventLoop.pendingPromises != 0 {
-				fmt.Printf("Execution finished but %v promises still pending\n", r.eventLoop.pendingPromises)
+		if len(eventLoop.taskQueue) == 0 && len(eventLoop.promisesMicrotaskQueue) == 0 && len(eventLoop.nextTickMicrotaskQueue) == 0 && len(eventLoop.immediateQueue) == 0 && eventLoop.activeTimers == 0 {
+			if eventLoop.pendingPromises != 0 {
+				fmt.Printf("Execution finished but %v promises still pending\n", eventLoop.pendingPromises)
 			}
-			// fmt.Println("Setting running to false")
-			r.eventLoop.running = false
+			Debug("Setting running to false")
+			eventLoop.running = false
 		}
 	}
 }
 
 // func setTimeout()
 
-func (r *Runtime) mainEventLoopFunc() interface{} {
+func mainEventLoopFunc(eventLoop *EventLoop) interface{} {
 	// Add a task to the event loop
-	r.AddTask(func() {
+	AddTask(func() {
 		fmt.Println("Task 1 regular task")
-	})
+	}, eventLoop)
 
 	// Create a new Promise that resolves after 200ms
-	promise := r.NewPromise(func(resolveFunc func(interface{}), rejectFunc func(interface{})) {
-		r.AddTimerTask(func() {
+	promise := NewPromise(func(resolveFunc func(result *PromiseResult[string, string]), rejectFunc func(err error)) {
+		AddTimerTask(func() {
 			fmt.Println("Timer elapsed.")
-			resolveFunc("Promise resolved! in timer.")
-		}, 200*time.Millisecond)
-	})
+			resolveFunc(&PromiseResult[string, string]{successValue: "Promise resolved! in time"})
+		}, 200*time.Millisecond, eventLoop)
+	}, eventLoop)
 
-	r.then(promise, func(result interface{}) interface{} {
-		r.AddTask(func() {
+	then(promise, func(result *PromiseResult[string, string]) (*PromiseResult[string, string], error) {
+		AddTask(func() {
 			fmt.Printf("Task 2 regular task in Then handler 0: %v\n", result)
-		})
-		return nil
-	}, nil)
+		}, eventLoop)
+		return nil, nil
+	}, nil, eventLoop)
 
-	r.then(promise, func(result interface{}) interface{} {
+	then(promise, func(result *PromiseResult[string, string]) (*PromiseResult[string, string], error) {
 		fmt.Printf("Then handler 1: %v\n", result)
-		return nil
-	}, nil)
+		return nil, nil
+	}, nil, eventLoop)
 
-	r.then(
+	then(
 		// Multiple .then handlers
-		r.then(promise, func(result interface{}) interface{} {
+		then(promise, func(result *PromiseResult[string, string]) (*PromiseResult[string, string], error) {
 			// Add a microtask to the event loop once the promise resolves
-			r.AddMicrotask(func() {
+			AddNextTickMicroTask(func() {
 				fmt.Println("Then handler 2:", result)
-			})
+			}, eventLoop)
 
-			resultString, ok := result.(string)
-			if !ok {
-				return " Could not chain promise result, add err handling!"
-			}
-			return resultString + " Chained promise result"
-		}, nil), func(result interface{}) interface{} {
+			return &PromiseResult[string, string]{successValue: result.successValue + " Chained promise result"}, nil
+		}, nil, eventLoop), func(result *PromiseResult[string, string]) (*PromiseResult[string, string], error) {
 			fmt.Printf("Then chained handler 3: %v\n", result)
-			return nil
-		}, nil)
+			return nil, nil
+		}, nil, eventLoop)
 
-	r.AddTask(func() {
+	AddTask(func() {
 		fmt.Println("Task 3 regular task")
-	})
+	}, eventLoop)
 
-	r.then(promise, func(result interface{}) interface{} {
+	then(promise, func(result *PromiseResult[string, string]) (*PromiseResult[string, string], error) {
 		// Add another microtask for the second then handler
-		r.AddMicrotask(func() {
+		AddNextTickMicroTask(func() {
 			fmt.Println("Then chained microtask handler 4:", result)
-		})
+		}, eventLoop)
 
-		return nil
-	}, nil)
+		return nil, nil
+	}, nil, eventLoop)
 
 	// Add another task
-	r.AddTask(func() {
+	AddTask(func() {
 		fmt.Println("Task 4 regular task")
-	})
+	}, eventLoop)
 
 	// Add immediate task - ran before above task
-	r.AddImmediateTask(func() {
+	AddImmediateTask(func() {
 		fmt.Println("Task 5 immediate task")
-	})
+	}, eventLoop)
 
 	return nil
 }
@@ -296,19 +362,18 @@ func (r *Runtime) mainEventLoopFunc() interface{} {
 // Run(eventLoop)
 
 func main() {
-	r := &Runtime{
-		eventLoop: &EventLoop{
-			timerChan:      make(chan Task), // Buffer for timer tasks
-			taskQueue:      make([]Task, 0),
-			microtaskQueue: make([]Task, 0),
-			immediateQueue: make([]Task, 0),
-		},
+	eventLoop := &EventLoop{
+		timerChan:              make(chan Task), // Buffer for timer tasks
+		taskQueue:              make([]Task, 0),
+		promisesMicrotaskQueue: make([]Task, 0),
+		nextTickMicrotaskQueue: make([]Task, 0),
+		immediateQueue:         make([]Task, 0),
 	}
 
-	r.AddTask(func() {
-		r.MapBoardExample()
-	})
+	AddTask(func() {
+		mainEventLoopFunc(eventLoop)
+	}, eventLoop)
 
 	// run the runtime!
-	r.Run()
+	Run(eventLoop)
 }

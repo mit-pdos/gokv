@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# Check if a filename is provided
+if [ -z "$1" ]; then
+    echo "Usage: ./run <filename without extension>"
+    exit 1
+fi
+
+# Get the provided filename without the .ts extension
+FILENAME=$1
+
+# Compile the TypeScript file
+tsc "$FILENAME.ts" --esModuleInterop true --module esnext --moduleResolution node --strict true
+
+# Check if the compilation was successful
+if [ $? -eq 0 ]; then
+    echo "Compiled $FILENAME.ts successfully."
+
+    # Run the compiled JavaScript file with Node.js
+    node "$FILENAME.js"
+else
+    echo "Failed to compile $FILENAME.ts."
+    exit 1
+fi

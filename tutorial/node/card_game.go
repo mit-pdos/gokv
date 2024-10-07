@@ -2,39 +2,40 @@ package main
 
 import "fmt"
 
-type Deferred struct {
-	promise *Promise
+type Deferred[S any, F any] struct {
+	promise *Promise[S, F]
 
-	resolve func(interface{})
+	resolve func(result *PromiseResult[S, F])
 
-	reject func(interface{})
+	reject func(err error)
 }
 
-func (r *Runtime) NewDeferred() *Deferred {
-	deferred := &Deferred{}
-	promise := r.NewPromise(func(resolveFunc func(interface{}), rejectFunc func(interface{})) {
+func NewDeferred[S any, F any](eventLoop *EventLoop) *Deferred[S, F] {
+	deferred := &Deferred[S, F]{}
+	promise := NewPromise(func(resolveFunc func(result *PromiseResult[S, F]), rejectFunc func(err error)) {
 		deferred.resolve = resolveFunc
 		deferred.reject = rejectFunc
-	})
+	}, eventLoop)
 	deferred.promise = promise
 	return deferred
 }
 
 type Board struct {
 	cards          []string
-	mapChangeWatch *Deferred
+	mapChangeWatch *Deferred[uint64, uint64]
 }
 
-func (r *Runtime) notifyMap(b *Board) {
+func notifyMap(b *Board, eventLoop *EventLoop) {
 	b.mapChangeWatch.resolve(nil)
-	b.mapChangeWatch = r.NewDeferred()
+	Debug("creating new deferred")
+	b.mapChangeWatch = NewDeferred[uint64, uint64](eventLoop)
 }
 
-func (r *Runtime) mapBoard(b *Board, f func(card string) *Promise) *Promise {
+func mapBoard(b *Board, f func(card string) *Promise[string, string], eventLoop *EventLoop) *Promise[string, string] {
 	cardPromises := make(map[string]string)
 	completedPromises := 0
 	totalPromises := 0
-	newTextsComputed := r.NewDeferred()
+	newTextsComputed := NewDeferred[string, string](eventLoop)
 	for _, card := range b.cards {
 		// see if we already made promise for this card
 		_, ok := cardPromises[card]
@@ -46,30 +47,26 @@ func (r *Runtime) mapBoard(b *Board, f func(card string) *Promise) *Promise {
 		cardPromises[card] = "placeholder"
 
 		// make new promise for this card
-		r.then(f(card), func(result interface{}) interface{} {
+		then(f(card), func(result *PromiseResult[string, string]) (*PromiseResult[string, string], error) {
 			// annoying case because can't use generics
-			stringResult, ok := result.(string)
-			if !ok {
-				stringResult = "need to add err handling in promise"
-			}
-			cardPromises[card] = stringResult
+			cardPromises[card] = result.successValue
 			completedPromises++
 			if completedPromises == totalPromises {
 				newTextsComputed.resolve(nil)
 			}
-			return nil
-		}, nil)
+			return nil, nil
+		}, nil, eventLoop)
 	}
 
 	boardChanged := false
-	r.then(b.mapChangeWatch.promise, func(result interface{}) interface{} {
+	then(b.mapChangeWatch.promise, func(result *PromiseResult[uint64, uint64]) (*PromiseResult[uint64, uint64], error) {
 		boardChanged = true
-		return nil
-	}, nil)
-	return r.then(newTextsComputed.promise, func(result interface{}) interface{} {
+		return nil, nil
+	}, nil, eventLoop)
+	return then(newTextsComputed.promise, func(result *PromiseResult[string, string]) (*PromiseResult[string, string], error) {
 		// now we can safely mutate the board
 		if boardChanged {
-			return r.mapBoard(b, f)
+			return &PromiseResult[string, string]{nestedPromise: mapBoard(b, f, eventLoop)}, nil
 		}
 
 		changedBoard := false
@@ -79,29 +76,29 @@ func (r *Runtime) mapBoard(b *Board, f func(card string) *Promise) *Promise {
 			b.cards[i] = newText
 		}
 		if changedBoard {
-			r.notifyMap(b)
+			notifyMap(b, eventLoop)
 		}
 
-		return nil
-	}, nil)
+		return nil, nil
+	}, nil, eventLoop)
 }
 
-func (r *Runtime) MapBoardExample() {
+func MapBoardExample(eventLoop *EventLoop) {
 	board := &Board{
 		cards:          []string{"red", "green", "blue"},
-		mapChangeWatch: r.NewDeferred(),
+		mapChangeWatch: NewDeferred[uint64, uint64](eventLoop),
 	}
 
 	fmt.Println("Starting board", board.cards)
 
-	firstMap := r.mapBoard(board, func(card string) *Promise {
-		promise := r.NewPromise(func(resolveFunc func(interface{}), rejectFunc func(interface{})) {})
-		r.resolve(promise, "yellow")
-		return promise
-	})
+	firstMap := mapBoard(board, func(card string) *Promise[string, string] {
+		deferred := NewDeferred[string, string](eventLoop)
+		deferred.resolve(&PromiseResult[string, string]{successValue: "yellow"})
+		return deferred.promise
+	}, eventLoop)
 
-	r.then(firstMap, func(result interface{}) interface{} {
+	then(firstMap, func(result *PromiseResult[string, string]) (*PromiseResult[uint64, uint64], error) {
 		fmt.Println("Ending board", board.cards)
-		return nil
-	}, nil)
+		return nil, nil
+	}, nil, eventLoop)
 }
