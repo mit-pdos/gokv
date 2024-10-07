@@ -70,13 +70,31 @@ func AddPromiseMicrotask(microtask Task, eventLoop *EventLoop) {
 	eventLoop.promisesMicrotaskQueue = append(eventLoop.promisesMicrotaskQueue, microtask)
 }
 
-func AddNextTickMicroTask(microtask Task, eventLoop *EventLoop) {
+// wrapper simply to resemble https://developer.mozilla.org/en-US/docs/Web/API/Window/queueMicrotask
+// still wanted AddPromiseMicrotask for consistent naming
+func queueMicrotask(task Task, eventLoop *EventLoop) {
+	AddPromiseMicrotask(task, eventLoop)
+}
+
+func AddNextTickMicrotask(microtask Task, eventLoop *EventLoop) {
 	eventLoop.nextTickMicrotaskQueue = append(eventLoop.nextTickMicrotaskQueue, microtask)
+}
+
+// wrapper simply to resemble https://nodejs.org/en/learn/asynchronous-work/understanding-processnexttick
+// still wanted AddNextTickMicrotask for consistent naming
+func processNextTick(task Task, eventLoop *EventLoop) {
+	AddNextTickMicrotask(task, eventLoop)
 }
 
 // Add a task to be run in the immediate phase (setImmediate)
 func AddImmediateTask(immediate Task, eventLoop *EventLoop) {
 	eventLoop.immediateQueue = append(eventLoop.immediateQueue, immediate)
+}
+
+// wrapper simply to resemble https://developer.mozilla.org/en-US/docs/Web/API/Window/setImmediate
+// still wanted AddImmediateTask for consistent naming
+func setImmediate(immediate Task, eventLoop *EventLoop) {
+	AddImmediateTask(immediate, eventLoop)
 }
 
 // Non-blocking AddTimerTask using goroutines and a timer channel
@@ -89,6 +107,12 @@ func AddTimerTask(task Task, duration time.Duration, eventLoop *EventLoop) {
 		eventLoop.timerChan <- task
 		Debug("Send to channel in subroutine")
 	}()
+}
+
+// wrapper simply to resemble https://developer.mozilla.org/en-US/docs/Web/API/setTimeout
+// still wanted AddTimerTask for consistent naming
+func setTimeout(task Task, duration time.Duration, eventLoop *EventLoop) {
+	AddTimerTask(task, duration, eventLoop)
 }
 
 // Process microtasks first (includes promises)
@@ -168,6 +192,14 @@ func resolve[S any, F any](p *Promise[S, F], result *PromiseResult[S, F], eventL
 	eventLoop.pendingPromises--
 }
 
+// Convenience method to create a resolved promise
+func PromiseResolved[S any](value S, eventLoop *EventLoop) *Promise[S, uint64] {
+	p := NewPromise(func(resolveFunc func(result *PromiseResult[S, uint64]), rejectFunc func(error)) {
+	}, eventLoop)
+	resolve(p, &PromiseResult[S, uint64]{successValue: value}, eventLoop)
+	return p
+}
+
 // Method to resolve the Promise with a result
 func reject[S any, F any](p *Promise[S, F], err error, eventLoop *EventLoop) {
 	// Once the promise is resolved, schedule all .then callbacks in the microtask queue
@@ -182,6 +214,14 @@ func reject[S any, F any](p *Promise[S, F], err error, eventLoop *EventLoop) {
 
 	Debug("rejecting promise with id %v", p.id)
 	eventLoop.pendingPromises--
+}
+
+// Convenience method to create a rejected promise
+func PromiseRejected(err error, eventLoop *EventLoop) *Promise[uint64, uint64] {
+	p := NewPromise(func(resolveFunc func(result *PromiseResult[uint64, uint64]), rejectFunc func(error)) {
+	}, eventLoop)
+	reject(p, err, eventLoop)
+	return p
 }
 
 func resolveOrReject[S2 any, F2 any](result *PromiseResult[S2, F2], err error, newPromise *Promise[S2, F2], eventLoop *EventLoop) {
@@ -268,6 +308,8 @@ func then[S any, F any, S2 any, F2 any](p *Promise[S, F], onFulfilled func(resul
 func Run(eventLoop *EventLoop) {
 	eventLoop.running = true
 	for eventLoop.running {
+		// TODO Look at node source code to see exactly how microtasks are interleaved through here
+		// multiple reasonable possibilities here
 		Debug("Here %v  %v %v %v %v", len(eventLoop.taskQueue), len(eventLoop.immediateQueue), len(eventLoop.promisesMicrotaskQueue), len(eventLoop.nextTickMicrotaskQueue), eventLoop.activeTimers)
 		// timer phase
 		processTimers(eventLoop)
@@ -320,7 +362,7 @@ func mainEventLoopFunc(eventLoop *EventLoop) interface{} {
 		// Multiple .then handlers
 		then(promise, func(result *PromiseResult[string, string]) (*PromiseResult[string, string], error) {
 			// Add a microtask to the event loop once the promise resolves
-			AddNextTickMicroTask(func() {
+			AddNextTickMicrotask(func() {
 				fmt.Println("Then handler 2:", result)
 			}, eventLoop)
 
@@ -336,7 +378,7 @@ func mainEventLoopFunc(eventLoop *EventLoop) interface{} {
 
 	then(promise, func(result *PromiseResult[string, string]) (*PromiseResult[string, string], error) {
 		// Add another microtask for the second then handler
-		AddNextTickMicroTask(func() {
+		AddNextTickMicrotask(func() {
 			fmt.Println("Then chained microtask handler 4:", result)
 		}, eventLoop)
 

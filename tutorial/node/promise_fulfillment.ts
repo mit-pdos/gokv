@@ -142,6 +142,38 @@ async function jump_between_microtask_queues() {
 
 }
 
+function promise_queueMicrotask_and_nextTick() {
+    setTimeout(() => {
+        process.nextTick(() => {
+            console.log("in next tick callback")
+        })
+        
+        Promise.resolve().then(() => {
+            console.log("in promise callback")
+        })
+
+        queueMicrotask(() => {
+            console.log('in queueMicrotask callback')
+        })
+
+        process.nextTick(() => {
+            console.log("in next tick callback 2")
+        })
+        
+        Promise.resolve().then(() => {
+            console.log("in promise callback 2")
+        })
+
+        queueMicrotask(() => {
+            console.log('in queueMicrotask callback 2')
+            console.log(`
+            This shows that queueMicrotask gives callback the same precedence as promise microtasks,
+            below next tick microtasks
+            `)
+        })
+    }, 0)
+}
+
 // return_value_in_then()
 
 
@@ -149,4 +181,6 @@ async function jump_between_microtask_queues() {
 
 // return_pending_promise_in_then()
 
-jump_between_microtask_queues()
+// jump_between_microtask_queues()
+
+promise_queueMicrotask_and_nextTick()
