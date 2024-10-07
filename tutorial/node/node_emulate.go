@@ -93,19 +93,21 @@ func AddTimerTask(task Task, duration time.Duration, eventLoop *EventLoop) {
 
 // Process microtasks first (includes promises)
 func processMicrotasks(eventLoop *EventLoop) {
-	// TODO See if this should jump between queues before going back to main task queue
-	// first process nexTick queue entirely
-	for len(eventLoop.nextTickMicrotaskQueue) > 0 {
-		microtask := eventLoop.nextTickMicrotaskQueue[0]
-		eventLoop.nextTickMicrotaskQueue = eventLoop.nextTickMicrotaskQueue[1:]
-		microtask()
-	}
+	// keep on processing microtasks until there's none left
+	for len(eventLoop.nextTickMicrotaskQueue) != 0 || len(eventLoop.promisesMicrotaskQueue) != 0 {
+		// first process nexTick queue entirely
+		for len(eventLoop.nextTickMicrotaskQueue) > 0 {
+			microtask := eventLoop.nextTickMicrotaskQueue[0]
+			eventLoop.nextTickMicrotaskQueue = eventLoop.nextTickMicrotaskQueue[1:]
+			microtask()
+		}
 
-	// process promises queue entirely
-	for len(eventLoop.promisesMicrotaskQueue) > 0 {
-		microtask := eventLoop.promisesMicrotaskQueue[0]
-		eventLoop.promisesMicrotaskQueue = eventLoop.promisesMicrotaskQueue[1:]
-		microtask()
+		// process promises queue entirely
+		for len(eventLoop.promisesMicrotaskQueue) > 0 {
+			microtask := eventLoop.promisesMicrotaskQueue[0]
+			eventLoop.promisesMicrotaskQueue = eventLoop.promisesMicrotaskQueue[1:]
+			microtask()
+		}
 	}
 }
 
