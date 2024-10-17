@@ -1,0 +1,5 @@
+syntax = "proto3";
+
+message LockRequest {
+    uint64 id = 1;
+} 
