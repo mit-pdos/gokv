@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+message preparedWrite {
+  // De-asliasing WriteID to uint64
+  uint64 id = 1;
+  // De-asliasing grove_ffi.Address to uint64
+  repeated uint64 checkAddrs = 2;
+}
+
+message recordChucks {
+  // De-asliasing WriteID to uint64
+  uint64 writeId = 1;
+  // De-asliasing grove_ffi.Address to uint64
+  uint64 server = 2;
+  string contentHash = 3;
+  uint64 index = 4;
+}
+
+message finishWrite {
+  // De-asliasing WriteID to uint64
+  uint64 writeId = 1;
+  string keyname = 2;
+}
+
+message chunkHandle {
+  // De-asliasing grove_ffi.Address to uint64
+  uint64 addr = 1;
+  string contentHash = 2;
+}
+
+message preparedRead {
+  // Slice of nested structs
+  repeated chunkHandle handles = 1;
+}
