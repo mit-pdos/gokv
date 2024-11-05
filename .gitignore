@@ -1,3 +1,4 @@
 kvdur
 kvdur_log
 *.prof
+.direnv
