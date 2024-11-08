@@ -3,6 +3,7 @@ package chunk
 import (
 	"github.com/mit-pdos/gokv/connman"
 	"github.com/mit-pdos/gokv/grove_ffi"
+	"github.com/mit-pdos/gokv/tutorial/objectstore/chunk/writechunk_gk"
 )
 
 type WriteID = uint64
@@ -18,8 +19,8 @@ type ClerkPool struct {
 	cm *connman.ConnMan
 }
 
-func (ck *ClerkPool) WriteChunk(addr grove_ffi.Address, args WriteChunkArgs) {
-	req := MarshalWriteChunkArgs(args)
+func (ck *ClerkPool) WriteChunk(addr grove_ffi.Address, args writechunk_gk.S) {
+	req := writechunk_gk.Marshal(&args, make([]byte, 0))
 	reply := new([]byte)
 	ck.cm.CallAtLeastOnce(addr, WriteChunkId, req, reply, 100 /*ms*/)
 }

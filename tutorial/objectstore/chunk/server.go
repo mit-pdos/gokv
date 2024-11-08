@@ -5,7 +5,9 @@ import (
 
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/trusted_hash"
+	"github.com/mit-pdos/gokv/tutorial/objectstore/chunk/writechunk_gk"
 	"github.com/mit-pdos/gokv/tutorial/objectstore/dir"
+	"github.com/mit-pdos/gokv/tutorial/objectstore/dir/recordchunk_gk"
 	"github.com/mit-pdos/gokv/urpc"
 )
 
@@ -16,12 +18,12 @@ type Server struct {
 	me     grove_ffi.Address
 }
 
-func (s *Server) WriteChunk(args WriteChunkArgs) {
+func (s *Server) WriteChunk(args writechunk_gk.S) {
 	content_hash := trusted_hash.Hash(args.Chunk)
 	s.m.Lock()
 	s.chunks[content_hash] = args.Chunk
 	s.m.Unlock()
-	s.dir.RecordChunk(dir.RecordChunkArgs{
+	s.dir.RecordChunk(recordchunk_gk.S{
 		WriteId:     args.WriteId,
 		Server:      s.me,
 		ContentHash: content_hash,
@@ -46,8 +48,8 @@ func StartServer(me grove_ffi.Address, dir_addr grove_ffi.Address) {
 	}
 	handlers := make(map[uint64]func([]byte, *[]byte))
 	handlers[WriteChunkId] = func(req []byte, reply *[]byte) {
-		args := ParseWriteChunkArgs(req)
-		s.WriteChunk(args)
+		args, _ := writechunk_gk.Unmarshal(req)
+		s.WriteChunk(*args)
 		*reply = make([]byte, 0) // TODO: is this needed?
 	}
 	handlers[GetChunkId] = func(req []byte, reply *[]byte) {

@@ -1,4 +1,4 @@
-package recordchucks_gk
+package recordchunk_gk
 
 import (
 	"github.com/tchajed/marshal"

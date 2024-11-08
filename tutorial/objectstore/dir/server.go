@@ -4,6 +4,8 @@ import (
 	"sync"
 
 	"github.com/mit-pdos/gokv/grove_ffi"
+	"github.com/mit-pdos/gokv/tutorial/objectstore/dir/finishwrite_gk"
+	"github.com/mit-pdos/gokv/tutorial/objectstore/dir/recordchunk_gk"
 	"github.com/mit-pdos/gokv/urpc"
 )
 
@@ -42,7 +44,7 @@ func (s *Server) PrepareWrite() PreparedWrite {
 }
 
 // From chunk
-func (s *Server) RecordChunk(args RecordChunkArgs) {
+func (s *Server) RecordChunk(args recordchunk_gk.S) {
 	s.m.Lock()
 	// TODO: check if this write is still ongoing
 	s.ongoing[args.WriteId].servers[args.Index] = ChunkHandle{
@@ -53,7 +55,7 @@ func (s *Server) RecordChunk(args RecordChunkArgs) {
 }
 
 // From chunk
-func (s *Server) FinishWrite(args FinishWriteArgs) {
+func (s *Server) FinishWrite(args finishwrite_gk.S) {
 	s.m.Lock()
 	v := s.ongoing[args.WriteId].servers
 	// TODO: do we want to forget ongoing writes?
@@ -90,13 +92,13 @@ func StartServer(me grove_ffi.Address) {
 		*reply = MarshalPreparedWrite(ret)
 	}
 	handlers[RecordChunkId] = func(req []byte, reply *[]byte) {
-		args := ParseRecordChunkArgs(req)
-		s.RecordChunk(args)
+		args, _ := recordchunk_gk.Unmarshal(req)
+		s.RecordChunk(*args)
 		*reply = make([]byte, 0)
 	}
 	handlers[FinishWriteId] = func(req []byte, reply *[]byte) {
-		args := ParseFinishWriteArgs(req)
-		s.FinishWrite(args)
+		args, _ := finishwrite_gk.Unmarshal(req)
+		s.FinishWrite(*args)
 		*reply = make([]byte, 0)
 	}
 	handlers[PrepareReadId] = func(req []byte, reply *[]byte) {

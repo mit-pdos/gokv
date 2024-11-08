@@ -7,7 +7,7 @@ syntax = "proto3";
 //   repeated uint64 checkAddrs = 2;
 // }
 
-message recordChucks {
+message recordChunk {
   // De-asliasing WriteID to uint64
   uint64 writeId = 1;
   // De-asliasing grove_ffi.Address to uint64
