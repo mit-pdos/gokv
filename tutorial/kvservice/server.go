@@ -2,6 +2,9 @@ package kvservice
 
 import (
 	"github.com/goose-lang/std"
+	"github.com/mit-pdos/gokv/tutorial/kvservice/conditionalput_gk"
+	"github.com/mit-pdos/gokv/tutorial/kvservice/get_gk"
+	"github.com/mit-pdos/gokv/tutorial/kvservice/put_gk"
 	"sync"
 )
 
@@ -21,45 +24,45 @@ func (s *Server) getFreshNum() uint64 {
 	return n
 }
 
-func (s *Server) put(args *putArgs) {
+func (s *Server) put(args *put_gk.S) {
 	s.mu.Lock()
-	_, ok := s.lastReplies[args.opId]
+	_, ok := s.lastReplies[args.OpId]
 	if ok {
 		s.mu.Unlock()
 		return
 	}
-	s.kvs[args.key] = args.val
-	s.lastReplies[args.opId] = ""
+	s.kvs[args.Key] = args.Val
+	s.lastReplies[args.OpId] = ""
 	s.mu.Unlock()
 }
 
-func (s *Server) conditionalPut(args *conditionalPutArgs) string {
+func (s *Server) conditionalPut(args *conditionalput_gk.S) string {
 	s.mu.Lock()
-	ret, ok := s.lastReplies[args.opId]
+	ret, ok := s.lastReplies[args.OpId]
 	if ok {
 		s.mu.Unlock()
 		return ret
 	}
 
 	var ret2 string = ""
-	if s.kvs[args.key] == args.expectedVal {
-		s.kvs[args.key] = args.newVal
+	if s.kvs[args.Key] == args.ExpectedVal {
+		s.kvs[args.Key] = args.NewVal
 		ret2 = "ok"
 	}
-	s.lastReplies[args.opId] = ret2
+	s.lastReplies[args.OpId] = ret2
 	s.mu.Unlock()
 	return ret2
 }
 
-func (s *Server) get(args *getArgs) string {
+func (s *Server) get(args *get_gk.S) string {
 	s.mu.Lock()
-	ret, ok := s.lastReplies[args.opId]
+	ret, ok := s.lastReplies[args.OpId]
 	if ok {
 		s.mu.Unlock()
 		return ret
 	}
-	ret2 := s.kvs[args.key]
-	s.lastReplies[args.opId] = ret2
+	ret2 := s.kvs[args.Key]
+	s.lastReplies[args.OpId] = ret2
 	s.mu.Unlock()
 	return ret2
 }

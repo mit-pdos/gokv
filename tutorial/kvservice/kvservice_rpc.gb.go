@@ -2,6 +2,9 @@ package kvservice
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
+	"github.com/mit-pdos/gokv/tutorial/kvservice/conditionalput_gk"
+	"github.com/mit-pdos/gokv/tutorial/kvservice/get_gk"
+	"github.com/mit-pdos/gokv/tutorial/kvservice/put_gk"
 	"github.com/mit-pdos/gokv/urpc"
 )
 
@@ -27,27 +30,27 @@ func (cl *Client) getFreshNumRpc() (uint64, Error) {
 	return 0, err
 }
 
-func (cl *Client) putRpc(args *putArgs) Error {
+func (cl *Client) putRpc(args *put_gk.S) Error {
 	var reply []byte
-	err := cl.cl.Call(rpcIdPut, encodePutArgs(args), &reply, 100)
+	err := cl.cl.Call(rpcIdPut, put_gk.Marshal(args, make([]byte, 0)), &reply, 100)
 	if err == urpc.ErrNone {
 		return err
 	}
 	return err
 }
 
-func (cl *Client) conditionalPutRpc(args *conditionalPutArgs) (string, Error) {
+func (cl *Client) conditionalPutRpc(args *conditionalput_gk.S) (string, Error) {
 	var reply []byte
-	err := cl.cl.Call(rpcIdConditionalPut, encodeConditionalPutArgs(args), &reply, 100)
+	err := cl.cl.Call(rpcIdConditionalPut, conditionalput_gk.Marshal(args, make([]byte, 0)), &reply, 100)
 	if err == urpc.ErrNone {
 		return string(reply), err
 	}
 	return "", err
 }
 
-func (cl *Client) getRpc(args *getArgs) (string, Error) {
+func (cl *Client) getRpc(args *get_gk.S) (string, Error) {
 	var reply []byte
-	err := cl.cl.Call(rpcIdGet, encodeGetArgs(args), &reply, 100)
+	err := cl.cl.Call(rpcIdGet, get_gk.Marshal(args, make([]byte, 0)), &reply, 100)
 	if err == urpc.ErrNone {
 		return string(reply), err
 	}

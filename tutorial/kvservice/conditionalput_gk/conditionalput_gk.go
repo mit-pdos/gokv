@@ -1,4 +1,4 @@
-package connditionalput_gk
+package conditionalput_gk
 
 import (
 	"github.com/tchajed/marshal"

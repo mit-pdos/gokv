@@ -6,7 +6,7 @@ message put {
   string val = 3;
 }
 
-message connditionalPut {
+message conditionalPut {
   uint64 opId = 1;
   string key = 2;
   string expectedVal = 3;

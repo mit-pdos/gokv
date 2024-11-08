@@ -2,6 +2,9 @@ package kvservice
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
+	"github.com/mit-pdos/gokv/tutorial/kvservice/conditionalput_gk"
+	"github.com/mit-pdos/gokv/tutorial/kvservice/get_gk"
+	"github.com/mit-pdos/gokv/tutorial/kvservice/put_gk"
 	"github.com/mit-pdos/gokv/urpc"
 )
 
@@ -34,10 +37,10 @@ func (ck *Clerk) Put(key string, val string) {
 	for {
 		// TODO: allocate these once, outside the loop. Waiting to do this until
 		// heap has dfrac for convenience.
-		args := &putArgs{
-			opId: opId,
-			key:  key,
-			val:  val,
+		args := &put_gk.S{
+			OpId: opId,
+			Key:  key,
+			Val:  val,
 		}
 		if ck.rpcCl.putRpc(args) == urpc.ErrNone {
 			break
@@ -60,11 +63,11 @@ func (ck *Clerk) ConditionalPut(key string, expectedVal string, newVal string) b
 
 	var ret bool
 	for {
-		args := &conditionalPutArgs{
-			opId:        opId,
-			key:         key,
-			expectedVal: expectedVal,
-			newVal:      newVal,
+		args := &conditionalput_gk.S{
+			OpId:        opId,
+			Key:         key,
+			ExpectedVal: expectedVal,
+			NewVal:      newVal,
 		}
 
 		reply, err := ck.rpcCl.conditionalPutRpc(args)
@@ -91,9 +94,9 @@ func (ck *Clerk) Get(key string) string {
 
 	var ret string
 	for {
-		args := &getArgs{
-			opId: opId,
-			key:  key,
+		args := &get_gk.S{
+			OpId: opId,
+			Key:  key,
 		}
 
 		reply, err := ck.rpcCl.getRpc(args)
