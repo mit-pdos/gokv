@@ -14,13 +14,17 @@ func (l *S) approxSize() uint64 {
 
 func Marshal(l *S, prefix []byte) []byte {
 	var enc = prefix
-	enc = marshal.WriteInt(enc, l.id)
+
+	enc = marshal.WriteInt(enc, l.Id)
+
 	return enc
 }
 
 func Unmarshal(s []byte) (*S, []byte) {
 	l := new(S)
 	var enc = s // Needed for goose compatibility
-	l.id, enc = marshal.ReadInt(enc)
+
+	l.Id, enc = marshal.ReadInt(enc)
+
 	return l, enc
 }
