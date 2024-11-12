@@ -21,12 +21,12 @@ run_grackle () {
     grackle --go-output-path "$1" --go-package "github.com/mit-pdos/gokv/$1" "$1"
 }
 
-ARGS=$(getopt -o "c:g:h" --long "compile-goose:,compile-grackle:,help" -- "$@")
+ARGS=$(getopt -o "c:h" --long "compile-grackle:,help" -- "$@")
 
 eval set -- "$ARGS"
 while [ $# -ge 1 ]; do
     case "$1" in
-        -g | --compile-grackle)
+        -c | --compile-grackle)
             echo "compiling grackle $2"
             compile_grackle "$2"
             shift
@@ -37,7 +37,7 @@ usage: update-grackle.sh [--compile-grackle <grackle repo> | -c <grackle repo>] 
 
 Calls grackle on all go modules known to have proto files for grackle usage.
 
---compile-grackle [-g] : Takes the path to the grackle repository, recompiles and installs grackle
+--compile-grackle [-c] : Takes the path to the grackle repository, recompiles and installs grackle
 EOF
             shift
             exit 0
@@ -58,6 +58,5 @@ grackle_packages=(
 )
 
 for gopkg in "${grackle_packages[@]}"; do
-    echo "$gopkg"
     run_grackle "$gopkg"
 done
