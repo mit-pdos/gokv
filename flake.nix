@@ -17,8 +17,8 @@
         src = pkgs.fetchFromGitHub {
           owner = "goose-lang";
           repo = "goose";
-          rev = "8352f2a82040a814b60e0dd9ac75f09cec3dd619";
-          hash = "sha256-jrcV/J70yzkmbXUiBsYYswqIph1mNQCC2LwvsxFnSSs=";
+          rev = "8d13c771b9a80957089f7c5b0ee2ccf58e5eb06f";
+          sha256 = "1fbqs75ya4as3my2knkaq4m0crdh3n004grw5g5iczvb5h5k06lz";
         };
         vendorHash = "sha256-HCJ8v3TSv4UrkOsRuENWVz5Z7zQ1UsOygx0Mo7MELzY=";
       };
@@ -27,8 +27,8 @@
         src = pkgs.fetchFromGitHub {
           owner = "mjschwenne";
           repo = "grackle";
-          rev = "18dbbd313c299d74895f566aae028eeba62a699a";
-          hash = "sha256-GDo3c3VbRl0FR7sJ2Cvmdau+rBRcxwb/sGAEwV5seFQ=";
+          rev = "d961e849c7737781b6a09a18c9f3cc669178f98a";
+          sha256 = "1385sinsmm1k58blvv2sf951fi7kihka5g7zhg0m8r5ijzy9ac91";
         };
         vendorHash = "sha256-Wk2v0HSAkrzxHJvCfbw6xOn0OQ1xukvYjDxk3c2LmH8=";
         checkPhase = false;
@@ -48,6 +48,11 @@
           protoc-gen-go
           proto-contrib
           protoscope
+
+          # nix tools
+          nix-prefetch-git
+          nix-prefetch
+          update-nix-fetchgit
         ];
 
         shellHook = ''
