@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+message appendArgs {
+  uint64 epoch = 1;
+  // De-aliasing LogEntry to []byte
+  bytes entry = 2;
+  uint64 index = 3;
+}
+
+message configuration {
+  // De-aliasing grove_ffi.Address to uint64
+  repeated uint64 replicas = 1;
+}
+
+message becomeReplicaArgs {
+  uint64 epoch = 1;
+  uint64 startIndex = 2;
+  // De-aliasing LogEntry to []byte
+  repeated bytes log = 3;
+}
+
+message becomePrimaryArgs {
+  uint64 epoch = 1;
+  configuration conf = 2;
+}
+
+message getLogReply {
+  // De-aliasing Error to uint64. Should this be an enum?
+  uint64 err = 1;
+  // De-aliasing LogEntry to []byte
+  repeated bytes log = 2;
+  uint64 startIndex = 3;
+}

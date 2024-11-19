@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+message prepareReply {
+  bool success = 1;
+  // De-alias Entry to uint64
+  repeated uint64 log = 2;
+  uint64 pn = 3;
+}
+
+message proposeArgs {
+  uint64 pn = 1;
+  uint64 commiteIndex = 2;
+  // De-alias Entry to uint64
+  repeated uint64 log = 3;
+}

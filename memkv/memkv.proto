@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+import "../map_marshal/map.proto";
+
+enum Error {
+  ENone = 0;
+  EDontHaveShard = 1;
+}
+
+enum KvOp {
+  KV_FreshCID = 0;
+  KV_Put = 1;
+  KV_Get = 2;
+  KV_Conditional_Put = 3;
+  KV_Ins_Shard = 4;
+  KV_Mov_Shard = 5;
+}
+
+message putRequest {
+  uint64 key = 1;
+  bytes value = 2;
+}
+
+message putReply {
+  Error err = 1;
+}
+
+message getRequest {
+  uint64 key = 1;
+}
+
+message getReply {
+  Error err = 1;
+  bytes value = 2;
+}
+
+message conditionalPutRequest {
+  uint64 key = 1;
+  bytes expectedValue = 2;
+  bytes newValue = 3;
+}
+
+message conditionalPutReply {
+  Error err = 1;
+  bool success = 2;
+}
+
+message installShardRequest {
+  uint64 sid = 1;
+  // This might be tricky since now the proto files aren't standalone
+  mapU64ToBytes kvs = 2;
+}
+
+message moveShardRequest {
+  uint64 sid = 1;
+  // De-alias HostName to uint64
+  uint64 hostName = 2;
+}
+
+message shardMap {
+  repeated uint64 shards = 1;
+}

@@ -1,0 +1,6 @@
+syntax = "proto3";
+
+message cacheValue {
+  string v = 1;
+  uint64 l = 2;
+}

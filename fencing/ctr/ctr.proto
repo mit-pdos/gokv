@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+enum Error {
+  ENone = 0;
+  Estale = 1;
+}
+
+message putArgs {
+  uint64 epoch = 1;
+  uint64 v = 2;
+}
+
+message getArgs {
+  uint64 epoch = 1;
+}
+
+message getReply {
+  Error err = 1;
+  uint64 val = 2;
+}
