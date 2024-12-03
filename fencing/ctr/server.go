@@ -1,16 +1,12 @@
 package ctr
 
 import (
-	"sync"
-
 	"github.com/goose-lang/primitive"
 	"github.com/mit-pdos/gokv/erpc"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc"
 	"github.com/tchajed/marshal"
-
-	"github.com/mit-pdos/gokv/fencing/ctr/getreply_gk"
-	"github.com/mit-pdos/gokv/fencing/ctr/putargs_gk"
+	"sync"
 )
 
 type Server struct {
@@ -21,33 +17,33 @@ type Server struct {
 	lastEpoch uint64
 }
 
-func (s *Server) Put(args *putargs_gk.S) uint64 {
+func (s *Server) Put(args *PutArgs) uint64 {
 	s.mu.Lock()
 	// check if epoch is stale
-	if args.Epoch < s.lastEpoch {
+	if args.epoch < s.lastEpoch {
 		s.mu.Unlock()
 		return EStale
 	}
 
-	s.lastEpoch = args.Epoch
-	s.v = args.V
+	s.lastEpoch = args.epoch
+	s.v = args.v
 
 	s.mu.Unlock()
 	return ENone
 }
 
-func (s *Server) Get(epoch uint64, reply *getreply_gk.S) {
+func (s *Server) Get(epoch uint64, reply *GetReply) {
 	s.mu.Lock()
-	reply.Err = ENone
+	reply.err = ENone
 	// check if epoch is stale
 	if epoch < s.lastEpoch {
 		s.mu.Unlock()
-		reply.Err = EStale
+		reply.err = EStale
 		return
 	}
 	s.lastEpoch = epoch
 
-	reply.Val = s.v
+	reply.val = s.v
 	primitive.Linearize()
 	s.mu.Unlock()
 	return
@@ -63,19 +59,23 @@ func StartServer(me grove_ffi.Address) {
 	handlers[RPC_GET] = func(raw_args []byte, raw_reply *[]byte) {
 		dec := marshal.NewDec(raw_args)
 		epoch := dec.GetInt()
-		reply := new(getreply_gk.S)
+		reply := new(GetReply)
 		s.Get(epoch, reply)
-		*raw_reply = getreply_gk.Marshal(reply, make([]byte, 0))
+		*raw_reply = EncGetReply(reply)
 	}
 
 	handlers[RPC_PUT] = s.e.HandleRequest(func(raw_args []byte, reply *[]byte) {
-		args, _ := putargs_gk.Unmarshal(raw_args)
+		args := DecPutArgs(raw_args)
 		err := s.Put(args)
-		*reply = marshal.WriteInt(make([]byte, 0), err)
+		enc := marshal.NewEnc(8)
+		enc.PutInt(err)
+		*reply = enc.Finish()
 	})
 
 	handlers[RPC_FRESHCID] = func(raw_args []byte, reply *[]byte) {
-		*reply = marshal.WriteInt(make([]byte, 0), s.e.GetFreshCID())
+		enc := marshal.NewEnc(8)
+		enc.PutInt(s.e.GetFreshCID())
+		*reply = enc.Finish()
 	}
 
 	r := urpc.MakeServer(handlers)

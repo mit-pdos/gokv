@@ -15,6 +15,6 @@ message getArgs {
 }
 
 message getReply {
-  uint64 err = 1;
+  Error err = 1;
   uint64 val = 2;
 }
