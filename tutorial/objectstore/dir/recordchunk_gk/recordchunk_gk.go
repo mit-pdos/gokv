@@ -37,7 +37,7 @@ func Unmarshal(s []byte) (*S, []byte) {
 	var contentHashLen uint64
 	var contentHashBytes []byte
 	contentHashLen, enc = marshal.ReadInt(enc)
-	contentHashBytes, enc = marshal.ReadBytes(enc, contentHashLen)
+	contentHashBytes, enc = marshal.ReadBytesCopy(enc, contentHashLen)
 	r.ContentHash = string(contentHashBytes)
 	r.Index, enc = marshal.ReadInt(enc)
 

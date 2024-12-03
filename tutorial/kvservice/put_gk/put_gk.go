@@ -36,12 +36,12 @@ func Unmarshal(s []byte) (*S, []byte) {
 	var keyLen uint64
 	var keyBytes []byte
 	keyLen, enc = marshal.ReadInt(enc)
-	keyBytes, enc = marshal.ReadBytes(enc, keyLen)
+	keyBytes, enc = marshal.ReadBytesCopy(enc, keyLen)
 	p.Key = string(keyBytes)
 	var valLen uint64
 	var valBytes []byte
 	valLen, enc = marshal.ReadInt(enc)
-	valBytes, enc = marshal.ReadBytes(enc, valLen)
+	valBytes, enc = marshal.ReadBytesCopy(enc, valLen)
 	p.Val = string(valBytes)
 
 	return p, enc

@@ -33,7 +33,7 @@ func Unmarshal(s []byte) (*S, []byte) {
 	var chunkLen uint64
 	var chunkBytes []byte
 	chunkLen, enc = marshal.ReadInt(enc)
-	chunkBytes, enc = marshal.ReadBytes(enc, chunkLen)
+	chunkBytes, enc = marshal.ReadBytesCopy(enc, chunkLen)
 	w.Chunk = chunkBytes
 	w.Index, enc = marshal.ReadInt(enc)
 

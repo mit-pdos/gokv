@@ -18,7 +18,7 @@ compile_grackle () {
 # 4. The desired go package matches the directory structure
 # 5. Grackle is on your $PATH
 run_grackle () {
-    grackle --go-output-path "$1" --go-package "github.com/mit-pdos/gokv/$1" "$1"
+    go run github.com/mjschwenne/grackle/cmd/grackle@latest --go-output-path "$1" --go-package "github.com/mit-pdos/gokv/$1" "$1"
 }
 
 ARGS=$(getopt -o "c:h" --long "compile-grackle:,help" -- "$@")
