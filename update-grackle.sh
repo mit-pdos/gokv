@@ -62,6 +62,7 @@ grackle_packages=(
     "tutorial/lockservice"
     "tutorial/objectstore/chunk"
     "tutorial/objectstore/dir"
+    "fencing/ctr"
 )
 
 for gopkg in "${grackle_packages[@]}"; do
