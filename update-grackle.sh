@@ -1,5 +1,13 @@
 #!/usr/bin/env bash
 
+if [[ -z "$IN_NIX_SHELL" ]]; then 
+    # Not in nix shell, use the default go installs
+    GRACKLE="go run github.com/mjschwenne/grackle/cmd/grackle@latest"
+else 
+    # In a nix shell, expect grackle to be on the PATH and use that
+    GRACKLE="grackle"
+fi
+
 # Have I mentioned that I dislike bash? Just look at this arcane
 # and archaic syntax
 compile_grackle () {
@@ -16,9 +24,8 @@ compile_grackle () {
 # 2. We only want to output go code
 # 3. The go code should be output into this directory
 # 4. The desired go package matches the directory structure
-# 5. Grackle is on your $PATH
 run_grackle () {
-    go run github.com/mjschwenne/grackle/cmd/grackle@latest --go-output-path "$1" --go-package "github.com/mit-pdos/gokv/$1" "$1"
+    $GRACKLE --go-output-path "$1" --go-package "github.com/mit-pdos/gokv/$1" "$1"
 }
 
 ARGS=$(getopt -o "c:h" --long "compile-grackle:,help" -- "$@")

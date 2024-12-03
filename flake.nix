@@ -27,8 +27,8 @@
         src = pkgs.fetchFromGitHub {
           owner = "mjschwenne";
           repo = "grackle";
-          rev = "d961e849c7737781b6a09a18c9f3cc669178f98a";
-          sha256 = "1385sinsmm1k58blvv2sf951fi7kihka5g7zhg0m8r5ijzy9ac91";
+          rev = "275fce5626d662527ff987ad61aad61044019fa6";
+          sha256 = "16iw5hqg2hd12mc62wqv5hxqb8jwymbnhyy16zsza0limhmr0aya";
         };
         vendorHash = "sha256-Wk2v0HSAkrzxHJvCfbw6xOn0OQ1xukvYjDxk3c2LmH8=";
         checkPhase = false;
