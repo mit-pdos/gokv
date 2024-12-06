@@ -7,4 +7,5 @@ check:
 	go test ./...
 
 fix:
+	./update-grackle.py
 	gofmt -w -s .
