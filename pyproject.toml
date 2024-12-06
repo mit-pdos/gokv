@@ -1,0 +1,6 @@
+[project]
+name = "gokv"
+version = "2024.0.0"
+dependencies = [
+  "ruff==0.8.1",
+]
