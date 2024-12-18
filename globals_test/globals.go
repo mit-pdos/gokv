@@ -1,0 +1,33 @@
+package main
+
+func foo() uint64 {
+	return 10
+}
+
+var GlobalX uint64 = foo()
+var globalY string
+
+var globalA, globalB = "a", "b"
+
+func other() {
+	globalY = "ok"
+}
+
+func bar() {
+	other()
+	if GlobalX != 10 || globalY != "ok" {
+		panic("bad")
+	}
+}
+
+func init() {
+	GlobalX = GlobalX
+}
+
+func init() {
+	globalY = ""
+}
+
+func main() {
+	bar()
+}
