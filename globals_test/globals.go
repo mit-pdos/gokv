@@ -21,7 +21,7 @@ func bar() {
 }
 
 func init() {
-	GlobalX = GlobalX
+	GlobalX = GlobalX + 0
 }
 
 func init() {
