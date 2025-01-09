@@ -49,7 +49,7 @@ func StartServer(me grove_ffi.Address, dir_addr grove_ffi.Address) {
 	handlers := make(map[uint64]func([]byte, *[]byte))
 	handlers[WriteChunkId] = func(req []byte, reply *[]byte) {
 		args, _ := writechunk_gk.Unmarshal(req)
-		s.WriteChunk(*args)
+		s.WriteChunk(args)
 		*reply = make([]byte, 0) // TODO: is this needed?
 	}
 	handlers[GetChunkId] = func(req []byte, reply *[]byte) {

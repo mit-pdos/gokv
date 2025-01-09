@@ -24,19 +24,19 @@ func (s *Server) getFreshNum() uint64 {
 	return n
 }
 
-func (s *Server) put(args *put_gk.S) {
+func (s *Server) put(args put_gk.S) {
 	s.mu.Lock()
 	_, ok := s.lastReplies[args.OpId]
 	if ok {
 		s.mu.Unlock()
 		return
 	}
-	s.kvs[args.Key] = args.Val
+	s.kvs[args.Key] = args.Value
 	s.lastReplies[args.OpId] = ""
 	s.mu.Unlock()
 }
 
-func (s *Server) conditionalPut(args *conditionalput_gk.S) string {
+func (s *Server) conditionalPut(args conditionalput_gk.S) string {
 	s.mu.Lock()
 	ret, ok := s.lastReplies[args.OpId]
 	if ok {
@@ -54,7 +54,7 @@ func (s *Server) conditionalPut(args *conditionalput_gk.S) string {
 	return ret2
 }
 
-func (s *Server) get(args *get_gk.S) string {
+func (s *Server) get(args get_gk.S) string {
 	s.mu.Lock()
 	ret, ok := s.lastReplies[args.OpId]
 	if ok {

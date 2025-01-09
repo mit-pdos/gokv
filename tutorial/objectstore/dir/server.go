@@ -93,12 +93,12 @@ func StartServer(me grove_ffi.Address) {
 	}
 	handlers[RecordChunkId] = func(req []byte, reply *[]byte) {
 		args, _ := recordchunk_gk.Unmarshal(req)
-		s.RecordChunk(*args)
+		s.RecordChunk(args)
 		*reply = make([]byte, 0)
 	}
 	handlers[FinishWriteId] = func(req []byte, reply *[]byte) {
 		args, _ := finishwrite_gk.Unmarshal(req)
-		s.FinishWrite(*args)
+		s.FinishWrite(args)
 		*reply = make([]byte, 0)
 	}
 	handlers[PrepareReadId] = func(req []byte, reply *[]byte) {

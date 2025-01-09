@@ -20,7 +20,7 @@ type ClerkPool struct {
 }
 
 func (ck *ClerkPool) WriteChunk(addr grove_ffi.Address, args writechunk_gk.S) {
-	req := writechunk_gk.Marshal(&args, make([]byte, 0))
+	req := writechunk_gk.Marshal(args, make([]byte, 0))
 	reply := new([]byte)
 	ck.cm.CallAtLeastOnce(addr, WriteChunkId, req, reply, 100 /*ms*/)
 }

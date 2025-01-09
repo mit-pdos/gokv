@@ -30,7 +30,7 @@ func (cl *Client) getFreshNumRpc() (uint64, Error) {
 	return 0, err
 }
 
-func (cl *Client) putRpc(args *put_gk.S) Error {
+func (cl *Client) putRpc(args put_gk.S) Error {
 	var reply []byte
 	err := cl.cl.Call(rpcIdPut, put_gk.Marshal(args, make([]byte, 0)), &reply, 100)
 	if err == urpc.ErrNone {
@@ -39,7 +39,7 @@ func (cl *Client) putRpc(args *put_gk.S) Error {
 	return err
 }
 
-func (cl *Client) conditionalPutRpc(args *conditionalput_gk.S) (string, Error) {
+func (cl *Client) conditionalPutRpc(args conditionalput_gk.S) (string, Error) {
 	var reply []byte
 	err := cl.cl.Call(rpcIdConditionalPut, conditionalput_gk.Marshal(args, make([]byte, 0)), &reply, 100)
 	if err == urpc.ErrNone {
@@ -48,7 +48,7 @@ func (cl *Client) conditionalPutRpc(args *conditionalput_gk.S) (string, Error) {
 	return "", err
 }
 
-func (cl *Client) getRpc(args *get_gk.S) (string, Error) {
+func (cl *Client) getRpc(args get_gk.S) (string, Error) {
 	var reply []byte
 	err := cl.cl.Call(rpcIdGet, get_gk.Marshal(args, make([]byte, 0)), &reply, 100)
 	if err == urpc.ErrNone {
