@@ -38,9 +38,9 @@ func (ck *Clerk) Put(key string, val string) {
 		// TODO: allocate these once, outside the loop. Waiting to do this until
 		// heap has dfrac for convenience.
 		args := put_gk.S{
-			OpId: opId,
-			Key:  key,
-			Value:  val,
+			OpId:  opId,
+			Key:   key,
+			Value: val,
 		}
 		if ck.rpcCl.putRpc(args) == urpc.ErrNone {
 			break
