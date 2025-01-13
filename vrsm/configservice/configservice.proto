@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+message config {
+  repeated uint64 addrs = 1;
+}
+
+message state {
+  uint64 epoch = 1;
+  uint64 reservedEpoch = 2;
+  uint64 leaseExpiration = 3;
+  bool wantLeaseToExpire = 4;
+  // De-alias grove_ffi.Address to uint64
+  repeated uint64 config = 5;
+}

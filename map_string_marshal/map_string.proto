@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+message u64ToString {
+  uint64 k = 1;
+  string v = 2;
+}
+
+message mapU64ToString {
+  repeated u64ToString entries = 1;
+}

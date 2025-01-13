@@ -2,6 +2,7 @@ package lockservice
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
+	"github.com/mit-pdos/gokv/tutorial/lockservice/lockrequest_gk"
 	"github.com/mit-pdos/gokv/urpc"
 )
 
@@ -29,7 +30,7 @@ func (cl *Client) getFreshNum() (uint64, Error) {
 
 func (cl *Client) tryAcquire(id uint64) (uint64, Error) {
 	var reply []byte
-	args := EncodeUint64(id)
+	args := lockrequest_gk.Marshal(lockrequest_gk.S{Id: id}, []byte{})
 	err := cl.cl.Call(RPC_TRY_ACQUIRE, args, &reply, 100)
 	if err == urpc.ErrNone {
 		return DecodeUint64(reply), err
@@ -39,7 +40,7 @@ func (cl *Client) tryAcquire(id uint64) (uint64, Error) {
 
 func (cl *Client) release(id uint64) Error {
 	var reply []byte
-	args := EncodeUint64(id)
+	args := lockrequest_gk.Marshal(lockrequest_gk.S{Id: id}, []byte{})
 	return cl.cl.Call(RPC_RELEASE, args, &reply, 100)
 }
 

@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+enum Error {
+  ENone = 0;
+  EEpochStale = 1;
+  EOutOfOrder = 2;
+  ETimeout = 3;
+  ENotLeader = 4;
+}
+
+message applyAsFollowerArgs {
+  uint64 epoch = 1;
+  uint64 nextIndex = 2;
+  bytes state = 3;
+}
+
+message applyAsFollowerReply {
+  Error err = 1;
+}
+
+message enterNewEpochArgs {
+  uint64 epoch = 1;
+}
+
+message enterNewEpochReply {
+  Error err = 1;
+  uint64 accpetedEpoch = 2;
+  uint64 nextIndex = 3;
+  bytes state = 4;
+}
+
+message applyReply {
+  Error err = 1;
+  bytes ret = 2;
+}
+
+message paxosState {
+  uint64 epoch = 1;
+  uint64 acceptedEpoch = 2;
+  uint64 nextIndex = 3;
+  bytes state = 4;
+  bool isLeader = 5;
+}

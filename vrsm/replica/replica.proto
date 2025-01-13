@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+import "../e/error.proto";
+
+message applyAsBackupArgs {
+  uint64 epoch = 1;
+  uint64 index = 2;
+  bytes op = 3;
+}
+
+message setStateArgs {
+  uint64 epoch = 1;
+  uint64 nextIndex = 2;
+  uint64 committedNextIndex = 3;
+  bytes state = 4;
+}
+
+message getStateArgs {
+  uint64 epoch = 1;
+}
+
+message getStateReply {
+  Error err = 1;
+  uint64 nextIndex = 2;
+  uint64 committedNextIndex = 3;
+  bytes state = 4;
+}
+
+message becomePrimaryArgs {
+  uint64 epoch = 1;
+  // De-alias grove_ffi.Address to uint64
+  repeated uint64 replicas = 2;
+}
+
+message applyReply {
+  Error err = 1;
+  bytes reply = 2;
+}
+
+message IncreaseCommitArgs {
+  uint64 v = 1;
+}

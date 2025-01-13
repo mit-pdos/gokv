@@ -3,6 +3,8 @@ package dir
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/reconnectclient"
+	"github.com/mit-pdos/gokv/tutorial/objectstore/dir/finishwrite_gk"
+	"github.com/mit-pdos/gokv/tutorial/objectstore/dir/recordchunk_gk"
 )
 
 type WriteID = uint64
@@ -33,15 +35,15 @@ func (ck *Clerk) PrepareWrite() PreparedWrite {
 }
 
 // From chunk
-func (ck *Clerk) RecordChunk(args RecordChunkArgs) {
-	req := MarshalRecordChunkArgs(args)
+func (ck *Clerk) RecordChunk(args recordchunk_gk.S) {
+	req := recordchunk_gk.Marshal(args, make([]byte, 0))
 	reply := new([]byte)
 	ck.client.Call(RecordChunkId, req, reply, 100 /*ms*/)
 }
 
 // From chunk
-func (ck *Clerk) FinishWrite(args FinishWriteArgs) {
-	req := MarshalFinishWriteArgs(args)
+func (ck *Clerk) FinishWrite(args finishwrite_gk.S) {
+	req := finishwrite_gk.Marshal(args, make([]byte, 0))
 	reply := new([]byte)
 	ck.client.Call(FinishWriteId, req, reply, 100 /*ms*/)
 }

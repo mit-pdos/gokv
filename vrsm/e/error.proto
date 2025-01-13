@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+enum Err {
+  None = 0;
+  Stale = 1;
+  OutOfOrder = 2;
+  Timeout = 3;
+  EmptyConfig = 4;
+  NotLeader = 5;
+  Sealed = 6;
+  LeaseExpired = 7;
+  Leased = 8;
+}
+
+message Error {
+  Err error = 1;
+}
