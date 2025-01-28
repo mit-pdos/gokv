@@ -14,7 +14,7 @@ type S struct {
 	Key  string
 }
 
-func Marshal(g S, prefix []byte) []byte {
+func Marshal(prefix []byte, g S) []byte {
 	var enc = prefix
 
 	enc = marshal.WriteInt(enc, g.OpId)

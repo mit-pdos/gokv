@@ -14,7 +14,7 @@ type S struct {
 	ContentHash string
 }
 
-func Marshal(c S, prefix []byte) []byte {
+func Marshal(prefix []byte, c S) []byte {
 	var enc = prefix
 
 	enc = marshal.WriteInt(enc, c.Addr)
