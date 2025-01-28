@@ -30,7 +30,7 @@ func MakeAddress(ipStr string) uint64 {
 	}
 	ip := make([]byte, 4)
 	for i, s := range ss {
-		a, err := strconv.ParseInt(s, 10, 8)
+		a, err := strconv.ParseUint(s, 10, 8)
 		if err != nil {
 			panic(err)
 		}

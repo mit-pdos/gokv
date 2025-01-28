@@ -15,7 +15,18 @@ type Queue struct {
 func NewQueue(queue_size uint64) Queue {
 	lock := new(sync.Mutex)
 	return Queue{
-		queue: make([]uint64, queue_size, queue_size),
+		queue: make([]uint64, queue_size),
+		cond:  sync.NewCond(lock),
+		lock:  lock,
+		first: 0,
+		count: 0,
+	}
+}
+
+func NewQueueRef(queue_size uint64) *Queue {
+	lock := new(sync.Mutex)
+	return &Queue{
+		queue: make([]uint64, queue_size),
 		cond:  sync.NewCond(lock),
 		lock:  lock,
 		first: 0,
