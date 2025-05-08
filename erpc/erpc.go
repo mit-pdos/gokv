@@ -4,7 +4,7 @@ package erpc
 import (
 	"sync"
 
-	"github.com/goose-lang/std/std_core"
+	"github.com/goose-lang/std"
 	"github.com/tchajed/marshal"
 )
 
@@ -45,7 +45,7 @@ func (t *Server) GetFreshCID() uint64 {
 	t.mu.Lock()
 	r := t.nextCID
 	// Overflowing a 64bit counter will take a while, assume it dos not happen
-	t.nextCID = std_core.SumAssumeNoOverflow(t.nextCID, 1)
+	t.nextCID = std.SumAssumeNoOverflow(t.nextCID, 1)
 	t.mu.Unlock()
 	return r
 }
@@ -66,7 +66,7 @@ type Client struct {
 
 func (c *Client) NewRequest(request []byte) []byte {
 	seq := c.nextSeq
-	c.nextSeq = std_core.SumAssumeNoOverflow(c.nextSeq, 1)
+	c.nextSeq = std.SumAssumeNoOverflow(c.nextSeq, 1)
 
 	data1 := make([]byte, 0, 8+8+len(request))
 	data2 := marshal.WriteInt(data1, c.cid)
