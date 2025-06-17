@@ -18,8 +18,8 @@ type chanstate[T any] struct {
 }
 
 type Channel[T any] struct {
-	mu    sync.Mutex
-	cond  *sync.Cond
+	mu   sync.Mutex
+	cond *sync.Cond
 	chanstate[T]
 }
 
@@ -38,7 +38,7 @@ func (ch *Channel[T]) Len() int {
 	}
 	ch.mu.Lock()
 	defer ch.mu.Unlock()
-	return min(max(len(ch.sent) - ch.received, 0), ch.cap)
+	return min(max(len(ch.sent)-ch.received, 0), ch.cap)
 }
 
 func NewChan[T any](cap int) *Channel[T] {
@@ -49,7 +49,8 @@ func NewChan[T any](cap int) *Channel[T] {
 }
 
 func (ch *Channel[T]) Send(v T) {
-	for ch == nil {}
+	for ch == nil {
+	}
 	ch.mu.Lock()
 	assert(!ch.closed, "send on closed channel")
 	i := int(len(ch.sent))
@@ -63,7 +64,8 @@ func (ch *Channel[T]) Send(v T) {
 }
 
 func (ch *Channel[T]) Receive() (T, bool) {
-	for ch == nil {}
+	for ch == nil {
+	}
 	ch.mu.Lock()
 	defer ch.mu.Unlock()
 	i := ch.received
@@ -99,7 +101,7 @@ func (ch *Channel[T]) NonblockingSend(v T) bool {
 	ch.mu.Lock()
 	defer ch.mu.Unlock()
 	assert(!ch.closed, "send on closed channel")
-	if len(ch.sent) < ch.received + ch.cap {
+	if len(ch.sent) < ch.received+ch.cap {
 		ch.sent = append(ch.sent, v)
 		ch.cond.Broadcast()
 		return true
@@ -118,7 +120,7 @@ func (ch *Channel[T]) NonblockingReceive() (bool, T, bool) {
 	if ch.received < len(ch.sent) {
 		ch.received++
 		ch.cond.Broadcast()
-		return true, ch.sent[ch.received - 1], true
+		return true, ch.sent[ch.received-1], true
 	} else if ch.closed {
 		return true, zero, false
 	} else {

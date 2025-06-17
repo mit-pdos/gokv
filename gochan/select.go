@@ -40,20 +40,20 @@ func Select(blocking bool, cases ...SelectCase) int {
 
 type CaseSend[T any] struct {
 	ch *Channel[T]
-	v T
+	v  T
 }
 
 func NewCaseSend[T any](ch *Channel[T], v T) *CaseSend[T] {
 	return &CaseSend[T]{
 		ch: ch,
-		v: v,
+		v:  v,
 	}
 }
 
 type CaseReceive[T any] struct {
-	ch *Channel[T]
+	ch  *Channel[T]
 	Val T
-	Ok bool
+	Ok  bool
 }
 
 func NewCaseReceive[T any](ch *Channel[T]) *CaseReceive[T] {
