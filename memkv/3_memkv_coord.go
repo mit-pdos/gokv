@@ -1,10 +1,13 @@
 package memkv
 
 import (
-	"github.com/mit-pdos/gokv/connman"
-	"github.com/mit-pdos/gokv/urpc"
 	"log"
 	"sync"
+
+	"github.com/mit-pdos/gokv/connman"
+	"github.com/mit-pdos/gokv/memkv/shardmap_gk"
+	"github.com/mit-pdos/gokv/urpc"
+	"github.com/tchajed/marshal"
 )
 
 const COORD_ADD = uint64(1)
@@ -12,7 +15,7 @@ const COORD_GET = uint64(2)
 
 type KVCoord struct {
 	mu          *sync.Mutex
-	shardMap    []HostName          // maps from sid -> host that currently owns it
+	shardMap    shardmap_gk.S       // maps from sid -> host that currently owns it
 	hostShards  map[HostName]uint64 // maps from host -> num shard that it currently has
 	shardClerks *ShardClerkSet
 }
@@ -34,7 +37,7 @@ func (c *KVCoord) AddServerRPC(newhost HostName) {
 	numShardCeil := NSHARD/numHosts + 1
 	var nf_left uint64
 	nf_left = numHosts - (NSHARD - numHosts*NSHARD/numHosts) // number of servers that will have one fewer shard than other servers
-	for sid, host := range c.shardMap {
+	for sid, host := range c.shardMap.Shards {
 		n := c.hostShards[host]
 		if n > numShardFloor {
 			if n == numShardCeil {
@@ -44,7 +47,7 @@ func (c *KVCoord) AddServerRPC(newhost HostName) {
 					c.shardClerks.GetClerk(host).MoveShard(uint64(sid), newhost)
 					c.hostShards[host] = n - 1
 					c.hostShards[newhost] += 1
-					c.shardMap[sid] = newhost
+					c.shardMap.Shards[sid] = newhost
 				}
 				// else, we have already made enough hosts have the minimum number of shard servers
 			} else {
@@ -52,7 +55,7 @@ func (c *KVCoord) AddServerRPC(newhost HostName) {
 				c.shardClerks.GetClerk(host).MoveShard(uint64(sid), newhost)
 				c.hostShards[host] = n - 1
 				c.hostShards[newhost] += 1
-				c.shardMap[sid] = newhost
+				c.shardMap.Shards[sid] = newhost
 			}
 		}
 	}
@@ -63,7 +66,7 @@ func (c *KVCoord) AddServerRPC(newhost HostName) {
 
 func (c *KVCoord) GetShardMapRPC(_ []byte, rep *[]byte) {
 	c.mu.Lock()
-	*rep = encodeShardMap(&c.shardMap)
+	*rep = shardmap_gk.Marshal(make([]byte, 0), c.shardMap)
 	c.mu.Unlock()
 }
 
@@ -71,9 +74,9 @@ func MakeKVCoordServer(initserver HostName) *KVCoord {
 	s := new(KVCoord)
 	s.mu = new(sync.Mutex)
 
-	s.shardMap = make([]HostName, NSHARD)
+	s.shardMap.Shards = make([]HostName, NSHARD)
 	for i := uint64(0); i < NSHARD; i++ {
-		s.shardMap[i] = initserver
+		s.shardMap.Shards[i] = initserver
 	}
 	s.hostShards = make(map[HostName]uint64)
 	s.hostShards[initserver] = NSHARD
@@ -84,7 +87,7 @@ func MakeKVCoordServer(initserver HostName) *KVCoord {
 func (c *KVCoord) Start(host HostName) {
 	handlers := make(map[uint64]func([]byte, *[]byte))
 	handlers[COORD_ADD] = func(rawReq []byte, rawRep *[]byte) {
-		s := DecodeUint64(rawReq)
+		s, _ := marshal.ReadInt(rawReq)
 		c.AddServerRPC(s)
 	}
 	handlers[COORD_GET] = c.GetShardMapRPC

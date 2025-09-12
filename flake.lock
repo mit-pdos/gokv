@@ -61,11 +61,11 @@
         "perennial": "perennial"
       },
       "locked": {
-        "lastModified": 1757616987,
-        "narHash": "sha256-BFWEOvbd5lwVCqAoMT9JhaBeZ7wWQetAokJkpS2s1Xw=",
+        "lastModified": 1757695289,
+        "narHash": "sha256-bdsSVXQZBkiHJc9NXZlNvz8JkRFiB0Kdoy7rVsqOPSs=",
         "owner": "mjschwenne",
         "repo": "grackle",
-        "rev": "70a3fa5cf6c70fcec2c004c445e78d2a12a410bf",
+        "rev": "9dcbf3e1240874345ae8d3e1a077129a19f37504",
         "type": "github"
       },
       "original": {

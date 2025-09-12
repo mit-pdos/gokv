@@ -1,11 +1,22 @@
 package memkv
 
 import (
+	"sync"
+
 	"github.com/goose-lang/std"
 	"github.com/mit-pdos/gokv/connman"
 	"github.com/mit-pdos/gokv/erpc"
+	"github.com/mit-pdos/gokv/memkv/conditionalputreply_gk"
+	"github.com/mit-pdos/gokv/memkv/conditionalputrequest_gk"
+	"github.com/mit-pdos/gokv/memkv/error_gk"
+	"github.com/mit-pdos/gokv/memkv/getreply_gk"
+	"github.com/mit-pdos/gokv/memkv/getrequest_gk"
+	"github.com/mit-pdos/gokv/memkv/kvop_gk"
+	"github.com/mit-pdos/gokv/memkv/moveshardrequest_gk"
+	"github.com/mit-pdos/gokv/memkv/putreply_gk"
+	"github.com/mit-pdos/gokv/memkv/putrequest_gk"
 	"github.com/mit-pdos/gokv/urpc"
-	"sync"
+	"github.com/tchajed/marshal"
 )
 
 type KvMap = map[uint64][]byte
@@ -27,41 +38,41 @@ type PutArgs struct {
 	Value ValueType
 }
 
-func (s *KVShardServer) put_inner(args *PutRequest, reply *PutReply) {
+func (s *KVShardServer) put_inner(args *putrequest_gk.S, reply *putreply_gk.S) {
 	sid := shardOf(args.Key)
 
 	if s.shardMap[sid] == true {
 		s.kvss[sid][args.Key] = args.Value // give ownership of the slice to the server
-		reply.Err = ENone
+		reply.Err = error_gk.ENone
 	} else {
-		reply.Err = EDontHaveShard
+		reply.Err = error_gk.EDontHaveShard
 	}
 }
 
-func (s *KVShardServer) PutRPC(args *PutRequest, reply *PutReply) {
+func (s *KVShardServer) PutRPC(args *putrequest_gk.S, reply *putreply_gk.S) {
 	s.mu.Lock()
 	s.put_inner(args, reply)
 	s.mu.Unlock()
 }
 
-func (s *KVShardServer) get_inner(args *GetRequest, reply *GetReply) {
+func (s *KVShardServer) get_inner(args *getrequest_gk.S, reply *getreply_gk.S) {
 	sid := shardOf(args.Key)
 
 	if s.shardMap[sid] == true {
 		reply.Value = s.kvss[sid][args.Key]
-		reply.Err = ENone
+		reply.Err = error_gk.ENone
 	} else {
-		reply.Err = EDontHaveShard
+		reply.Err = error_gk.EDontHaveShard
 	}
 }
 
-func (s *KVShardServer) GetRPC(args *GetRequest, reply *GetReply) {
+func (s *KVShardServer) GetRPC(args *getrequest_gk.S, reply *getreply_gk.S) {
 	s.mu.Lock()
 	s.get_inner(args, reply)
 	s.mu.Unlock()
 }
 
-func (s *KVShardServer) conditional_put_inner(args *ConditionalPutRequest, reply *ConditionalPutReply) {
+func (s *KVShardServer) conditional_put_inner(args *conditionalputrequest_gk.S, reply *conditionalputreply_gk.S) {
 	sid := shardOf(args.Key)
 
 	if s.shardMap[sid] == true {
@@ -71,13 +82,13 @@ func (s *KVShardServer) conditional_put_inner(args *ConditionalPutRequest, reply
 			m[args.Key] = args.NewValue // give ownership of the slice to the server
 		}
 		reply.Success = equal
-		reply.Err = ENone
+		reply.Err = error_gk.ENone
 	} else {
-		reply.Err = EDontHaveShard
+		reply.Err = error_gk.EDontHaveShard
 	}
 }
 
-func (s *KVShardServer) ConditionalPutRPC(args *ConditionalPutRequest, reply *ConditionalPutReply) {
+func (s *KVShardServer) ConditionalPutRPC(args *conditionalputrequest_gk.S, reply *conditionalputreply_gk.S) {
 	s.mu.Lock()
 	s.conditional_put_inner(args, reply)
 	s.mu.Unlock()
@@ -102,7 +113,7 @@ func (s *KVShardServer) InstallShardRPC(args *InstallShardRequest) {
 	s.mu.Unlock()
 }
 
-func (s *KVShardServer) MoveShardRPC(args *MoveShardRequest) {
+func (s *KVShardServer) MoveShardRPC(args *moveshardrequest_gk.S) {
 	s.mu.Lock()
 	_, ok := s.peers[args.Dst]
 	if !ok {
@@ -150,39 +161,43 @@ func (mkv *KVShardServer) Start(host HostName) {
 	handlers := make(map[uint64]func([]byte, *[]byte))
 	erpc := mkv.erpc
 
-	handlers[KV_FRESHCID] = func(rawReq []byte, rawReply *[]byte) {
-		*rawReply = EncodeUint64(mkv.GetCIDRPC())
+	handlers[uint64(kvop_gk.KV_FRESHCID)] = func(rawReq []byte, rawReply *[]byte) {
+		*rawReply = marshal.WriteInt(make([]byte, 8), mkv.GetCIDRPC())
 	}
 
 	// TODO: for the proofs it'd be much cleaner if marshaling (and really as much as possible)
 	// was inside a separate function, rather than done inline here.
-	handlers[KV_PUT] = erpc.HandleRequest(func(rawReq []byte, rawReply *[]byte) {
-		rep := new(PutReply)
-		mkv.PutRPC(DecodePutRequest(rawReq), rep)
-		*rawReply = EncodePutReply(rep)
+	handlers[uint64(kvop_gk.KV_PUT)] = erpc.HandleRequest(func(rawReq []byte, rawReply *[]byte) {
+		rep := new(putreply_gk.S)
+		req, _ := putrequest_gk.Unmarshal(rawReq)
+		mkv.PutRPC(&req, rep)
+		*rawReply = putreply_gk.Marshal(make([]byte, 0), *rep)
 	})
 
-	handlers[KV_GET] = erpc.HandleRequest(func(rawReq []byte, rawReply *[]byte) {
-		rep := new(GetReply)
-		mkv.GetRPC(DecodeGetRequest(rawReq), rep)
-		*rawReply = EncodeGetReply(rep)
+	handlers[uint64(kvop_gk.KV_GET)] = erpc.HandleRequest(func(rawReq []byte, rawReply *[]byte) {
+		rep := new(getreply_gk.S)
+		req, _ := getrequest_gk.Unmarshal(rawReq)
+		mkv.GetRPC(&req, rep)
+		*rawReply = getreply_gk.Marshal(make([]byte, 0), *rep)
 	})
 
-	handlers[KV_CONDITIONAL_PUT] = erpc.HandleRequest(func(rawReq []byte, rawReply *[]byte) {
-		rep := new(ConditionalPutReply)
-		mkv.ConditionalPutRPC(DecodeConditionalPutRequest(rawReq), rep)
-		*rawReply = EncodeConditionalPutReply(rep)
+	handlers[uint64(kvop_gk.KV_CONDITIONAL_PUT)] = erpc.HandleRequest(func(rawReq []byte, rawReply *[]byte) {
+		rep := new(conditionalputreply_gk.S)
+		req, _ := conditionalputrequest_gk.Unmarshal(rawReq)
+		mkv.ConditionalPutRPC(&req, rep)
+		*rawReply = conditionalputreply_gk.Marshal(make([]byte, 0), *rep)
 	})
 
-	handlers[KV_INS_SHARD] = erpc.HandleRequest(func(rawReq []byte, rawReply *[]byte) {
+	handlers[uint64(kvop_gk.KV_INS_SHARD)] = erpc.HandleRequest(func(rawReq []byte, rawReply *[]byte) {
 		// NOTE: decoding, i.e. construction of in-memory map, happens before we get
 		// the lock (but we do hold the erpc lock already...)
 		mkv.InstallShardRPC(decodeInstallShardRequest(rawReq))
 		*rawReply = make([]byte, 0)
 	})
 
-	handlers[KV_MOV_SHARD] = func(rawReq []byte, rawReply *[]byte) {
-		mkv.MoveShardRPC(decodeMoveShardRequest(rawReq))
+	handlers[uint64(kvop_gk.KV_MOV_SHARD)] = func(rawReq []byte, rawReply *[]byte) {
+		req, _ := moveshardrequest_gk.Unmarshal(rawReq)
+		mkv.MoveShardRPC(&req)
 		*rawReply = make([]byte, 0)
 	}
 	s := urpc.MakeServer(handlers)
