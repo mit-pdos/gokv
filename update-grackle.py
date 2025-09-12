@@ -7,6 +7,7 @@ import subprocess as sp
 grackle_packages = [
     "cachekv",
     "memkv",
+    "paxi/comulti",
     "tutorial/kvservice",
     "tutorial/lockservice",
     "tutorial/objectstore/chunk",
