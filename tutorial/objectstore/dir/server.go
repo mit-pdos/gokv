@@ -4,20 +4,23 @@ import (
 	"sync"
 
 	"github.com/mit-pdos/gokv/grove_ffi"
+	"github.com/mit-pdos/gokv/tutorial/objectstore/dir/chunkhandle_gk"
 	"github.com/mit-pdos/gokv/tutorial/objectstore/dir/finishwrite_gk"
+	"github.com/mit-pdos/gokv/tutorial/objectstore/dir/preparedread_gk"
+	"github.com/mit-pdos/gokv/tutorial/objectstore/dir/preparedwrite_gk"
 	"github.com/mit-pdos/gokv/tutorial/objectstore/dir/recordchunk_gk"
 	"github.com/mit-pdos/gokv/urpc"
 )
 
 type PartialValue struct {
 	// map from chunk index to where the data lives
-	servers map[uint64]ChunkHandle
+	servers map[uint64]chunkhandle_gk.S
 	// TODO: maybe also track length as metadata?
 }
 
 type Value struct {
 	// list of where each chunk lives
-	servers []ChunkHandle
+	servers []chunkhandle_gk.S
 }
 
 type Server struct {
@@ -29,13 +32,13 @@ type Server struct {
 }
 
 // From client
-func (s *Server) PrepareWrite() PreparedWrite {
+func (s *Server) PrepareWrite() preparedwrite_gk.S {
 	s.m.Lock()
 	id := s.nextWriteId
 	s.nextWriteId += 1
-	s.ongoing[id] = PartialValue{servers: make(map[uint64]ChunkHandle)}
+	s.ongoing[id] = PartialValue{servers: make(map[uint64]chunkhandle_gk.S)}
 	s.m.Unlock()
-	return PreparedWrite{
+	return preparedwrite_gk.S{
 		Id: id,
 		// TODO: come up with some chunk servers to return
 		// (writes will not work without this)
@@ -47,7 +50,7 @@ func (s *Server) PrepareWrite() PreparedWrite {
 func (s *Server) RecordChunk(args recordchunk_gk.S) {
 	s.m.Lock()
 	// TODO: check if this write is still ongoing
-	s.ongoing[args.WriteId].servers[args.Index] = ChunkHandle{
+	s.ongoing[args.WriteId].servers[args.Index] = chunkhandle_gk.S{
 		Addr:        args.Server,
 		ContentHash: args.ContentHash,
 	}
@@ -61,7 +64,7 @@ func (s *Server) FinishWrite(args finishwrite_gk.S) {
 	// TODO: do we want to forget ongoing writes?
 
 	numChunks := uint64(len(v))
-	var servers = make([]ChunkHandle, 0)
+	var servers = make([]chunkhandle_gk.S, 0)
 	for i := uint64(0); i < numChunks; i++ {
 		servers = append(servers, v[i])
 	}
@@ -70,13 +73,13 @@ func (s *Server) FinishWrite(args finishwrite_gk.S) {
 	s.m.Unlock()
 }
 
-func (s *Server) PrepareRead(keyname string) PreparedRead {
+func (s *Server) PrepareRead(keyname string) preparedread_gk.S {
 	s.m.Lock()
 	// need to convert map to slice
 	// (the map should be total because it is in s.data)
 	servers := s.data[keyname].servers
 	s.m.Unlock()
-	return PreparedRead{Handles: servers}
+	return preparedread_gk.S{Handles: servers}
 }
 
 func StartServer(me grove_ffi.Address) {
@@ -89,7 +92,7 @@ func StartServer(me grove_ffi.Address) {
 	handlers := make(map[uint64]func([]byte, *[]byte))
 	handlers[PrepareWriteId] = func(_req []byte, reply *[]byte) {
 		ret := s.PrepareWrite()
-		*reply = MarshalPreparedWrite(ret)
+		*reply = preparedwrite_gk.Marshal(make([]byte, 0), ret)
 	}
 	handlers[RecordChunkId] = func(req []byte, reply *[]byte) {
 		args, _ := recordchunk_gk.Unmarshal(req)
@@ -104,7 +107,7 @@ func StartServer(me grove_ffi.Address) {
 	handlers[PrepareReadId] = func(req []byte, reply *[]byte) {
 		args := string(req)
 		ret := s.PrepareRead(args)
-		*reply = MarshalPreparedRead(ret)
+		*reply = preparedread_gk.Marshal(make([]byte, 0), ret)
 	}
 	server := urpc.MakeServer(handlers)
 	server.Serve(me)

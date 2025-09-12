@@ -4,7 +4,7 @@ message preparedWrite {
   // De-asliasing WriteID to uint64
   uint64 id = 1;
   // De-asliasing grove_ffi.Address to uint64
-  repeated uint64 checkAddrs = 2;
+  repeated uint64 chunkAddrs = 2;
 }
 
 message recordChunk {

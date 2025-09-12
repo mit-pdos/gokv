@@ -11,14 +11,14 @@ import (
 
 type S struct {
 	Id         uint64
-	CheckAddrs []uint64
+	ChunkAddrs []uint64
 }
 
 func Marshal(enc []byte, p S) []byte {
 	enc = marshal.WriteInt(enc, p.Id)
 
-	enc = marshal.WriteInt(enc, uint64(len(p.CheckAddrs)))
-	enc = marshal.WriteSlice[uint64](enc, p.CheckAddrs, marshal.WriteInt)
+	enc = marshal.WriteInt(enc, uint64(len(p.ChunkAddrs)))
+	enc = marshal.WriteSlice[uint64](enc, p.ChunkAddrs, marshal.WriteInt)
 
 	return enc
 }
@@ -26,11 +26,11 @@ func Marshal(enc []byte, p S) []byte {
 func Unmarshal(s []byte) (S, []byte) {
 
 	id, s := marshal.ReadInt(s)
-	checkAddrsLen, s := marshal.ReadInt(s)
-	checkAddrs, s := marshal.ReadSlice[uint64](s, checkAddrsLen, marshal.ReadInt)
+	chunkAddrsLen, s := marshal.ReadInt(s)
+	chunkAddrs, s := marshal.ReadSlice[uint64](s, chunkAddrsLen, marshal.ReadInt)
 
 	return S{
 		Id:         id,
-		CheckAddrs: checkAddrs,
+		ChunkAddrs: chunkAddrs,
 	}, s
 }

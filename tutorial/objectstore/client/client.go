@@ -7,6 +7,7 @@ import (
 	"github.com/mit-pdos/gokv/tutorial/objectstore/chunk"
 	"github.com/mit-pdos/gokv/tutorial/objectstore/chunk/writechunk_gk"
 	"github.com/mit-pdos/gokv/tutorial/objectstore/dir"
+	"github.com/mit-pdos/gokv/tutorial/objectstore/dir/chunkhandle_gk"
 	"github.com/mit-pdos/gokv/tutorial/objectstore/dir/finishwrite_gk"
 )
 
@@ -60,7 +61,7 @@ func (w *Writer) Done() {
 }
 
 type Reader struct {
-	chunkHandles []dir.ChunkHandle
+	chunkHandles []chunkhandle_gk.S
 	index        uint64
 	ck           *Clerk
 }
