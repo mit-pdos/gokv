@@ -5,11 +5,12 @@ import os
 import subprocess as sp
 
 grackle_packages = [
+    "cachekv",
+    "memkv",
     "tutorial/kvservice",
     "tutorial/lockservice",
     "tutorial/objectstore/chunk",
     "tutorial/objectstore/dir",
-    "memkv",
 ]
 
 # Use $PATH grackle if in a nix shell, otherwise the standard go install
