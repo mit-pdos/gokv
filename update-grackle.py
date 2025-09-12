@@ -6,6 +6,7 @@ import subprocess as sp
 
 grackle_packages = [
     "cachekv",
+    "fencing/ctr",
     "memkv",
     "paxi/comulti",
     "paxi/reconf",

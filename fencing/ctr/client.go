@@ -1,12 +1,16 @@
 package ctr
 
 import (
+	"log"
+
 	"github.com/goose-lang/primitive"
 	"github.com/mit-pdos/gokv/erpc"
+	"github.com/mit-pdos/gokv/fencing/ctr/error_gk"
+	"github.com/mit-pdos/gokv/fencing/ctr/getreply_gk"
+	"github.com/mit-pdos/gokv/fencing/ctr/putargs_gk"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc"
 	"github.com/tchajed/marshal"
-	"log"
 )
 
 const (
@@ -32,22 +36,22 @@ func (c *Clerk) Get(epoch uint64) uint64 {
 		log.Println("ctr: urpc get call failed/timed out")
 		primitive.Exit(1)
 	}
-	r := DecGetReply(*reply_ptr)
+	r, _ := getreply_gk.Unmarshal(*reply_ptr)
 
-	if r.err != ENone {
+	if r.Err != error_gk.ENone {
 		log.Println("ctr: get() stale epoch number")
 		primitive.Exit(1)
 	}
-	valProph.ResolveU64(r.val)
-	return r.val
+	valProph.ResolveU64(r.Val)
+	return r.Val
 }
 
 func (c *Clerk) Put(v uint64, epoch uint64) {
-	args := &PutArgs{
-		v:     v,
-		epoch: epoch,
+	args := &putargs_gk.S{
+		V:     v,
+		Epoch: epoch,
 	}
-	req := c.e.NewRequest(EncPutArgs(args))
+	req := c.e.NewRequest(putargs_gk.Marshal(make([]byte, 0), *args))
 
 	reply_ptr := new([]byte)
 	err := c.cl.Call(RPC_PUT, req, reply_ptr, 100 /* ms */)
@@ -56,14 +60,12 @@ func (c *Clerk) Put(v uint64, epoch uint64) {
 		primitive.Exit(1)
 	}
 
-	dec := marshal.NewDec(*reply_ptr)
-	epochErr := dec.GetInt()
+	epochErr, _ := error_gk.Unmarshal(*reply_ptr)
 
-	if epochErr != ENone {
+	if epochErr != error_gk.ENone {
 		log.Println("ctr: get() stale epoch number")
 		primitive.Exit(1)
 	}
-	return
 }
 
 func MakeClerk(host grove_ffi.Address) *Clerk {
