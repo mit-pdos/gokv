@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/paxi/reconf"
+	"github.com/mit-pdos/gokv/paxi/reconf/config_gk"
 	"log"
 )
 
@@ -21,7 +22,7 @@ func main() {
 		log.Println(srvs[i])
 	}
 
-	initConfig := &reconf.Config{Members: srvs[:3]}
+	initConfig := &config_gk.S{Members: srvs[:3]}
 
 	for _, addr := range srvs {
 		reconf.StartReplicaServer(addr, initConfig)
