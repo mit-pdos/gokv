@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+message put {
+  uint64 opId = 1;
+  string key = 2;
+  string value = 3;
+}
+
+message conditionalPut {
+  uint64 opId = 1;
+  string key = 2;
+  string expectedVal = 3;
+  string newVal = 4;
+}
+
+message get {
+  uint64 opId = 1;
+  string key = 2;
+}
