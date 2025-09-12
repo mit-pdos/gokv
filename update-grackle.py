@@ -9,6 +9,8 @@ grackle_packages = [
     "memkv",
     "paxi/comulti",
     "paxi/reconf",
+    "reconfig/util",
+    "reconfig/replica",
     "tutorial/kvservice",
     "tutorial/lockservice",
     "tutorial/objectstore/chunk",

@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+enum error {
+  ENone = 0;
+  ENotPrimary = 1;
+  EStale = 2;
+  EAppendOutOfOrder = 3;
+  ETruncated = 4;
+  EIncompleteLog = 5;
+}
+
+// repeated bytes isn't handled correctly by Grackle
+// Wrap the bytes into a struct as a level of indirection
+message logEntry {
+  bytes entry = 1;
+}
+
+message appendArgs {
+  uint64 epoch = 1;
+  logEntry entry = 2;
+  uint64 index = 3;
+}
+
+message configuration {
+  // De-aliasing grove_ffi.Address to uint64
+  repeated uint64 replicas = 1;
+}
+
+message becomeReplicaArgs {
+  uint64 epoch = 1;
+  uint64 startIndex = 2;
+  repeated logEntry log = 3;
+}
+
+message becomePrimaryArgs {
+  uint64 epoch = 1;
+  configuration conf = 2;
+}
+
+message getLogReply {
+  error err = 1;
+  repeated logEntry log = 2;
+  uint64 startIndex = 3;
+}

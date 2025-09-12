@@ -1,0 +1,6 @@
+syntax = "proto3";
+
+message configuration {
+  // De-alias grove_ffi.Address to uint64
+  repeated uint64 addrs = 1;
+}
