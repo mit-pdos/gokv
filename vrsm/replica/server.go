@@ -9,7 +9,14 @@ import (
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc"
 	"github.com/mit-pdos/gokv/vrsm/configservice"
-	"github.com/mit-pdos/gokv/vrsm/e"
+	"github.com/mit-pdos/gokv/vrsm/replica/applyasbackupargs_gk"
+	"github.com/mit-pdos/gokv/vrsm/replica/applyreply_gk"
+	"github.com/mit-pdos/gokv/vrsm/replica/becomeprimaryargs_gk"
+	"github.com/mit-pdos/gokv/vrsm/replica/err_gk"
+	"github.com/mit-pdos/gokv/vrsm/replica/getstateargs_gk"
+	"github.com/mit-pdos/gokv/vrsm/replica/getstatereply_gk"
+	"github.com/mit-pdos/gokv/vrsm/replica/increasecommitargs_gk"
+	"github.com/mit-pdos/gokv/vrsm/replica/setstateargs_gk"
 )
 
 type Server struct {
@@ -42,10 +49,10 @@ type Server struct {
 
 // Applies the RO op immediately, but then waits for it to be committed before
 // replying to client.
-func (s *Server) ApplyRoWaitForCommit(op Op) *ApplyReply {
-	reply := new(ApplyReply)
+func (s *Server) ApplyRoWaitForCommit(op Op) *applyreply_gk.S {
+	reply := new(applyreply_gk.S)
 	reply.Reply = nil
-	reply.Err = e.None
+	reply.Err = err_gk.None
 
 	// x := primitive.RandomUint64()
 	// log.Printf("Got ro request %d", x)
@@ -53,7 +60,7 @@ func (s *Server) ApplyRoWaitForCommit(op Op) *ApplyReply {
 	if !s.leaseValid {
 		s.mu.Unlock()
 		log.Printf("Lease invalid")
-		reply.Err = e.LeaseExpired
+		reply.Err = err_gk.LeaseExpired
 		return reply
 	}
 	if primitive.RandomUint64()%10000 == 0 {
@@ -68,16 +75,16 @@ func (s *Server) ApplyRoWaitForCommit(op Op) *ApplyReply {
 	if s.leaseExpiration <= h {
 		s.mu.Unlock()
 		log.Printf("Lease expired because %d < %d", s.leaseExpiration, h)
-		reply.Err = e.LeaseExpired
+		reply.Err = err_gk.LeaseExpired
 		return reply
 	}
 
 	for {
 		if s.epoch != epoch {
-			reply.Err = e.Stale
+			reply.Err = err_gk.Stale
 			break
 		} else if lastModifiedIndex <= s.committedNextIndex {
-			reply.Err = e.None
+			reply.Err = err_gk.None
 			break
 		} else {
 			s.committedNextIndex_cond.Wait()
@@ -103,8 +110,8 @@ func (s *Server) IncreaseCommitIndex(newCommittedNextIndex uint64) {
 }
 
 // called on the primary server to apply a new operation.
-func (s *Server) Apply(op Op) *ApplyReply {
-	reply := new(ApplyReply)
+func (s *Server) Apply(op Op) *applyreply_gk.S {
+	reply := new(applyreply_gk.S)
 	reply.Reply = nil
 	// reply.Err = e.ENone
 	// return reply
@@ -113,12 +120,12 @@ func (s *Server) Apply(op Op) *ApplyReply {
 	if !s.isPrimary {
 		// log.Println("Got request while not being primary")
 		s.mu.Unlock()
-		reply.Err = e.Stale
+		reply.Err = err_gk.Stale
 		return reply
 	}
 	if s.sealed {
 		s.mu.Unlock()
-		reply.Err = e.Stale
+		reply.Err = err_gk.Stale
 		return reply
 	}
 
@@ -140,14 +147,14 @@ func (s *Server) Apply(op Op) *ApplyReply {
 
 	// tell backups to apply it
 	wg := new(sync.WaitGroup)
-	args := &ApplyAsBackupArgs{
-		epoch: epoch,
-		index: opIndex,
-		op:    op,
+	args := &applyasbackupargs_gk.S{
+		Epoch: epoch,
+		Index: opIndex,
+		Op:    op,
 	}
 
 	clerks_inner := clerks[primitive.RandomUint64()%uint64(len(clerks))]
-	errs := make([]e.Error, len(clerks_inner))
+	errs := make([]err_gk.E, len(clerks_inner))
 	for i, clerk := range clerks_inner {
 		// use a random socket
 		clerk := clerk
@@ -158,7 +165,7 @@ func (s *Server) Apply(op Op) *ApplyReply {
 			for {
 				err := clerk.ApplyAsBackup(args)
 				// log.Printf("Sending applyasbackup")
-				if err == e.OutOfOrder || err == e.Timeout {
+				if err == err_gk.OutOfOrder || err == err_gk.Timeout {
 					continue
 				} else {
 					errs[i] = err
@@ -174,18 +181,18 @@ func (s *Server) Apply(op Op) *ApplyReply {
 	waitForDurable()
 	// log.Printf("done durable: %d", nextIndex)
 
-	var err = e.None
+	var err = err_gk.None
 	var i = uint64(0)
 	for i < uint64(len(clerks_inner)) {
 		err2 := errs[i]
-		if err2 != e.None {
+		if err2 != err_gk.None {
 			err = err2
 		}
 		i += 1
 	}
 	reply.Err = err
 
-	if err == e.None {
+	if err == err_gk.None {
 		s.IncreaseCommitIndex(nextIndex)
 	} else {
 		// stop acting as primary in epoch
@@ -206,7 +213,7 @@ func (s *Server) leaseRenewalThread() {
 		leaseErr, leaseExpiration := s.confCk.GetLease(latestEpoch)
 
 		s.mu.Lock()
-		if s.epoch == latestEpoch && leaseErr == e.None {
+		if s.epoch == latestEpoch && leaseErr == err_gk.None {
 			s.leaseExpiration = leaseExpiration
 			s.leaseValid = true
 			s.mu.Unlock()
@@ -251,7 +258,7 @@ func (s *Server) sendIncreaseCommitThread() {
 				// retry if we get error, to make sure every backup gets brought up to date
 				for {
 					err := clerk.IncreaseCommitIndex(newCommittedNextIndex)
-					if err == e.None {
+					if err == err_gk.None {
 						break
 					} else {
 						continue
@@ -275,17 +282,17 @@ func (s *Server) isEpochStale(epoch uint64) bool {
 
 // called on backup servers to apply an operation so it is replicated and
 // can be considered committed by primary.
-func (s *Server) ApplyAsBackup(args *ApplyAsBackupArgs) e.Error {
+func (s *Server) ApplyAsBackup(args *applyasbackupargs_gk.S) err_gk.E {
 	// log.Printf("Received applyasbackup")
 	// defer log.Printf("Exiting applyasbackup")
 	s.mu.Lock()
 
 	// operation sequencing
-	for args.index > s.nextIndex && s.epoch == args.epoch && !s.sealed {
-		cond, ok := s.opAppliedConds[args.index]
+	for args.Index > s.nextIndex && s.epoch == args.Epoch && !s.sealed {
+		cond, ok := s.opAppliedConds[args.Index]
 		if !ok {
 			cond := sync.NewCond(s.mu)
-			s.opAppliedConds[args.index] = cond
+			s.opAppliedConds[args.Index] = cond
 		} else {
 			cond.Wait()
 		}
@@ -294,7 +301,7 @@ func (s *Server) ApplyAsBackup(args *ApplyAsBackupArgs) e.Error {
 	// args.index <= s.nextIndex.
 	if s.sealed {
 		s.mu.Unlock()
-		return e.Stale
+		return err_gk.Stale
 	}
 
 	// FIXME: if we get an index that's smaller than nextIndex, we should just
@@ -304,9 +311,9 @@ func (s *Server) ApplyAsBackup(args *ApplyAsBackupArgs) e.Error {
 	// OR: make use of durableNextIndex, which is there for read-only
 	// optimization.
 
-	if s.isEpochStale(args.epoch) {
+	if s.isEpochStale(args.Epoch) {
 		s.mu.Unlock()
-		return e.Stale
+		return err_gk.Stale
 	}
 
 	// related to above: Because of the above waiting for args.index to be at most
@@ -315,13 +322,13 @@ func (s *Server) ApplyAsBackup(args *ApplyAsBackupArgs) e.Error {
 	// made durable right now.
 	//
 	// this operation has already been applied, nothing to do.
-	if args.index != s.nextIndex {
+	if args.Index != s.nextIndex {
 		s.mu.Unlock()
-		return e.OutOfOrder
+		return err_gk.OutOfOrder
 	}
 
 	// apply it locally
-	_, waitFn := s.sm.StartApply(args.op)
+	_, waitFn := s.sm.StartApply(args.Op)
 	s.nextIndex += 1
 
 	cond, ok := s.opAppliedConds[s.nextIndex]
@@ -333,17 +340,17 @@ func (s *Server) ApplyAsBackup(args *ApplyAsBackupArgs) e.Error {
 	s.mu.Unlock()
 	waitFn()
 
-	return e.None
+	return err_gk.None
 }
 
-func (s *Server) SetState(args *SetStateArgs) e.Error {
+func (s *Server) SetState(args *setstateargs_gk.S) err_gk.E {
 	s.mu.Lock()
 	if s.epoch > args.Epoch {
 		s.mu.Unlock()
-		return e.Stale
+		return err_gk.Stale
 	} else if s.epoch == args.Epoch {
 		s.mu.Unlock()
-		return e.None
+		return err_gk.None
 	} else {
 		log.Print("Entered new epoch")
 		s.isPrimary = false
@@ -362,16 +369,16 @@ func (s *Server) SetState(args *SetStateArgs) e.Error {
 
 		s.mu.Unlock()
 		s.IncreaseCommitIndex(args.CommittedNextIndex)
-		return e.None
+		return err_gk.None
 	}
 }
 
 // XXX: probably should rename to GetStateAndSeal
-func (s *Server) GetState(args *GetStateArgs) *GetStateReply {
+func (s *Server) GetState(args *getstateargs_gk.S) *getstatereply_gk.S {
 	s.mu.Lock()
 	if args.Epoch < s.epoch {
 		s.mu.Unlock()
-		return &GetStateReply{Err: e.Stale, State: nil}
+		return &getstatereply_gk.S{Err: err_gk.Stale, State: nil}
 	}
 
 	s.sealed = true
@@ -386,11 +393,11 @@ func (s *Server) GetState(args *GetStateArgs) *GetStateReply {
 	s.committedNextIndex_cond.Broadcast()
 	s.mu.Unlock()
 
-	return &GetStateReply{Err: e.None, State: ret, NextIndex: nextIndex,
+	return &getstatereply_gk.S{Err: err_gk.None, State: ret, NextIndex: nextIndex,
 		CommittedNextIndex: committedNextIndex}
 }
 
-func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {
+func (s *Server) BecomePrimary(args *becomeprimaryargs_gk.S) err_gk.E {
 	s.mu.Lock()
 	// XXX: technically, this != could be a <, and we'd be ok because
 	// BecomePrimary can only be called on args.Epoch if the server already
@@ -398,7 +405,7 @@ func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {
 	if args.Epoch != s.epoch || !s.canBecomePrimary {
 		log.Printf("Wrong epoch in BecomePrimary request (in %d, got %d)", s.epoch, args.Epoch)
 		s.mu.Unlock()
-		return e.Stale
+		return err_gk.Stale
 	}
 	log.Println("Became Primary")
 	s.isPrimary = true
@@ -421,7 +428,7 @@ func (s *Server) BecomePrimary(args *BecomePrimaryArgs) e.Error {
 		j++
 	}
 	s.mu.Unlock()
-	return e.None
+	return err_gk.None
 }
 
 func MakeServer(sm *StateMachine, confHosts []grove_ffi.Address, nextIndex uint64, epoch uint64, sealed bool) *Server {
@@ -447,31 +454,36 @@ func (s *Server) Serve(me grove_ffi.Address) {
 	handlers := make(map[uint64]func([]byte, *[]byte))
 
 	handlers[RPC_APPLYASBACKUP] = func(args []byte, reply *[]byte) {
-		*reply = e.EncodeError(s.ApplyAsBackup(DecodeApplyAsBackupArgs(args)))
+		a, _ := applyasbackupargs_gk.Unmarshal(args)
+		*reply = err_gk.Marshal(make([]byte, 8), s.ApplyAsBackup(&a))
 	}
 
 	handlers[RPC_SETSTATE] = func(args []byte, reply *[]byte) {
-		*reply = e.EncodeError(s.SetState(DecodeSetStateArgs(args)))
+		a, _ := setstateargs_gk.Unmarshal(args)
+		*reply = err_gk.Marshal(make([]byte, 0), s.SetState(&a))
 	}
 
 	handlers[RPC_GETSTATE] = func(args []byte, reply *[]byte) {
-		*reply = EncodeGetStateReply(s.GetState(DecodeGetStateArgs(args)))
+		a, _ := getstateargs_gk.Unmarshal(args)
+		*reply = getstatereply_gk.Marshal(make([]byte, 0), *s.GetState(&a))
 	}
 
 	handlers[RPC_BECOMEPRIMARY] = func(args []byte, reply *[]byte) {
-		*reply = e.EncodeError(s.BecomePrimary(DecodeBecomePrimaryArgs(args)))
+		a, _ := becomeprimaryargs_gk.Unmarshal(args)
+		*reply = err_gk.Marshal(make([]byte, 0), s.BecomePrimary(&a))
 	}
 
 	handlers[RPC_PRIMARYAPPLY] = func(args []byte, reply *[]byte) {
-		*reply = EncodeApplyReply(s.Apply(args))
+		*reply = applyreply_gk.Marshal(make([]byte, 0), *s.Apply(args))
 	}
 
 	handlers[RPC_ROPRIMARYAPPLY] = func(args []byte, reply *[]byte) {
-		*reply = EncodeApplyReply(s.ApplyRoWaitForCommit(args))
+		*reply = applyreply_gk.Marshal(make([]byte, 0), *s.ApplyRoWaitForCommit(args))
 	}
 
 	handlers[RPC_INCREASECOMMIT] = func(args []byte, reply *[]byte) {
-		s.IncreaseCommitIndex(DecodeIncreaseCommitArgs(args))
+		ica, _ := increasecommitargs_gk.Unmarshal(args)
+		s.IncreaseCommitIndex(ica.V)
 	}
 
 	rs := urpc.MakeServer(handlers)

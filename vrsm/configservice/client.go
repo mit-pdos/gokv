@@ -6,7 +6,8 @@ import (
 	"github.com/goose-lang/primitive"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/reconnectclient"
-	"github.com/mit-pdos/gokv/vrsm/e"
+	"github.com/mit-pdos/gokv/vrsm/configservice/config_gk"
+	"github.com/mit-pdos/gokv/vrsm/replica/err_gk"
 	"github.com/tchajed/marshal"
 )
 
@@ -31,7 +32,7 @@ func MakeClerk(hosts []grove_ffi.Address) *Clerk {
 	return &Clerk{cls: cls, mu: new(sync.Mutex)}
 }
 
-func (ck *Clerk) ReserveEpochAndGetConfig() (uint64, []grove_ffi.Address) {
+func (ck *Clerk) ReserveEpochAndGetConfig() (uint64, config_gk.S) {
 	reply := new([]byte)
 	for {
 		ck.mu.Lock()
@@ -42,9 +43,9 @@ func (ck *Clerk) ReserveEpochAndGetConfig() (uint64, []grove_ffi.Address) {
 			continue
 		}
 
-		var err2 uint64
-		err2, *reply = marshal.ReadInt(*reply)
-		if err2 == e.NotLeader {
+		var err2 err_gk.E
+		err2, *reply = err_gk.Unmarshal(*reply)
+		if err2 == err_gk.NotLeader {
 			// potentially change leaders
 			ck.mu.Lock()
 			if l == ck.leader {
@@ -53,18 +54,18 @@ func (ck *Clerk) ReserveEpochAndGetConfig() (uint64, []grove_ffi.Address) {
 			ck.mu.Unlock()
 			continue
 		}
-		if err2 == e.None {
+		if err2 == err_gk.None {
 			break
 		}
 	}
 
 	var epoch uint64
 	epoch, *reply = marshal.ReadInt(*reply)
-	config := DecodeConfig(*reply)
+	config, _ := config_gk.Unmarshal(*reply)
 	return epoch, config
 }
 
-func (ck *Clerk) GetConfig() []grove_ffi.Address {
+func (ck *Clerk) GetConfig() config_gk.S {
 	reply := new([]byte)
 	for {
 		i := primitive.RandomUint64() % uint64(len(ck.cls))
@@ -74,15 +75,15 @@ func (ck *Clerk) GetConfig() []grove_ffi.Address {
 		}
 		continue
 	}
-	config := DecodeConfig(*reply)
+	config, _ := config_gk.Unmarshal(*reply)
 	return config
 }
 
-func (ck *Clerk) TryWriteConfig(epoch uint64, config []grove_ffi.Address) e.Error {
+func (ck *Clerk) TryWriteConfig(epoch uint64, config config_gk.S) err_gk.E {
 	reply := new([]byte)
-	var args = make([]byte, 0, 8+8*len(config))
+	var args = make([]byte, 0, 8+8*len(config.Addrs))
 	args = marshal.WriteInt(args, epoch)
-	args = marshal.WriteBytes(args, EncodeConfig(config))
+	args = config_gk.Marshal(args, config)
 	// This has a high timeout because the server might need to wait for the
 	// lease to expire before responding.
 
@@ -95,9 +96,9 @@ func (ck *Clerk) TryWriteConfig(epoch uint64, config []grove_ffi.Address) e.Erro
 		if err != 0 {
 			continue
 		}
-		err2, _ := marshal.ReadInt(*reply)
+		err2, _ := err_gk.Unmarshal(*reply)
 
-		if err2 == e.NotLeader {
+		if err2 == err_gk.NotLeader {
 			ck.mu.Lock()
 			if l == ck.leader {
 				ck.leader = (ck.leader + 1) % uint64(len(ck.cls))
@@ -108,13 +109,13 @@ func (ck *Clerk) TryWriteConfig(epoch uint64, config []grove_ffi.Address) e.Erro
 			break
 		}
 	}
-	err, _ := marshal.ReadInt(*reply)
+	err, _ := err_gk.Unmarshal(*reply)
 	return err
 }
 
 // returns e.None if the lease was granted for the given epoch, and a conservative
 // guess on when the lease expires.
-func (ck *Clerk) GetLease(epoch uint64) (e.Error, uint64) {
+func (ck *Clerk) GetLease(epoch uint64) (err_gk.E, uint64) {
 	reply := new([]byte)
 	var args = make([]byte, 0, 8)
 	args = marshal.WriteInt(args, epoch)
@@ -128,9 +129,9 @@ func (ck *Clerk) GetLease(epoch uint64) (e.Error, uint64) {
 		if err != 0 {
 			continue
 		}
-		err2, _ := marshal.ReadInt(*reply)
+		err2, _ := err_gk.Unmarshal(*reply)
 
-		if err2 == e.NotLeader {
+		if err2 == err_gk.NotLeader {
 			ck.mu.Lock()
 			if l == ck.leader {
 				ck.leader = (ck.leader + 1) % uint64(len(ck.cls))
@@ -142,7 +143,7 @@ func (ck *Clerk) GetLease(epoch uint64) (e.Error, uint64) {
 		}
 	}
 
-	err2, enc := marshal.ReadInt(*reply)
+	err2, enc := err_gk.Unmarshal(*reply)
 	leaseExpiration, _ := marshal.ReadInt(enc)
 	return err2, leaseExpiration
 }

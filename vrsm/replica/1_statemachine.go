@@ -1,5 +1,7 @@
 package replica
 
+type Op = []byte
+
 type StateMachine struct {
 	StartApply        func(op Op) ([]byte, func())
 	ApplyReadonly     func(op Op) (uint64, []byte)

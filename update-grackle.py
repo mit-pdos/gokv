@@ -16,6 +16,8 @@ grackle_packages = [
     "tutorial/lockservice",
     "tutorial/objectstore/chunk",
     "tutorial/objectstore/dir",
+    "vrsm/configservice",
+    "vrsm/replica",
 ]
 
 # Use $PATH grackle if in a nix shell, otherwise the standard go install

@@ -2,8 +2,15 @@ package replica
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
+	"github.com/mit-pdos/gokv/reconfig/replica/becomeprimaryargs_gk"
 	"github.com/mit-pdos/gokv/reconnectclient"
-	"github.com/mit-pdos/gokv/vrsm/e"
+	"github.com/mit-pdos/gokv/vrsm/replica/applyasbackupargs_gk"
+	"github.com/mit-pdos/gokv/vrsm/replica/applyreply_gk"
+	"github.com/mit-pdos/gokv/vrsm/replica/err_gk"
+	"github.com/mit-pdos/gokv/vrsm/replica/getstateargs_gk"
+	"github.com/mit-pdos/gokv/vrsm/replica/getstatereply_gk"
+	"github.com/mit-pdos/gokv/vrsm/replica/increasecommitargs_gk"
+	"github.com/mit-pdos/gokv/vrsm/replica/setstateargs_gk"
 )
 
 type Clerk struct {
@@ -25,70 +32,74 @@ func MakeClerk(host grove_ffi.Address) *Clerk {
 	return &Clerk{cl: reconnectclient.MakeReconnectingClient(host)}
 }
 
-func (ck *Clerk) ApplyAsBackup(args *ApplyAsBackupArgs) e.Error {
+func (ck *Clerk) ApplyAsBackup(args *applyasbackupargs_gk.S) err_gk.E {
 	reply := new([]byte)
-	err := ck.cl.Call(RPC_APPLYASBACKUP, EncodeApplyAsBackupArgs(args), reply, 1000 /* ms */)
+	err := ck.cl.Call(RPC_APPLYASBACKUP, applyasbackupargs_gk.Marshal(make([]byte, 0), *args), reply, 1000 /* ms */)
 	if err != 0 {
-		return e.Timeout
+		return err_gk.Timeout
 	} else {
-		return e.DecodeError(*reply)
+		e, _ := err_gk.Unmarshal(*reply)
+		return e
 	}
 }
 
-func (ck *Clerk) SetState(args *SetStateArgs) e.Error {
+func (ck *Clerk) SetState(args *setstateargs_gk.S) err_gk.E {
 	reply := new([]byte)
-	err := ck.cl.Call(RPC_SETSTATE, EncodeSetStateArgs(args), reply, 10000 /* ms */)
+	err := ck.cl.Call(RPC_SETSTATE, setstateargs_gk.Marshal(make([]byte, 0), *args), reply, 10000 /* ms */)
 	if err != 0 {
-		return e.Timeout
+		return err_gk.Timeout
 	} else {
-		return e.DecodeError(*reply)
+		e, _ := err_gk.Unmarshal(*reply)
+		return e
 	}
 }
 
-func (ck *Clerk) GetState(args *GetStateArgs) *GetStateReply {
+func (ck *Clerk) GetState(args *getstateargs_gk.S) *getstatereply_gk.S {
 	reply := new([]byte)
 	// XXX: high timeout for this, because if the state is large, it will take a
 	// long time to get.
-	err := ck.cl.Call(RPC_GETSTATE, EncodeGetStateArgs(args), reply, 10000 /* ms */)
+	err := ck.cl.Call(RPC_GETSTATE, getstateargs_gk.Marshal(make([]byte, 0), *args), reply, 10000 /* ms */)
 	if err != 0 {
-		return &GetStateReply{Err: e.Timeout}
+		return &getstatereply_gk.S{Err: err_gk.Timeout}
 	} else {
-		return DecodeGetStateReply(*reply)
+		rep, _ := getstatereply_gk.Unmarshal(*reply)
+		return &rep
 	}
 }
 
-func (ck *Clerk) BecomePrimary(args *BecomePrimaryArgs) e.Error {
+func (ck *Clerk) BecomePrimary(args *becomeprimaryargs_gk.S) err_gk.E {
 	reply := new([]byte)
-	err := ck.cl.Call(RPC_BECOMEPRIMARY, EncodeBecomePrimaryArgs(args), reply, 100 /* ms */)
+	err := ck.cl.Call(RPC_BECOMEPRIMARY, becomeprimaryargs_gk.Marshal(make([]byte, 0), *args), reply, 100 /* ms */)
 	if err != 0 {
-		return e.Timeout
+		return err_gk.Timeout
 	} else {
-		return e.DecodeError(*reply)
+		e, _ := err_gk.Unmarshal(*reply)
+		return e
 	}
 }
 
-func (ck *Clerk) Apply(op []byte) (e.Error, []byte) {
+func (ck *Clerk) Apply(op []byte) (err_gk.E, []byte) {
 	reply := new([]byte)
 	err := ck.cl.Call(RPC_PRIMARYAPPLY, op, reply, 5000 /* ms */)
 	if err == 0 {
-		r := DecodeApplyReply(*reply)
+		r, _ := applyreply_gk.Unmarshal(*reply)
 		return r.Err, r.Reply
 	} else {
-		return e.Timeout, nil
+		return err_gk.Timeout, nil
 	}
 }
 
-func (ck *Clerk) ApplyRo(op []byte) (e.Error, []byte) {
+func (ck *Clerk) ApplyRo(op []byte) (err_gk.E, []byte) {
 	reply := new([]byte)
 	err := ck.cl.Call(RPC_ROPRIMARYAPPLY, op, reply, 1000 /* ms */)
 	if err == 0 {
-		r := DecodeApplyReply(*reply)
+		r, _ := applyreply_gk.Unmarshal(*reply)
 		return r.Err, r.Reply
 	} else {
-		return e.Timeout, nil
+		return err_gk.Timeout, nil
 	}
 }
 
-func (ck *Clerk) IncreaseCommitIndex(n uint64) e.Error {
-	return ck.cl.Call(RPC_INCREASECOMMIT, EncodeIncreaseCommitArgs(n), new([]byte), 100 /* ms */)
+func (ck *Clerk) IncreaseCommitIndex(n uint64) err_gk.E {
+	return err_gk.E(ck.cl.Call(RPC_INCREASECOMMIT, increasecommitargs_gk.Marshal(make([]byte, 0), increasecommitargs_gk.S{V: n}), new([]byte), 100 /* ms */))
 }
