@@ -6,6 +6,7 @@ import (
 	"github.com/mit-pdos/gokv/trusted_proph"
 	"github.com/mit-pdos/gokv/vrsm/configservice"
 	"github.com/mit-pdos/gokv/vrsm/replica"
+	"github.com/mit-pdos/gokv/vrsm/replica/err_gk"
 )
 
 const (
@@ -34,10 +35,10 @@ func Make(confHosts []grove_ffi.Address) *Clerk {
 	ck.confCk = configservice.MakeClerk(confHosts)
 	for {
 		config := ck.confCk.GetConfig()
-		if len(config) == 0 {
+		if len(config.Addrs) == 0 {
 			continue
 		} else {
-			ck.replicaClerks = makeClerks(config)
+			ck.replicaClerks = makeClerks(config.Addrs)
 			break
 		}
 	}
@@ -50,16 +51,16 @@ func Make(confHosts []grove_ffi.Address) *Clerk {
 func (ck *Clerk) Apply(op []byte) []byte {
 	var ret []byte
 	for {
-		var err e.Error
+		var err err_gk.E
 		err, ret = ck.replicaClerks[0].Apply(op)
-		if err == e.None {
+		if err == err_gk.None {
 			break
 		} else {
 			// log.Println("Error during apply(): ", err)
 			primitive.Sleep(uint64(100) * uint64(1_000_000)) // throttle retries to config server
 			config := ck.confCk.GetConfig()
-			if len(config) > 0 {
-				ck.replicaClerks = makeClerks(config)
+			if len(config.Addrs) > 0 {
+				ck.replicaClerks = makeClerks(config.Addrs)
 			}
 			continue
 		}
@@ -81,14 +82,14 @@ func (ck *Clerk) ApplyRo2(op []byte) []byte {
 	for {
 		// try to read initially from the "preferred" replica, then cycle around
 		offset := ck.preferredReplica
-		var err e.Error
+		var err err_gk.E
 
 		var i uint64
 		// try all the servers starting from that random offset
 		for i < uint64(len(ck.replicaClerks)) {
 			k := (i + offset) % uint64(len(ck.replicaClerks))
 			err, ret = ck.replicaClerks[k].ApplyRo(op)
-			if err == e.None {
+			if err == err_gk.None {
 				ck.preferredReplica = k
 				break
 			}
@@ -97,14 +98,14 @@ func (ck *Clerk) ApplyRo2(op []byte) []byte {
 			continue
 		}
 
-		if err == e.None {
+		if err == err_gk.None {
 			break
 		} else {
 			timeToSleep := 5 + (primitive.RandomUint64() % 10)
 			primitive.Sleep(timeToSleep * uint64(1_000_000)) // throttle retries to config server
 			config := ck.confCk.GetConfig()
-			if len(config) > 0 {
-				ck.replicaClerks = makeClerks(config)
+			if len(config.Addrs) > 0 {
+				ck.replicaClerks = makeClerks(config.Addrs)
 				ck.lastPreferenceRefresh, _ = grove_ffi.GetTimeRange()
 				ck.preferredReplica = primitive.RandomUint64() % uint64(len(ck.replicaClerks))
 			}

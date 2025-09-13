@@ -18,6 +18,7 @@ grackle_packages = [
     "tutorial/objectstore/dir",
     "vrsm/apps/vkv",
     "vrsm/configservice",
+    "vrsm/paxos",
     "vrsm/replica",
 ]
 

@@ -3,11 +3,13 @@ package vkv
 // Replicated and durable KV server
 
 import (
+	"github.com/mit-pdos/gokv/fencing/ctr/getargs_gk"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/map_string_marshal"
 	"github.com/mit-pdos/gokv/vrsm/apps/exactlyonce"
+	"github.com/mit-pdos/gokv/vrsm/apps/vkv/condputargs_gk"
+	"github.com/mit-pdos/gokv/vrsm/apps/vkv/putargs_gk"
 	"github.com/mit-pdos/gokv/vrsm/storage"
-	"github.com/tchajed/marshal"
 )
 
 type KVState struct {
@@ -26,26 +28,26 @@ const (
 	OP_COND_PUT = byte(2)
 )
 
-func (s *KVState) put(args *PutArgs) []byte {
+func (s *KVState) put(args *putargs_gk.S) []byte {
 	s.kvs[string(args.Key)] = args.Val
 	return make([]byte, 0)
 }
 
-func (s *KVState) get(args getArgs) []byte {
-	return []byte(s.kvs[string(args)])
+func (s *KVState) get(args getargs_gk.S) []byte {
+	return []byte(s.kvs[string(args.Epoch)])
 }
 
 func (s *KVState) apply(args []byte, vnum uint64) []byte {
 	if args[0] == OP_PUT {
-		args := decodePutArgs(args)
+		args, _ := putargs_gk.Unmarshal(args)
 		s.vnums[string(args.Key)] = vnum
-		return s.put(args)
+		return s.put(&args)
 	} else if args[0] == OP_GET {
-		key := decodeGetArgs(args)
-		s.vnums[string(key)] = vnum
+		key, _ := getargs_gk.Unmarshal(args)
+		s.vnums[string(key.Epoch)] = vnum
 		return s.get(key)
 	} else if args[0] == OP_COND_PUT {
-		args := decodeCondPutArgs(args)
+		args, _ := condputargs_gk.Unmarshal(args)
 		if s.kvs[args.Key] == args.Expect {
 			s.vnums[string(args.Key)] = vnum
 			s.kvs[args.Key] = args.Val
@@ -61,9 +63,9 @@ func (s *KVState) applyReadonly(args []byte) (uint64, []byte) {
 	if args[0] != OP_GET {
 		panic("expected a GET as readonly-operation")
 	}
-	key := decodeGetArgs(args)
+	key, _ := getargs_gk.Unmarshal(args)
 	reply := s.get(key)
-	vnum, ok := s.vnums[string(key)]
+	vnum, ok := s.vnums[string(key.Epoch)]
 	if ok {
 		return vnum, reply
 	} else {

@@ -3,6 +3,11 @@ package paxos
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/reconnectclient"
+	"github.com/mit-pdos/gokv/vrsm/paxos/applyasfollowerargs_gk"
+	"github.com/mit-pdos/gokv/vrsm/paxos/applyasfollowerreply_gk"
+	"github.com/mit-pdos/gokv/vrsm/paxos/enternewepochargs_gk"
+	"github.com/mit-pdos/gokv/vrsm/paxos/enternewepochreply_gk"
+	"github.com/mit-pdos/gokv/vrsm/paxos/error_gk"
 )
 
 const (
@@ -25,26 +30,27 @@ func MakeSingleClerk(addr grove_ffi.Address) *singleClerk {
 	return ck
 }
 
-func (s *singleClerk) enterNewEpoch(args *enterNewEpochArgs) *enterNewEpochReply {
-	raw_args := encodeEnterNewEpochArgs(args)
+func (s *singleClerk) enterNewEpoch(args *enternewepochargs_gk.S) *enternewepochreply_gk.S {
+	raw_args := enternewepochargs_gk.Marshal(make([]byte, 0), *args)
 	raw_reply := new([]byte)
 	err := s.cl.Call(RPC_ENTER_NEW_EPOCH, raw_args, raw_reply, 500 /* ms */)
 	if err == 0 {
-		return decodeEnterNewEpochReply(*raw_reply)
+		ret, _ := enternewepochreply_gk.Unmarshal(*raw_reply)
+		return &ret
 	} else {
-		return &enterNewEpochReply{err: ETimeout}
+		return &enternewepochreply_gk.S{Err: error_gk.ETimeout}
 	}
-
 }
 
-func (s *singleClerk) applyAsFollower(args *applyAsFollowerArgs) *applyAsFollowerReply {
-	raw_args := encodeApplyAsFollowerArgs(args)
+func (s *singleClerk) applyAsFollower(args *applyasfollowerargs_gk.S) *applyasfollowerreply_gk.S {
+	raw_args := applyasfollowerargs_gk.Marshal(make([]byte, 0), *args)
 	raw_reply := new([]byte)
 	err := s.cl.Call(RPC_APPLY_AS_FOLLOWER, raw_args, raw_reply, 500 /* ms */)
 	if err == 0 {
-		return decodeApplyAsFollowerReply(*raw_reply)
+		ret, _ := applyasfollowerreply_gk.Unmarshal(*raw_reply)
+		return &ret
 	} else {
-		return &applyAsFollowerReply{err: ETimeout}
+		return &applyasfollowerreply_gk.S{Err: error_gk.ETimeout}
 	}
 }
 

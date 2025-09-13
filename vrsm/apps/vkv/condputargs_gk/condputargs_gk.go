@@ -8,6 +8,7 @@ package condputargs_gk
 import (
 	"github.com/goose-lang/primitive"
 	"github.com/goose-lang/std"
+	"github.com/tchajed/marshal"
 )
 
 type S struct {
