@@ -8,7 +8,6 @@ require (
 	github.com/goose-lang/std v0.6.1
 	github.com/mit-pdos/vmvcc v0.2.0
 	github.com/tchajed/marshal v0.6.5
-	golang.org/x/text v0.16.0
 )
 
 require (
