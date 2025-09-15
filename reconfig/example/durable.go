@@ -2,14 +2,15 @@ package example
 
 import (
 	pb "github.com/mit-pdos/gokv/reconfig/replica"
+	"github.com/mit-pdos/gokv/reconfig/replica/logentry_gk"
 )
 
 // No durability.
 
-func Append(entry []byte) {
+func Append(entry logentry_gk.S) {
 }
 
-func SetLog(startIndex uint64, log []pb.LogEntry) {
+func SetLog(startIndex uint64, log []logentry_gk.S) {
 }
 
 func Truncate(index uint64) {
