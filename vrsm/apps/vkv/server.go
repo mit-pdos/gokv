@@ -3,11 +3,11 @@ package vkv
 // Replicated and durable KV server
 
 import (
-	"github.com/mit-pdos/gokv/fencing/ctr/getargs_gk"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/map_string_marshal"
 	"github.com/mit-pdos/gokv/vrsm/apps/exactlyonce"
 	"github.com/mit-pdos/gokv/vrsm/apps/vkv/condputargs_gk"
+	"github.com/mit-pdos/gokv/vrsm/apps/vkv/getargs_gk"
 	"github.com/mit-pdos/gokv/vrsm/apps/vkv/putargs_gk"
 	"github.com/mit-pdos/gokv/vrsm/storage"
 )
@@ -29,12 +29,12 @@ const (
 )
 
 func (s *KVState) put(args *putargs_gk.S) []byte {
-	s.kvs[string(args.Key)] = args.Val
+	s.kvs[args.Key] = args.Val
 	return make([]byte, 0)
 }
 
 func (s *KVState) get(args getargs_gk.S) []byte {
-	return []byte(s.kvs[string(args.Epoch)])
+	return []byte(s.kvs[args.Get])
 }
 
 func (s *KVState) apply(args []byte, vnum uint64) []byte {
@@ -44,7 +44,7 @@ func (s *KVState) apply(args []byte, vnum uint64) []byte {
 		return s.put(&args)
 	} else if args[0] == OP_GET {
 		key, _ := getargs_gk.Unmarshal(args)
-		s.vnums[string(key.Epoch)] = vnum
+		s.vnums[key.Get] = vnum
 		return s.get(key)
 	} else if args[0] == OP_COND_PUT {
 		args, _ := condputargs_gk.Unmarshal(args)
@@ -65,7 +65,7 @@ func (s *KVState) applyReadonly(args []byte) (uint64, []byte) {
 	}
 	key, _ := getargs_gk.Unmarshal(args)
 	reply := s.get(key)
-	vnum, ok := s.vnums[string(key.Epoch)]
+	vnum, ok := s.vnums[key.Get]
 	if ok {
 		return vnum, reply
 	} else {
