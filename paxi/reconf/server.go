@@ -1,17 +1,24 @@
 package reconf
 
 import (
-	"github.com/goose-lang/primitive"
-	"github.com/mit-pdos/gokv/grove_ffi"
-	"github.com/mit-pdos/gokv/urpc"
-	"github.com/tchajed/marshal"
 	"log"
 	"sync"
+
+	"github.com/goose-lang/primitive"
+	"github.com/mit-pdos/gokv/grove_ffi"
+	"github.com/mit-pdos/gokv/paxi/reconf/config_gk"
+	"github.com/mit-pdos/gokv/paxi/reconf/error_gk"
+	"github.com/mit-pdos/gokv/paxi/reconf/monotonicvalue_gk"
+	"github.com/mit-pdos/gokv/paxi/reconf/preparereply_gk"
+	"github.com/mit-pdos/gokv/paxi/reconf/proposeargs_gk"
+	"github.com/mit-pdos/gokv/paxi/reconf/trycommitreply_gk"
+	"github.com/mit-pdos/gokv/urpc"
+	"github.com/tchajed/marshal"
 	// "github.com/davecgh/go-spew/spew"
 )
 
-func (lhs *MonotonicValue) GreaterThan(rhs *MonotonicValue) bool {
-	return lhs.version > rhs.version
+func MonotonicValGreaterThan(lhs *monotonicvalue_gk.S, rhs *monotonicvalue_gk.S) bool {
+	return lhs.Version > rhs.Version
 }
 
 type Replica struct {
@@ -19,7 +26,7 @@ type Replica struct {
 	promisedTerm uint64
 
 	acceptedTerm uint64
-	acceptedMVal *MonotonicValue
+	acceptedMVal *monotonicvalue_gk.S
 
 	clerkPool *ClerkPool
 
@@ -28,42 +35,35 @@ type Replica struct {
 	// acceptedVersions map[grove_ffi.Address]uint64
 }
 
-const (
-	ENone         = uint64(0)
-	ETermStale    = uint64(1)
-	ENotLeader    = uint64(2)
-	EQuorumFailed = uint64(3)
-)
-
-func (r *Replica) PrepareRPC(term uint64, reply *PrepareReply) {
+func (r *Replica) PrepareRPC(term uint64, reply *preparereply_gk.S) {
 	r.mu.Lock()
 	if term > r.promisedTerm {
 		r.promisedTerm = term
 		reply.Term = r.acceptedTerm
-		reply.Val = r.acceptedMVal
-		reply.Err = ENone
+		reply.Val = *r.acceptedMVal
+		reply.Err = error_gk.ENone
 	} else {
-		reply.Err = ETermStale
-		reply.Val = new(MonotonicValue)
-		reply.Val.conf = new(Config)
+		reply.Err = error_gk.ETermStale
+		reply.Val = monotonicvalue_gk.S{}
+		reply.Val.Conf = config_gk.S{}
 		reply.Term = r.promisedTerm
 	}
 	r.mu.Unlock()
 }
 
-func (r *Replica) ProposeRPC(term uint64, v *MonotonicValue) uint64 {
+func (r *Replica) ProposeRPC(term uint64, v *monotonicvalue_gk.S) error_gk.E {
 	r.mu.Lock()
 	if term >= r.promisedTerm {
 		r.promisedTerm = term
 		r.acceptedTerm = term
-		if v.GreaterThan(r.acceptedMVal) {
+		if MonotonicValGreaterThan(v, r.acceptedMVal) {
 			r.acceptedMVal = v
 		}
 		r.mu.Unlock()
-		return ENone
+		return error_gk.ENone
 	} else {
 		r.mu.Unlock()
-		return ETermStale
+		return error_gk.ETermStale
 	}
 }
 
@@ -74,29 +74,29 @@ func (r *Replica) TryBecomeLeader() bool {
 
 	var highestTerm uint64
 	highestTerm = 0
-	var highestVal *MonotonicValue
+	var highestVal *monotonicvalue_gk.S
 	highestVal = r.acceptedMVal // if no one in our majority has accepted a value, we'll propose this one
-	conf := r.acceptedMVal.conf
+	conf := r.acceptedMVal.Conf
 	r.mu.Unlock()
 
 	mu := new(sync.Mutex)
 
 	prepared := make(map[grove_ffi.Address]bool)
 
-	conf.ForEachMember(func(addr grove_ffi.Address) {
+	ForEachConfigMember(&conf, func(addr grove_ffi.Address) {
 		go func() {
-			reply_ptr := new(PrepareReply)
+			reply_ptr := new(preparereply_gk.S)
 			r.clerkPool.PrepareRPC(addr, newTerm, reply_ptr)
 
-			if reply_ptr.Err == ENone {
+			if reply_ptr.Err == error_gk.ENone {
 				mu.Lock()
 				prepared[addr] = true
 
 				if reply_ptr.Term > highestTerm {
-					highestVal = reply_ptr.Val
+					highestVal = &reply_ptr.Val
 				} else if reply_ptr.Term == highestTerm {
-					if highestVal.GreaterThan(reply_ptr.Val) {
-						highestVal = reply_ptr.Val
+					if MonotonicValGreaterThan(highestVal, &reply_ptr.Val) {
+						highestVal = &reply_ptr.Val
 					}
 				}
 				mu.Unlock()
@@ -116,7 +116,7 @@ func (r *Replica) TryBecomeLeader() bool {
 	// FIXME: put this in a condvar loop with timeout
 	primitive.Sleep(50 * 1_000_000) // 50 ms
 	mu.Lock()
-	if IsQuorum(highestVal.conf, prepared) {
+	if IsQuorum(&(highestVal.Conf), prepared) {
 		// We successfully became the leader
 		r.mu.Lock()
 		if r.promisedTerm == newTerm {
@@ -137,11 +137,11 @@ func (r *Replica) TryBecomeLeader() bool {
 // to commit the value within one round of commits.
 //
 // mvalModifier is not allowed to modify the version number in the given mval.
-func (r *Replica) tryCommit(mvalModifier func(*MonotonicValue), reply *TryCommitReply) {
+func (r *Replica) tryCommit(mvalModifier func(*monotonicvalue_gk.S), reply *trycommitreply_gk.S) {
 	r.mu.Lock()
 	if !r.isLeader {
 		r.mu.Unlock()
-		reply.err = ENotLeader
+		reply.Err = error_gk.ENotLeader
 		return
 	}
 	mvalModifier(r.acceptedMVal)
@@ -156,7 +156,7 @@ func (r *Replica) tryCommit(mvalModifier func(*MonotonicValue), reply *TryCommit
 	log.Printf("Trying to commit value; node state: %+v\n", r)
 	// spew.Printf("MVal state: %+v\n", r.acceptedMVal)
 
-	r.acceptedMVal.version += 1
+	r.acceptedMVal.Version += 1
 	term := r.promisedTerm
 	mval := r.acceptedMVal
 	r.mu.Unlock()
@@ -164,7 +164,7 @@ func (r *Replica) tryCommit(mvalModifier func(*MonotonicValue), reply *TryCommit
 	mu := new(sync.Mutex)
 	accepted := make(map[grove_ffi.Address]bool)
 
-	mval.conf.ForEachMember(func(addr grove_ffi.Address) {
+	ForEachConfigMember(&mval.Conf, func(addr grove_ffi.Address) {
 		go func() {
 			if r.clerkPool.ProposeRPC(addr, term, mval) {
 				mu.Lock()
@@ -177,16 +177,16 @@ func (r *Replica) tryCommit(mvalModifier func(*MonotonicValue), reply *TryCommit
 	// FIXME: put this in a condvar loop with timeout
 	primitive.Sleep(100 * 1_000_000) // 100ms
 	mu.Lock()
-	if IsQuorum(mval.conf, accepted) {
-		reply.err = ENone
-		reply.version = mval.version
+	if IsQuorum(&mval.Conf, accepted) {
+		reply.Err = error_gk.ENone
+		reply.Version = mval.Version
 	} else {
-		reply.err = EQuorumFailed
+		reply.Err = error_gk.EQuorumFailed
 	}
 	log.Printf("Result of trying to commit: %+v\n", reply)
 }
 
-func (r *Replica) TryCommitVal(v []byte, reply *TryCommitReply) {
+func (r *Replica) TryCommitVal(v []byte, reply *trycommitreply_gk.S) {
 	r.mu.Lock()
 	if !r.isLeader {
 		r.mu.Unlock()
@@ -195,36 +195,36 @@ func (r *Replica) TryCommitVal(v []byte, reply *TryCommitReply) {
 		r.mu.Unlock()
 	}
 
-	r.tryCommit(func(mval *MonotonicValue) {
-		mval.val = v
+	r.tryCommit(func(mval *monotonicvalue_gk.S) {
+		mval.Val = v
 	}, reply)
 }
 
 // requires that newConfig has overlapping quorums with r.config
 func (r *Replica) TryEnterNewConfig(newMembers []grove_ffi.Address) {
-	reply := new(TryCommitReply)
-	r.tryCommit(func(mval *MonotonicValue) {
-		if len(mval.conf.NextMembers) == 0 {
-			mval.conf.NextMembers = newMembers
+	reply := new(trycommitreply_gk.S)
+	r.tryCommit(func(mval *monotonicvalue_gk.S) {
+		if len(mval.Conf.NextMembers) == 0 {
+			mval.Conf.NextMembers = newMembers
 		}
 	}, reply)
 
-	r.tryCommit(func(mval *MonotonicValue) {
-		if len(mval.conf.NextMembers) != 0 {
-			mval.conf.Members = mval.conf.NextMembers
-			mval.conf.NextMembers = make([]grove_ffi.Address, 0)
+	r.tryCommit(func(mval *monotonicvalue_gk.S) {
+		if len(mval.Conf.NextMembers) != 0 {
+			mval.Conf.Members = mval.Conf.NextMembers
+			mval.Conf.NextMembers = make([]grove_ffi.Address, 0)
 		}
 	}, reply)
 }
 
-func StartReplicaServer(me grove_ffi.Address, initConfig *Config) {
+func StartReplicaServer(me grove_ffi.Address, initConfig *config_gk.S) {
 	s := new(Replica)
 
 	s.mu = new(sync.Mutex)
 	s.promisedTerm = 0
 	s.acceptedTerm = 0
-	s.acceptedMVal = new(MonotonicValue)
-	s.acceptedMVal.conf = initConfig
+	s.acceptedMVal = new(monotonicvalue_gk.S)
+	s.acceptedMVal.Conf = *initConfig
 
 	s.clerkPool = MakeClerkPool()
 	s.isLeader = false
@@ -232,28 +232,29 @@ func StartReplicaServer(me grove_ffi.Address, initConfig *Config) {
 	handlers := make(map[uint64]func([]byte, *[]byte))
 	handlers[RPC_PREPARE] = func(args []byte, raw_reply *[]byte) {
 		term, _ := marshal.ReadInt(args)
-		reply := new(PrepareReply)
+		reply := new(preparereply_gk.S)
 		s.PrepareRPC(term, reply)
-		*raw_reply = EncPrepareReply(make([]byte, 0), reply)
-		DecPrepareReply(*raw_reply)
+		*raw_reply = preparereply_gk.Marshal(make([]byte, 0), *reply)
+		// XXX: Why is this here?
+		preparereply_gk.Unmarshal(*raw_reply)
 	}
 
 	handlers[RPC_PROPOSE] = func(raw_args []byte, raw_reply *[]byte) {
-		args, _ := DecProposeArgs(raw_args)
-		reply := s.ProposeRPC(args.Term, args.Val)
-		*raw_reply = marshal.WriteInt(make([]byte, 0, 8), reply)
+		args, _ := proposeargs_gk.Unmarshal(raw_args)
+		reply := s.ProposeRPC(args.Term, &args.Val)
+		*raw_reply = error_gk.Marshal(make([]byte, 0, 8), reply)
 	}
 
 	handlers[RPC_TRY_COMMIT_VAL] = func(raw_args []byte, raw_reply *[]byte) {
 		log.Println("RPC_TRY_COMMIT_VAL")
 		val := raw_args
-		reply := new(TryCommitReply)
+		reply := new(trycommitreply_gk.S)
 		s.TryCommitVal(val, reply)
-		*raw_reply = marshal.WriteInt(make([]byte, 0, 8), reply.err)
+		*raw_reply = error_gk.Marshal(make([]byte, 0, 8), reply.Err)
 	}
 
 	handlers[RPC_TRY_CONFIG_CHANGE] = func(raw_args []byte, raw_reply *[]byte) {
-		args, _ := DecMembers(raw_args)
+		args, _ := marshal.ReadSliceLenPrefix(raw_args, marshal.ReadInt)
 		s.TryEnterNewConfig(args)
 		*raw_reply = make([]byte, 0)
 	}

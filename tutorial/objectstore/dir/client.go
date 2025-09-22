@@ -3,6 +3,10 @@ package dir
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/reconnectclient"
+	"github.com/mit-pdos/gokv/tutorial/objectstore/dir/finishwrite_gk"
+	"github.com/mit-pdos/gokv/tutorial/objectstore/dir/preparedread_gk"
+	"github.com/mit-pdos/gokv/tutorial/objectstore/dir/preparedwrite_gk"
+	"github.com/mit-pdos/gokv/tutorial/objectstore/dir/recordchunk_gk"
 )
 
 type WriteID = uint64
@@ -25,30 +29,32 @@ func MakeClerk(addr grove_ffi.Address) *Clerk {
 	}
 }
 
-func (ck *Clerk) PrepareWrite() PreparedWrite {
+func (ck *Clerk) PrepareWrite() preparedwrite_gk.S {
 	empty := make([]byte, 0)
 	reply := new([]byte)
 	ck.client.Call(PrepareWriteId, empty, reply, 100 /*ms*/)
-	return ParsePreparedWrite(*reply)
+	ret, _ := preparedwrite_gk.Unmarshal(*reply)
+	return ret
 }
 
 // From chunk
-func (ck *Clerk) RecordChunk(args RecordChunkArgs) {
-	req := MarshalRecordChunkArgs(args)
+func (ck *Clerk) RecordChunk(args recordchunk_gk.S) {
+	req := recordchunk_gk.Marshal(make([]byte, 0), args)
 	reply := new([]byte)
 	ck.client.Call(RecordChunkId, req, reply, 100 /*ms*/)
 }
 
 // From chunk
-func (ck *Clerk) FinishWrite(args FinishWriteArgs) {
-	req := MarshalFinishWriteArgs(args)
+func (ck *Clerk) FinishWrite(args finishwrite_gk.S) {
+	req := finishwrite_gk.Marshal(make([]byte, 0), args)
 	reply := new([]byte)
 	ck.client.Call(FinishWriteId, req, reply, 100 /*ms*/)
 }
 
-func (ck *Clerk) PrepareRead(keyname string) PreparedRead {
+func (ck *Clerk) PrepareRead(keyname string) preparedread_gk.S {
 	req := []byte(keyname)
 	reply := new([]byte)
 	ck.client.Call(PrepareReadId, req, reply, 100 /*ms*/)
-	return ParsePreparedRead(*reply)
+	ret, _ := preparedread_gk.Unmarshal(*reply)
+	return ret
 }

@@ -4,11 +4,16 @@ import (
 	"sync"
 
 	"github.com/goose-lang/primitive"
+	"github.com/mit-pdos/gokv/reconfig/replica/appendargs_gk"
+	"github.com/mit-pdos/gokv/reconfig/replica/becomeprimaryargs_gk"
+	"github.com/mit-pdos/gokv/reconfig/replica/becomereplicaargs_gk"
+	"github.com/mit-pdos/gokv/reconfig/replica/error_gk"
+	"github.com/mit-pdos/gokv/reconfig/replica/getlogreply_gk"
+	"github.com/mit-pdos/gokv/reconfig/replica/logentry_gk"
 )
 
-type LogEntry = []byte
 type LogEntryAndExtra[ExtraT any] struct {
-	Op        LogEntry
+	Op        logentry_gk.S
 	HaveExtra bool
 	Extra     ExtraT
 
@@ -18,10 +23,10 @@ type LogEntryAndExtra[ExtraT any] struct {
 
 type DurableState struct {
 	// Append the entry to the end of the log
-	Append func(entry LogEntry)
+	Append func(entry logentry_gk.S)
 
 	// Update the given three pieces of state atomically
-	SetLog func(startIndex uint64, log []LogEntry)
+	SetLog func(startIndex uint64, log []logentry_gk.S)
 
 	// Allow for the prefix of the log up to and including the given `index` to be truncated
 	Truncate func(index uint64)
@@ -66,23 +71,23 @@ func (s *Server[ExtraT]) applyThread() {
 	for {
 		// TODO: add no overflow assumption
 		err, le := s.GetEntry(appliedIndex + 1)
-		primitive.Assert(err == ENone)
+		primitive.Assert(err == error_gk.ENone)
 		s.applyFn(le)
 	}
 }
 
-func (s *Server[ExtraT]) postSuccessfulAppendRPC(idx uint64, args *AppendArgs) {
+func (s *Server[ExtraT]) postSuccessfulAppendRPC(idx uint64, args *appendargs_gk.S) {
 	s.mu.Lock()
 	// Check if this node has moved on to a future epoch, in which case this
 	// reply to AppendRPC should be ignored.
-	if s.epoch != args.epoch {
+	if s.epoch != args.Epoch {
 		s.mu.Unlock()
 		return
 	}
 
 	// increase matchIndex
-	if args.index > s.matchIndex[idx] {
-		s.matchIndex[idx] = args.index
+	if args.Index > s.matchIndex[idx] {
+		s.matchIndex[idx] = args.Index
 	}
 
 	// TODO: can this min be lower than commitIndex across a config change?
@@ -96,17 +101,17 @@ func (s *Server[ExtraT]) postSuccessfulAppendRPC(idx uint64, args *AppendArgs) {
 // primary), returns (ENotPrimary, 0).
 // Otherwise, returns ENone and the index at which to expect the operation,
 // along with the epoch at which it was proposed.
-func (s *Server[ExtraT]) Propose(op LogEntry, extra ExtraT, cancelFn func()) Error {
+func (s *Server[ExtraT]) Propose(op logentry_gk.S, extra ExtraT, cancelFn func()) error_gk.E {
 	s.mu.Lock()
 	if !s.isPrimary {
 		s.mu.Unlock()
-		return ENotPrimary
+		return error_gk.ENotPrimary
 	}
 
 	// now tell everyone else about the op
 	index := s.startIndex + uint64(len(s.log))
 	s.log = append(s.log, LogEntryAndExtra[ExtraT]{Op: op, Extra: extra, haveCancel: true, cancelFn: cancelFn})
-	args := &AppendArgs{epoch: s.epoch, entry: op, index: index}
+	args := &appendargs_gk.S{Epoch: s.epoch, Entry: op, Index: index}
 	clerks := s.clerks
 	s.mu.Unlock()
 
@@ -122,18 +127,18 @@ func (s *Server[ExtraT]) Propose(op LogEntry, extra ExtraT, cancelFn func()) Err
 			for {
 				err := ck.appendRPC(args)
 
-				if err == ENone {
+				if err == error_gk.ENone {
 					s.postSuccessfulAppendRPC(uint64(idx), args)
 					break
-				} else if err == EStale {
+				} else if err == error_gk.EStale {
 					// we are no longer the leader in this epoch
 					s.mu.Lock()
-					if s.epoch == args.epoch { // if we're still in the same epoch,
+					if s.epoch == args.Epoch { // if we're still in the same epoch,
 						s.isPrimary = false // stop telling people we're the leader
 					}
 					s.mu.Unlock()
 					break
-				} else if err == EAppendOutOfOrder {
+				} else if err == error_gk.EAppendOutOfOrder {
 					// retry and hope that the missing append has managed to
 					// reach the server now.
 				}
@@ -141,7 +146,7 @@ func (s *Server[ExtraT]) Propose(op LogEntry, extra ExtraT, cancelFn func()) Err
 			}
 		}()
 	}
-	return ENone
+	return error_gk.ENone
 }
 
 // Blocking function that waits for something to be committed at the given
@@ -151,7 +156,7 @@ func (s *Server[ExtraT]) Propose(op LogEntry, extra ExtraT, cancelFn func()) Err
 //
 //	ETruncated iff the log has been truncated past the specified index.
 //	EStale iff the server's epoch number is higher than the specified one.
-func (s *Server[ExtraT]) GetEntry(index uint64) (Error, LogEntryAndExtra[ExtraT]) {
+func (s *Server[ExtraT]) GetEntry(index uint64) (error_gk.E, LogEntryAndExtra[ExtraT]) {
 	s.mu.Lock()
 	for s.commitIndex < index {
 		s.commitIndex_cond.Wait()
@@ -159,10 +164,10 @@ func (s *Server[ExtraT]) GetEntry(index uint64) (Error, LogEntryAndExtra[ExtraT]
 
 	if s.startIndex <= index {
 		s.mu.Unlock()
-		return ENone, s.log[index-s.startIndex]
+		return error_gk.ENone, s.log[index-s.startIndex]
 	} else {
 		s.mu.Unlock()
-		return ETruncated, LogEntryAndExtra[ExtraT]{}
+		return error_gk.ETruncated, LogEntryAndExtra[ExtraT]{}
 	}
 }
 
@@ -183,29 +188,29 @@ func (s *Server[ExtraT]) Truncate(index uint64) {
 
 // Internal RPC. Applies a single operation to a replica.
 // Must have made sure that this replica has already entered the epoch.
-func (s *Server[ExtraT]) appendRPC(args *AppendArgs) Error {
+func (s *Server[ExtraT]) appendRPC(args *appendargs_gk.S) error_gk.E {
 	s.mu.Lock()
 
-	if s.isEpochStale(args.epoch) {
+	if s.isEpochStale(args.Epoch) {
 		s.mu.Unlock()
-		return EStale
+		return error_gk.EStale
 	}
 	// else, the epoch is up-to-date
 
-	if args.index < s.startIndex+uint64(len(s.log)) {
+	if args.Index < s.startIndex+uint64(len(s.log)) {
 		s.mu.Unlock()
-		return ENone // already accepted it
-	} else if args.index > s.startIndex+uint64(len(s.log)) {
+		return error_gk.ENone // already accepted it
+	} else if args.Index > s.startIndex+uint64(len(s.log)) {
 		s.mu.Unlock()
-		return EAppendOutOfOrder
+		return error_gk.EAppendOutOfOrder
 	}
 	// else, must have args.index == s.startIndex + uint64(len(s.log))
 
-	s.log = append(s.log, LogEntryAndExtra[ExtraT]{Op: args.entry})
-	s.dstate.Append(args.entry) // make stuff durable
+	s.log = append(s.log, LogEntryAndExtra[ExtraT]{Op: args.Entry})
+	s.dstate.Append(args.Entry) // make stuff durable
 
 	s.mu.Unlock()
-	return ENone
+	return error_gk.ENone
 }
 
 // Enters new epoch.
@@ -226,15 +231,15 @@ func (s *Server[ExtraT]) isEpochStale(epoch uint64) bool {
 }
 
 // Must only be invoked after the primary has already entered the new epoch.
-func (s *Server[ExtraT]) BecomePrimary(args *BecomePrimaryArgs) Error {
+func (s *Server[ExtraT]) BecomePrimary(args *becomeprimaryargs_gk.S) error_gk.E {
 	s.mu.Lock()
 	if s.isEpochStale(args.Epoch) {
 		s.mu.Unlock()
-		return EStale
+		return error_gk.EStale
 	}
 	if s.isPrimary {
 		s.mu.Unlock() // Already primary, no work to do
-		return ENone
+		return error_gk.ENone
 	}
 
 	s.matchIndex = make([]uint64, len(args.Conf.Replicas))
@@ -248,7 +253,7 @@ func (s *Server[ExtraT]) BecomePrimary(args *BecomePrimaryArgs) Error {
 	s.isPrimary = true
 
 	s.mu.Unlock()
-	return ENone
+	return error_gk.ENone
 }
 
 // TODO: put this in util file
@@ -267,12 +272,12 @@ func FmapList[T, S any](la []T, f func(T) S) []S {
 // Also, even if the epoch is not stale, the server might not have all the log
 // entries it's supposed to keep around, in which case it returns
 // EIncompleteLog and doesn't promise to have accepted args.log.
-func (s *Server[ExtraT]) TryBecomeReplicaRPC(args *BecomeReplicaArgs) Error {
+func (s *Server[ExtraT]) TryBecomeReplicaRPC(args *becomereplicaargs_gk.S) error_gk.E {
 	s.mu.Lock()
 	// if this is not a BRAND NEW epoch number, ignore it
 	if args.Epoch <= s.epoch {
 		s.mu.Unlock()
-		return EStale
+		return error_gk.EStale
 	}
 	s.epoch = args.Epoch
 
@@ -296,12 +301,12 @@ func (s *Server[ExtraT]) TryBecomeReplicaRPC(args *BecomeReplicaArgs) Error {
 		// server won't accept; technically it could if args.startIndex <=
 		// s.commitIndex, see above comment.
 		s.mu.Unlock()
-		return EIncompleteLog
+		return error_gk.EIncompleteLog
 	}
 
 	prevLog := s.log
 	s.log = FmapList(args.Log[s.startIndex-args.StartIndex:],
-		func(e LogEntry) LogEntryAndExtra[ExtraT] {
+		func(e logentry_gk.S) LogEntryAndExtra[ExtraT] {
 			return LogEntryAndExtra[ExtraT]{Op: e}
 		})
 
@@ -314,16 +319,16 @@ func (s *Server[ExtraT]) TryBecomeReplicaRPC(args *BecomeReplicaArgs) Error {
 			le.cancelFn()
 		}
 	}
-	return ENone
+	return error_gk.ENone
 }
 
 // Only possible error is EStale
-func (s *Server[ExtraT]) RemainReplica(args *BecomeReplicaArgs) Error {
+func (s *Server[ExtraT]) RemainReplica(args *becomereplicaargs_gk.S) error_gk.E {
 	s.mu.Lock()
 	// if this is not a BRAND NEW epoch number, ignore it
 	if args.Epoch <= s.epoch {
 		s.mu.Unlock()
-		return EStale
+		return error_gk.EStale
 	}
 	s.epoch = args.Epoch
 	s.dstate.SetEpoch(args.Epoch)
@@ -359,29 +364,29 @@ func (s *Server[ExtraT]) RemainReplica(args *BecomeReplicaArgs) Error {
 	s.dstate.SetLog(s.startIndex, FmapList(s.log, forgetExtra[ExtraT]))
 	s.mu.Unlock()
 
-	return ENone
+	return error_gk.ENone
 }
 
-func forgetExtra[ExtraT any](l LogEntryAndExtra[ExtraT]) LogEntry {
+func forgetExtra[ExtraT any](l LogEntryAndExtra[ExtraT]) logentry_gk.S {
 	return l.Op
 }
 
-func addDefaultExtra[ExtraT any](l LogEntry) LogEntryAndExtra[ExtraT] {
+func addDefaultExtra[ExtraT any](l logentry_gk.S) LogEntryAndExtra[ExtraT] {
 	return LogEntryAndExtra[ExtraT]{Op: l}
 }
 
-func (s *Server[ExtraT]) GetUncommittedLog(epoch uint64) *GetLogReply {
+func (s *Server[ExtraT]) GetUncommittedLog(epoch uint64) *getlogreply_gk.S {
 	s.mu.Lock()
-	reply := new(GetLogReply)
+	reply := new(getlogreply_gk.S)
 	if s.isEpochStale(epoch) {
 		s.mu.Unlock()
-		reply.err = EStale
+		reply.Err = error_gk.EStale
 		return reply
 	}
 
-	reply.log = FmapList(s.log[(s.commitIndex-s.startIndex):], forgetExtra[ExtraT])
-	reply.startIndex = s.commitIndex
-	reply.err = ENone
+	reply.Log = FmapList(s.log[(s.commitIndex-s.startIndex):], forgetExtra[ExtraT])
+	reply.StartIndex = s.commitIndex
+	reply.Err = error_gk.ENone
 
 	s.mu.Unlock()
 	return reply
@@ -390,7 +395,7 @@ func (s *Server[ExtraT]) GetUncommittedLog(epoch uint64) *GetLogReply {
 type ProtocolState struct {
 	epoch      uint64
 	startIndex uint64
-	log        []LogEntry
+	log        []logentry_gk.S
 }
 
 func MakeServer[ExtraT any](dstate *DurableState, pstate *ProtocolState) *Server[ExtraT] {
@@ -401,7 +406,7 @@ func MakeServer[ExtraT any](dstate *DurableState, pstate *ProtocolState) *Server
 	s.epoch = pstate.epoch
 	s.startIndex = pstate.startIndex
 	s.log = FmapList(pstate.log,
-		func(op LogEntry) LogEntryAndExtra[ExtraT] {
+		func(op logentry_gk.S) LogEntryAndExtra[ExtraT] {
 			return LogEntryAndExtra[ExtraT]{Op: op}
 		},
 	)

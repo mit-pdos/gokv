@@ -5,7 +5,10 @@ import (
 
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/tutorial/objectstore/chunk"
+	"github.com/mit-pdos/gokv/tutorial/objectstore/chunk/writechunk_gk"
 	"github.com/mit-pdos/gokv/tutorial/objectstore/dir"
+	"github.com/mit-pdos/gokv/tutorial/objectstore/dir/chunkhandle_gk"
+	"github.com/mit-pdos/gokv/tutorial/objectstore/dir/finishwrite_gk"
 )
 
 type Clerk struct {
@@ -38,7 +41,7 @@ func (w *Writer) AppendChunk(data []byte) {
 	w.index = w.index + 1
 	go func() {
 		addr := w.chunkAddrs[index%uint64(len(w.chunkAddrs))]
-		args := chunk.WriteChunkArgs{
+		args := writechunk_gk.S{
 			WriteId: w.writeId,
 			Chunk:   data,
 			Index:   index,
@@ -51,14 +54,14 @@ func (w *Writer) AppendChunk(data []byte) {
 
 func (w *Writer) Done() {
 	w.wg.Wait()
-	w.ck.dCk.FinishWrite(dir.FinishWriteArgs{
+	w.ck.dCk.FinishWrite(finishwrite_gk.S{
 		WriteId: w.writeId,
 		Keyname: w.keyname,
 	})
 }
 
 type Reader struct {
-	chunkHandles []dir.ChunkHandle
+	chunkHandles []chunkhandle_gk.S
 	index        uint64
 	ck           *Clerk
 }

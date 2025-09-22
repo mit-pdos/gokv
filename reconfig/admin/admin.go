@@ -6,12 +6,17 @@ import (
 	"github.com/mit-pdos/gokv/reconfig/config"
 	"github.com/mit-pdos/gokv/reconfig/example"
 	"github.com/mit-pdos/gokv/reconfig/replica"
+	"github.com/mit-pdos/gokv/reconfig/replica/becomeprimaryargs_gk"
+	"github.com/mit-pdos/gokv/reconfig/replica/becomereplicaargs_gk"
+	"github.com/mit-pdos/gokv/reconfig/replica/configuration_gk"
+	"github.com/mit-pdos/gokv/reconfig/replica/error_gk"
 )
 
-func EnterNewConfig(cfgHost grove_ffi.Address, servers []grove_ffi.Address) replica.Error {
+func EnterNewConfig(cfgHost grove_ffi.Address, servers []grove_ffi.Address) error_gk.E {
 	confCk := config.MakeClerk(cfgHost)
 	epoch, conf_enc := confCk.GetFreshEpochAndRead()
-	oldServers := replica.DecodeConfiguration(conf_enc).Replicas
+	conf, _ := configuration_gk.Unmarshal(conf_enc)
+	oldServers := conf.Replicas
 
 	// figure out which servers are actually new
 	oldServerSet := make(map[grove_ffi.Address]bool)
@@ -51,17 +56,17 @@ func EnterNewConfig(cfgHost grove_ffi.Address, servers []grove_ffi.Address) repl
 	// get log
 	oldLogCk := replica.MakeClerk(oldServers[13%len(oldServers)])
 	err, startIndex, log := oldLogCk.GetUncommittedLog(epoch) // this is where the old config becomes unavailable
-	if err != replica.ENone {
+	if err != error_gk.ENone {
 		return err
 	}
 
 	// send logs to replicas that were in prev config; guaranteed not to return EIncompleteLog
-	args := &replica.BecomeReplicaArgs{Epoch: epoch, StartIndex: startIndex, Log: log}
+	args := &becomereplicaargs_gk.S{Epoch: epoch, StartIndex: startIndex, Log: log}
 	remainingLogClerks := replica.FmapList(remainingServers, replica.MakeClerk)
 
 	for _, remainingClerk := range remainingLogClerks {
 		err := remainingClerk.RemainReplica(args)
-		if err == replica.EStale {
+		if err == error_gk.EStale {
 			return err
 		}
 	}
@@ -72,10 +77,10 @@ func EnterNewConfig(cfgHost grove_ffi.Address, servers []grove_ffi.Address) repl
 	newLogClerks := replica.FmapList(newServers, replica.MakeClerk)
 	for _, newClerk := range newLogClerks {
 		err := newClerk.TryBecomeReplica(args)
-		if err == replica.EStale {
+		if err == error_gk.EStale {
 			return err
 		}
-		if err == replica.EIncompleteLog {
+		if err == error_gk.EIncompleteLog {
 			success = false
 		}
 	}
@@ -83,16 +88,17 @@ func EnterNewConfig(cfgHost grove_ffi.Address, servers []grove_ffi.Address) repl
 		panic("admin: unexpected EIncompleteLog during log alignment")
 	}
 
-	newLogClerks[0].BecomePrimary(&replica.BecomePrimaryArgs{Epoch: epoch, Conf: replica.Configuration{Replicas: newServers}})
-	return replica.ENone
+	newLogClerks[0].BecomePrimary(&becomeprimaryargs_gk.S{Epoch: epoch, Conf: configuration_gk.S{Replicas: newServers}})
+	return error_gk.ENone
 }
 
 // A better protocol
-func EnterNewConfig2(cfgHost grove_ffi.Address, servers []grove_ffi.Address) replica.Error {
-	var err = replica.ENone
+func EnterNewConfig2(cfgHost grove_ffi.Address, servers []grove_ffi.Address) error_gk.E {
+	var err = error_gk.ENone
 	confCk := config.MakeClerk(cfgHost)
 	epoch, conf_enc := confCk.GetFreshEpochAndRead()
-	oldServers := replica.DecodeConfiguration(conf_enc).Replicas
+	conf, _ := configuration_gk.Unmarshal(conf_enc)
+	oldServers := conf.Replicas
 
 	// figure out which servers are actually new
 	oldServerSet := make(map[grove_ffi.Address]bool)
@@ -113,7 +119,7 @@ func EnterNewConfig2(cfgHost grove_ffi.Address, servers []grove_ffi.Address) rep
 	// get log
 	oldLogCk := replica.MakeClerk(oldServers[primitive.RandomUint64()%uint64(len(oldServers))])
 	err, startIndex, log := oldLogCk.GetUncommittedLog(epoch)
-	if err != replica.ENone {
+	if err != error_gk.ENone {
 		return err
 	}
 
@@ -122,17 +128,17 @@ func EnterNewConfig2(cfgHost grove_ffi.Address, servers []grove_ffi.Address) rep
 	// sure the new servers have the same entries as old log servers.
 
 	// send logs to replicas that were in prev config; guaranteed not to return EIncompleteLog
-	args := &replica.BecomeReplicaArgs{Epoch: epoch, StartIndex: startIndex, Log: log}
+	args := &becomereplicaargs_gk.S{Epoch: epoch, StartIndex: startIndex, Log: log}
 	remainingLogClerks := replica.FmapList(remainingServers, replica.MakeClerk)
 	for _, remainingClerk := range remainingLogClerks {
 		err = remainingClerk.RemainReplica(args)
-		if err == replica.EStale {
+		if err == error_gk.EStale {
 			break
 		} else {
 			continue
 		}
 	}
-	if err != replica.ENone {
+	if err != error_gk.ENone {
 		return err
 	}
 
@@ -140,11 +146,11 @@ func EnterNewConfig2(cfgHost grove_ffi.Address, servers []grove_ffi.Address) rep
 	newLogClerks := replica.FmapList(newServers, replica.MakeClerk)
 	for _, newClerk := range newLogClerks {
 		err = newClerk.TryBecomeReplica(args)
-		if err == replica.EStale {
+		if err == error_gk.EStale {
 			break
 		}
 	}
-	if err != replica.ENone {
+	if err != error_gk.ENone {
 		return err
 	}
 

@@ -2,6 +2,9 @@ package memkv
 
 import (
 	"github.com/mit-pdos/gokv/connman"
+	"github.com/mit-pdos/gokv/memkv/error_gk"
+	"github.com/mit-pdos/gokv/memkv/shardmap_gk"
+	"github.com/tchajed/marshal"
 )
 
 type KVCoordClerk struct {
@@ -11,14 +14,15 @@ type KVCoordClerk struct {
 
 func (ck *KVCoordClerk) AddShardServer(dst HostName) {
 	rawRep := new([]byte)
-	ck.c.CallAtLeastOnce(ck.host, COORD_ADD, EncodeUint64(dst), rawRep, 50000 /*ms*/)
+	ck.c.CallAtLeastOnce(ck.host, COORD_ADD, marshal.WriteInt(make([]byte, 0), dst), rawRep, 50000 /*ms*/)
 	return
 }
 
-func (ck *KVCoordClerk) GetShardMap() []HostName {
+func (ck *KVCoordClerk) GetShardMap() shardmap_gk.S {
 	rawRep := new([]byte)
 	ck.c.CallAtLeastOnce(ck.host, COORD_GET, make([]byte, 0), rawRep, 50000 /*ms*/)
-	return decodeShardMap(*rawRep)
+	smap, _ := shardmap_gk.Unmarshal(*rawRep)
+	return smap
 }
 
 // "Sequential" KV clerk, can only be used for one request at a time.
@@ -28,18 +32,18 @@ func (ck *KVCoordClerk) GetShardMap() []HostName {
 type SeqKVClerk struct {
 	shardClerks *ShardClerkSet
 	coordCk     *KVCoordClerk
-	shardMap    []HostName // size == NSHARD; maps from sid -> host that currently owns it
+	shardMap    shardmap_gk.S // size == NSHARD; maps from sid -> host that currently owns it
 }
 
 func (ck *SeqKVClerk) Get(key uint64) []byte {
 	val := new([]byte)
 	for {
 		sid := shardOf(key)
-		shardServer := ck.shardMap[sid]
+		shardServer := ck.shardMap.Shards[sid]
 
 		shardCk := ck.shardClerks.GetClerk(shardServer)
 		err := shardCk.Get(key, val)
-		if err == ENone {
+		if err == error_gk.ENone {
 			break
 		}
 		ck.shardMap = ck.coordCk.GetShardMap()
@@ -51,12 +55,12 @@ func (ck *SeqKVClerk) Get(key uint64) []byte {
 func (ck *SeqKVClerk) Put(key uint64, value []byte) {
 	for {
 		sid := shardOf(key)
-		shardServer := ck.shardMap[sid]
+		shardServer := ck.shardMap.Shards[sid]
 
 		shardCk := ck.shardClerks.GetClerk(shardServer)
 		err := shardCk.Put(key, value)
 
-		if err == ENone {
+		if err == error_gk.ENone {
 			break
 		}
 		ck.shardMap = ck.coordCk.GetShardMap()
@@ -69,12 +73,12 @@ func (ck *SeqKVClerk) ConditionalPut(key uint64, expectedValue []byte, newValue 
 	success := new(bool)
 	for {
 		sid := shardOf(key)
-		shardServer := ck.shardMap[sid]
+		shardServer := ck.shardMap.Shards[sid]
 
 		shardCk := ck.shardClerks.GetClerk(shardServer)
 		err := shardCk.ConditionalPut(key, expectedValue, newValue, success)
 
-		if err == ENone {
+		if err == error_gk.ENone {
 			break
 		}
 		ck.shardMap = ck.coordCk.GetShardMap()

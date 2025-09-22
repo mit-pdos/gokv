@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+enum Error {
+  ENone = 0;
+  EDontHaveShard = 1;
+}
+
+enum KvOp {
+  KV_FRESHCID = 0;
+  KV_PUT = 1;
+  KV_GET = 2;
+  KV_CONDITIONAL_PUT = 3;
+  KV_INS_SHARD = 4;
+  KV_MOV_SHARD = 5;
+}
+
+message putRequest {
+  uint64 key = 1;
+  bytes value = 2;
+}
+
+message putReply {
+  Error err = 1;
+}
+
+message getRequest {
+  uint64 key = 1;
+}
+
+message getReply {
+  Error err = 1;
+  bytes value = 2;
+}
+
+message conditionalPutRequest {
+  uint64 key = 1;
+  bytes expectedValue = 2;
+  bytes newValue = 3;
+}
+
+message conditionalPutReply {
+  Error err = 1;
+  bool success = 2;
+}
+
+// TODO: Missing true map support in grackle 
+//
+// message installShardRequest {
+//   uint64 sid = 1;
+//   // This might be tricky since now the proto files aren't standalone
+//   mapU64ToBytes kvs = 2;
+// }
+
+message moveShardRequest {
+  uint64 sid = 1;
+  // De-alias HostName to uint64
+  uint64 dst = 2;
+}
+
+message shardMap {
+  repeated uint64 shards = 1;
+}

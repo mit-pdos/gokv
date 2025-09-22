@@ -7,8 +7,9 @@ import (
 	"github.com/goose-lang/std"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc"
-	"github.com/mit-pdos/gokv/vrsm/e"
+	"github.com/mit-pdos/gokv/vrsm/configservice/config_gk"
 	"github.com/mit-pdos/gokv/vrsm/paxos"
+	"github.com/mit-pdos/gokv/vrsm/replica/err_gk"
 	"github.com/tchajed/marshal"
 )
 
@@ -19,7 +20,7 @@ type state struct {
 	reservedEpoch     uint64
 	leaseExpiration   uint64
 	wantLeaseToExpire bool
-	config            []grove_ffi.Address
+	config            config_gk.S
 }
 
 func encodeState(st *state) []byte {
@@ -32,7 +33,7 @@ func encodeState(st *state) []byte {
 	} else {
 		e = marshal.WriteInt(e, 0)
 	}
-	e = marshal.WriteBytes(e, EncodeConfig(st.config))
+	e = config_gk.Marshal(e, st.config)
 	return e
 }
 
@@ -45,7 +46,7 @@ func decodeState(e []byte) *state {
 	var wantExp uint64
 	wantExp, e2 = marshal.ReadInt(e2)
 	st.wantLeaseToExpire = (wantExp == 1)
-	st.config = DecodeConfig(e2)
+	st.config, _ = config_gk.Unmarshal(e2)
 	return st
 }
 
@@ -68,7 +69,7 @@ func (s *Server) tryAcquire() (bool, *state, func() bool) {
 }
 
 func (s *Server) ReserveEpochAndGetConfig(args []byte, reply *[]byte) {
-	*reply = marshal.WriteInt(nil, e.NotLeader)
+	*reply = err_gk.Marshal(make([]byte, 0), err_gk.NotLeader)
 	ok, st, tryReleaseFn := s.tryAcquire()
 	if !ok {
 		return
@@ -79,23 +80,23 @@ func (s *Server) ReserveEpochAndGetConfig(args []byte, reply *[]byte) {
 	if !tryReleaseFn() {
 		return
 	}
-	*reply = make([]byte, 0, 8+8+8*len(config))
-	*reply = marshal.WriteInt(*reply, e.None)
+	*reply = make([]byte, 0, 8+8+8*len(config.Addrs))
+	*reply = err_gk.Marshal(*reply, err_gk.None)
 	*reply = marshal.WriteInt(*reply, reservedEpoch)
-	*reply = marshal.WriteBytes(*reply, EncodeConfig(config))
+	*reply = config_gk.Marshal(*reply, config)
 }
 
 func (s *Server) GetConfig(args []byte, reply *[]byte) {
 	st := decodeState(s.s.WeakRead())
-	*reply = EncodeConfig(st.config)
+	*reply = config_gk.Marshal(make([]byte, 0), st.config)
 }
 
 func (s *Server) TryWriteConfig(args []byte, reply *[]byte) {
-	*reply = marshal.WriteInt(nil, e.NotLeader)
+	*reply = err_gk.Marshal(make([]byte, 0), err_gk.NotLeader)
 
 	// check if lease is expired
 	epoch, enc := marshal.ReadInt(args)
-	config := DecodeConfig(enc)
+	config, _ := config_gk.Unmarshal(enc)
 	for {
 		ok, st, tryReleaseFn := s.tryAcquire()
 		if !ok {
@@ -106,7 +107,7 @@ func (s *Server) TryWriteConfig(args []byte, reply *[]byte) {
 			if !tryReleaseFn() {
 				break
 			}
-			*reply = marshal.WriteInt(nil, e.Stale)
+			*reply = err_gk.Marshal(make([]byte, 0), err_gk.Stale)
 			log.Printf("Stale: %d < %d", epoch, st.reservedEpoch)
 			break
 		} else if epoch > st.epoch {
@@ -119,7 +120,7 @@ func (s *Server) TryWriteConfig(args []byte, reply *[]byte) {
 					break
 				}
 				log.Println("New config is:", st.config)
-				*reply = marshal.WriteInt(nil, e.None)
+				*reply = err_gk.Marshal(make([]byte, 0), err_gk.None)
 				break
 			} else {
 				st.wantLeaseToExpire = true
@@ -136,14 +137,14 @@ func (s *Server) TryWriteConfig(args []byte, reply *[]byte) {
 			if !tryReleaseFn() {
 				break
 			}
-			*reply = marshal.WriteInt(nil, e.None)
+			*reply = err_gk.Marshal(make([]byte, 0), err_gk.None)
 			break
 		}
 	}
 }
 
 func (s *Server) GetLease(args []byte, reply *[]byte) {
-	*reply = marshal.WriteInt(nil, e.NotLeader)
+	*reply = err_gk.Marshal(make([]byte, 0), err_gk.NotLeader)
 	*reply = marshal.WriteInt(*reply, 0) // placeholder lease expiration time
 	epoch, _ := marshal.ReadInt(args)
 	ok, st, tryReleaseFn := s.tryAcquire()
@@ -156,7 +157,7 @@ func (s *Server) GetLease(args []byte, reply *[]byte) {
 		if !tryReleaseFn() {
 			return
 		}
-		*reply = marshal.WriteInt(nil, e.Stale)
+		*reply = err_gk.Marshal(make([]byte, 0), err_gk.Stale)
 		*reply = marshal.WriteInt(*reply, 0)
 		return
 	}
@@ -170,14 +171,14 @@ func (s *Server) GetLease(args []byte, reply *[]byte) {
 		return
 	}
 
-	*reply = marshal.WriteInt(nil, e.None)
+	*reply = err_gk.Marshal(make([]byte, 0), err_gk.None)
 	*reply = marshal.WriteInt(*reply, newLeaseExpiration)
 }
 
 func makeServer(fname string, paxosMe grove_ffi.Address,
 	hosts []grove_ffi.Address, initconfig []grove_ffi.Address) *Server {
 	s := new(Server)
-	initEnc := encodeState(&state{config: initconfig})
+	initEnc := encodeState(&state{config: config_gk.S{Addrs: initconfig}})
 
 	s.s = paxos.StartServer(fname, initEnc, paxosMe, hosts)
 

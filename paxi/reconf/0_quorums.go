@@ -2,18 +2,14 @@ package reconf
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
+	"github.com/mit-pdos/gokv/paxi/reconf/config_gk"
 )
-
-type Config struct {
-	Members     []grove_ffi.Address
-	NextMembers []grove_ffi.Address
-}
 
 // Returns some integer i with the property that
 // there exists W such that W contains a majority of members and of nextMembers,
 // and every node n in W has indices[n] >= i.
 // Even more precisely, it returns the largest such i.
-func GetHighestIndexOfQuorum(config *Config, indices map[grove_ffi.Address]uint64) uint64 {
+func GetHighestIndexOfQuorum(config *config_gk.S, indices map[grove_ffi.Address]uint64) uint64 {
 	// Will fill orderedIndices with indices of config.members, keeping only the
 	// smallest ceil(n/2) values.
 	var orderedIndices = make([]uint64, (len(config.Members)+1)/2)
@@ -39,7 +35,7 @@ func GetHighestIndexOfQuorum(config *Config, indices map[grove_ffi.Address]uint6
 }
 
 // Returns true iff w is a (write) quorum for the config `config`.
-func IsQuorum(config *Config, w map[grove_ffi.Address]bool) bool {
+func IsQuorum(config *config_gk.S, w map[grove_ffi.Address]bool) bool {
 	var num uint64
 	for _, member := range config.Members {
 		if w[member] {
@@ -65,23 +61,23 @@ func IsQuorum(config *Config, w map[grove_ffi.Address]bool) bool {
 	return true
 }
 
-func (c *Config) ForEachMember(f func(grove_ffi.Address)) {
-	for _, member := range c.Members {
+func ForEachConfigMember(config *config_gk.S, f func(grove_ffi.Address)) {
+	for _, member := range config.Members {
 		f(member)
 	}
-	for _, member := range c.NextMembers {
+	for _, member := range config.NextMembers {
 		f(member)
 	}
 }
 
-func (c *Config) Contains(m grove_ffi.Address) bool {
+func ConfigContains(config *config_gk.S, m grove_ffi.Address) bool {
 	var ret bool = false
-	for _, member := range c.Members {
+	for _, member := range config.Members {
 		if member == m {
 			ret = true
 		}
 	}
-	for _, member := range c.NextMembers {
+	for _, member := range config.NextMembers {
 		if member == m {
 			ret = true
 		}

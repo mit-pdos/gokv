@@ -2,6 +2,11 @@ package replica
 
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
+	"github.com/mit-pdos/gokv/reconfig/replica/appendargs_gk"
+	"github.com/mit-pdos/gokv/reconfig/replica/becomeprimaryargs_gk"
+	"github.com/mit-pdos/gokv/reconfig/replica/becomereplicaargs_gk"
+	"github.com/mit-pdos/gokv/reconfig/replica/error_gk"
+	"github.com/mit-pdos/gokv/reconfig/replica/logentry_gk"
 	"github.com/mit-pdos/gokv/urpc"
 )
 
@@ -9,38 +14,27 @@ type Clerk struct {
 	cl *urpc.Client
 }
 
-type Error = uint64
-
-const (
-	ENone             = uint64(0)
-	ENotPrimary       = uint64(1)
-	EStale            = uint64(2)
-	EAppendOutOfOrder = uint64(3)
-	ETruncated        = uint64(4)
-	EIncompleteLog    = uint64(5)
-)
-
-func (ck *Clerk) appendRPC(args *AppendArgs) Error {
+func (ck *Clerk) appendRPC(args *appendargs_gk.S) error_gk.E {
 	// FIXME: impl
 	panic("replica: impl")
 }
 
-func (ck *Clerk) BecomePrimary(args *BecomePrimaryArgs) Error {
+func (ck *Clerk) BecomePrimary(args *becomeprimaryargs_gk.S) error_gk.E {
 	// FIXME: impl
 	panic("replica: impl")
 }
 
-func (ck *Clerk) TryBecomeReplica(args *BecomeReplicaArgs) Error {
+func (ck *Clerk) TryBecomeReplica(args *becomereplicaargs_gk.S) error_gk.E {
 	// FIXME: impl
 	panic("replica: impl")
 }
 
-func (ck *Clerk) RemainReplica(args *BecomeReplicaArgs) Error {
+func (ck *Clerk) RemainReplica(args *becomereplicaargs_gk.S) error_gk.E {
 	// FIXME: impl
 	panic("replica: impl")
 }
 
-func (ck *Clerk) GetUncommittedLog(epoch uint64) (Error, uint64, []LogEntry) {
+func (ck *Clerk) GetUncommittedLog(epoch uint64) (error_gk.E, uint64, []logentry_gk.S) {
 	panic("replica: impl")
 }
 

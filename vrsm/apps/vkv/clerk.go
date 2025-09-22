@@ -3,6 +3,9 @@ package vkv
 import (
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/vrsm/apps/exactlyonce"
+	"github.com/mit-pdos/gokv/vrsm/apps/vkv/condputargs_gk"
+	"github.com/mit-pdos/gokv/vrsm/apps/vkv/getargs_gk"
+	"github.com/mit-pdos/gokv/vrsm/apps/vkv/putargs_gk"
 )
 
 type Clerk struct {
@@ -14,22 +17,25 @@ func MakeClerk(confHosts []grove_ffi.Address) *Clerk {
 }
 
 func (ck *Clerk) Put(key, val string) {
-	args := &PutArgs{
+	args := putargs_gk.S{
 		Key: key,
 		Val: val,
 	}
-	ck.cl.ApplyExactlyOnce(encodePutArgs(args))
+	ck.cl.ApplyExactlyOnce(putargs_gk.Marshal(make([]byte, 0), args))
 }
 
 func (ck *Clerk) Get(key string) string {
-	return string(ck.cl.ApplyReadonly(encodeGetArgs(key)))
+	args := getargs_gk.S{
+		Get: key,
+	}
+	return string(ck.cl.ApplyReadonly(getargs_gk.Marshal(make([]byte, 0), args)))
 }
 
 func (ck *Clerk) CondPut(key, expect, val string) string {
-	args := &CondPutArgs{
+	args := condputargs_gk.S{
 		Key:    key,
 		Expect: expect,
 		Val:    val,
 	}
-	return string(ck.cl.ApplyExactlyOnce(encodeCondPutArgs(args)))
+	return string(ck.cl.ApplyExactlyOnce(condputargs_gk.Marshal(make([]byte, 0), args)))
 }

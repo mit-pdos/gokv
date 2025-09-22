@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+message writeChunk {
+  // De-aliasing WriteID to uint64
+  uint64 writeId = 1;
+  bytes chunk = 2;
+  uint64 index = 3;
+}

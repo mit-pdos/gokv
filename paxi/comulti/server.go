@@ -16,9 +16,13 @@ package comulti
 // without worrying about any sort of log.
 
 import (
-	"github.com/mit-pdos/gokv/urpc"
 	"sync"
 	"time"
+
+	"github.com/mit-pdos/gokv/paxi/comulti/preparereply_gk"
+	"github.com/mit-pdos/gokv/paxi/comulti/proposeargs_gk"
+	"github.com/mit-pdos/gokv/urpc"
+	"github.com/tchajed/marshal"
 )
 
 type Entry = uint64
@@ -42,7 +46,7 @@ type Replica struct {
 	commitf       func(Entry)
 }
 
-func (r *Replica) PrepareRPC(pn uint64, reply *PrepareReply) {
+func (r *Replica) PrepareRPC(pn uint64, reply *preparereply_gk.S) {
 	r.mu.Lock()
 	if pn > r.promisedPN {
 		r.promisedPN = pn
@@ -192,7 +196,7 @@ func (r *Replica) TryBecomeLeader() {
 	for _, peer := range r.peers { // XXX: peers is readonly
 		local_peer := peer
 		go func() {
-			reply_ptr := new(PrepareReply)
+			reply_ptr := new(preparereply_gk.S)
 			local_peer.Prepare(pn, reply_ptr)
 
 			if reply_ptr.Success {
@@ -257,21 +261,21 @@ func MakeReplica(me uint64, commitf func(Entry), peerHosts []uint64, isLeader bo
 func (r *Replica) StartServer(host uint64) {
 	handlers := make(map[uint64]func([]byte, *[]byte))
 	handlers[TRY_APPEND] = func(rawReq []byte, rawRep *[]byte) {
-		e := decodeUint64(rawReq)
+		e, _ := marshal.ReadInt(*rawRep)
 		r.TryAppendRPC(e)
 	}
 
 	handlers[PREPARE] = func(rawReq []byte, rawRep *[]byte) {
-		pn := decodeUint64(rawReq)
-		rep := new(PrepareReply)
+		pn, _ := marshal.ReadInt(*rawRep)
+		rep := new(preparereply_gk.S)
 		r.PrepareRPC(pn, rep)
-		*rawRep = encodePrepareReply(rep)
+		*rawRep = preparereply_gk.Marshal(make([]byte, 0), *rep)
 	}
 
 	handlers[PROPOSE] = func(rawReq []byte, rawRep *[]byte) {
-		args := decodeProposeArgs(rawReq)
+		args, _ := proposeargs_gk.Unmarshal(*rawRep)
 		b := r.ProposeRPC(args.Pn, args.CommitIndex, args.Log)
-		*rawRep = encodeBool(b)
+		*rawRep = marshal.WriteBool(make([]byte, 0), b)
 	}
 	s := urpc.MakeServer(handlers)
 	s.Serve(host) // 1 == num workers

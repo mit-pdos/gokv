@@ -1,8 +1,12 @@
 package mkrouter
 
 import (
-	"github.com/mit-pdos/gokv/memkv"
 	"sync"
+
+	"github.com/mit-pdos/gokv/memkv"
+	"github.com/mit-pdos/gokv/memkv/getrequest_gk"
+	"github.com/mit-pdos/gokv/memkv/kvop_gk"
+	"github.com/mit-pdos/gokv/memkv/putrequest_gk"
 )
 
 // Totally naive RPC based MemKV proxy/load balancer
@@ -15,7 +19,7 @@ type MKRouterServer struct {
 	cks   []*memkv.KVClerk // pool of clerks
 }
 
-func (s *MKRouterServer) GetRPC(args *memkv.GetRequest, val *[]byte) {
+func (s *MKRouterServer) GetRPC(args *getrequest_gk.S, val *[]byte) {
 	var ck *memkv.KVClerk
 	s.mu.Lock()
 	if len(s.cks) > 0 {
@@ -32,7 +36,7 @@ func (s *MKRouterServer) GetRPC(args *memkv.GetRequest, val *[]byte) {
 	s.mu.Unlock()
 }
 
-func (s *MKRouterServer) PutRPC(args *memkv.PutRequest) {
+func (s *MKRouterServer) PutRPC(args *putrequest_gk.S) {
 	var ck *memkv.KVClerk
 	s.mu.Lock()
 	if len(s.cks) > 0 {
@@ -52,11 +56,13 @@ func (s *MKRouterServer) PutRPC(args *memkv.PutRequest) {
 func (mkv *MKRouterServer) Start(host HostName) {
 	handlers := make(map[uint64]func([]byte, *[]byte))
 
-	handlers[memkv.KV_PUT] = func(rawReq []byte, rawReply *[]byte) {
-		mkv.PutRPC(memkv.DecodePutRequest(rawReq))
+	handlers[uint64(kvop_gk.KV_PUT)] = func(rawReq []byte, rawReply *[]byte) {
+		req, _ := putrequest_gk.Unmarshal(rawReq)
+		mkv.PutRPC(&req)
 	}
 
-	handlers[memkv.KV_GET] = func(rawReq []byte, rawReply *[]byte) {
-		mkv.GetRPC(memkv.DecodeGetRequest(rawReq), rawReply)
+	handlers[uint64(kvop_gk.KV_GET)] = func(rawReq []byte, rawReply *[]byte) {
+		req, _ := getrequest_gk.Unmarshal(rawReq)
+		mkv.GetRPC(&req, rawReply)
 	}
 }

@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+message putArgs {
+  string key = 1;
+  string val = 2;
+}
+
+message getArgs {
+  string get = 1;
+}
+
+message condPutArgs {
+  string key = 1;
+  string expect = 2;
+  string val = 3;
+}

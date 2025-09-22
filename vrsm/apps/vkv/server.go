@@ -6,8 +6,10 @@ import (
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/map_string_marshal"
 	"github.com/mit-pdos/gokv/vrsm/apps/exactlyonce"
+	"github.com/mit-pdos/gokv/vrsm/apps/vkv/condputargs_gk"
+	"github.com/mit-pdos/gokv/vrsm/apps/vkv/getargs_gk"
+	"github.com/mit-pdos/gokv/vrsm/apps/vkv/putargs_gk"
 	"github.com/mit-pdos/gokv/vrsm/storage"
-	"github.com/tchajed/marshal"
 )
 
 type KVState struct {
@@ -26,104 +28,26 @@ const (
 	OP_COND_PUT = byte(2)
 )
 
-// begin arg structs and marshalling
-type PutArgs struct {
-	Key string
-	Val string
-}
-
-func encodePutArgs(args *PutArgs) []byte {
-	// XXX: potential overflow with
-	// `... + uint64(len(args.Key))+uint64(len(args.Val)))` in capacity
-	var enc = make([]byte, 1, 1+8)
-	enc[0] = OP_PUT
-	enc = marshal.WriteInt(enc, uint64(len(args.Key)))
-	enc = marshal.WriteBytes(enc, []byte(args.Key))
-	enc = marshal.WriteBytes(enc, []byte(args.Val))
-	return enc
-}
-
-func decodePutArgs(raw_args []byte) *PutArgs {
-	var enc = raw_args[1:]
-	args := new(PutArgs)
-
-	var l uint64
-	l, enc = marshal.ReadInt(enc)
-	args.Key = string(enc[:l])
-	args.Val = string(enc[l:])
-
-	return args
-}
-
-type getArgs = string
-
-func encodeGetArgs(args getArgs) []byte {
-	var enc = make([]byte, 1, 1) // NOTE: potential overflow `+uint64(len(args)))`
-	enc[0] = OP_GET
-	enc = marshal.WriteBytes(enc, []byte(args))
-	return enc
-}
-
-func decodeGetArgs(raw_args []byte) getArgs {
-	return string(raw_args[1:])
-}
-
-// begin arg structs and marshalling
-type CondPutArgs struct {
-	Key    string
-	Expect string
-	Val    string
-}
-
-func encodeCondPutArgs(args *CondPutArgs) []byte {
-	// XXX: potential overflow with
-	// `... + uint64(len(args.Key))+uint64(len(args.Val)))` in capacity
-	var enc = make([]byte, 1, 1+8)
-	enc[0] = OP_COND_PUT
-	enc = marshal.WriteInt(enc, uint64(len(args.Key)))
-	enc = marshal.WriteBytes(enc, []byte(args.Key))
-	enc = marshal.WriteInt(enc, uint64(len(args.Expect)))
-	enc = marshal.WriteBytes(enc, []byte(args.Expect))
-	enc = marshal.WriteBytes(enc, []byte(args.Val))
-	return enc
-}
-
-func decodeCondPutArgs(raw_args []byte) *CondPutArgs {
-	var enc = raw_args[1:]
-	args := new(CondPutArgs)
-
-	var l uint64
-	l, enc = marshal.ReadInt(enc)
-	keybytes, enc2 := marshal.ReadBytes(enc, l)
-	args.Key = string(keybytes)
-	l, enc = marshal.ReadInt(enc2)
-	args.Expect = string(enc[:l])
-	args.Val = string(enc[l:])
-
-	return args
-}
-
-// end of marshalling
-func (s *KVState) put(args *PutArgs) []byte {
-	s.kvs[string(args.Key)] = args.Val
+func (s *KVState) put(args *putargs_gk.S) []byte {
+	s.kvs[args.Key] = args.Val
 	return make([]byte, 0)
 }
 
-func (s *KVState) get(args getArgs) []byte {
-	return []byte(s.kvs[string(args)])
+func (s *KVState) get(args getargs_gk.S) []byte {
+	return []byte(s.kvs[args.Get])
 }
 
 func (s *KVState) apply(args []byte, vnum uint64) []byte {
 	if args[0] == OP_PUT {
-		args := decodePutArgs(args)
+		args, _ := putargs_gk.Unmarshal(args)
 		s.vnums[string(args.Key)] = vnum
-		return s.put(args)
+		return s.put(&args)
 	} else if args[0] == OP_GET {
-		key := decodeGetArgs(args)
-		s.vnums[string(key)] = vnum
+		key, _ := getargs_gk.Unmarshal(args)
+		s.vnums[key.Get] = vnum
 		return s.get(key)
 	} else if args[0] == OP_COND_PUT {
-		args := decodeCondPutArgs(args)
+		args, _ := condputargs_gk.Unmarshal(args)
 		if s.kvs[args.Key] == args.Expect {
 			s.vnums[string(args.Key)] = vnum
 			s.kvs[args.Key] = args.Val
@@ -139,9 +63,9 @@ func (s *KVState) applyReadonly(args []byte) (uint64, []byte) {
 	if args[0] != OP_GET {
 		panic("expected a GET as readonly-operation")
 	}
-	key := decodeGetArgs(args)
+	key, _ := getargs_gk.Unmarshal(args)
 	reply := s.get(key)
-	vnum, ok := s.vnums[string(key)]
+	vnum, ok := s.vnums[key.Get]
 	if ok {
 		return vnum, reply
 	} else {

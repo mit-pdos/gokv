@@ -6,6 +6,7 @@ import (
 	"github.com/mit-pdos/gokv/connman"
 	"github.com/mit-pdos/gokv/memkv"
 	"github.com/mit-pdos/gokv/memkv/lockservice"
+	"github.com/tchajed/marshal"
 )
 
 // The maximum money supply, initially will all belong to accts[0]
@@ -38,11 +39,12 @@ func release_two(lck *lockservice.LockClerk, l1 uint64, l2 uint64) {
 // If account balance in acc_from is at least amount, transfer amount to acc_to
 func (bck *BankClerk) transfer_internal(acc_from uint64, acc_to uint64, amount uint64) {
 	acquire_two(bck.lck, acc_from, acc_to)
-	old_amount := memkv.DecodeUint64(bck.kvck.Get(acc_from))
+	old_amount, _ := marshal.ReadInt(bck.kvck.Get(acc_from))
 
 	if old_amount >= amount {
-		bck.kvck.Put(acc_from, memkv.EncodeUint64(old_amount-amount))
-		bck.kvck.Put(acc_to, memkv.EncodeUint64(memkv.DecodeUint64(bck.kvck.Get(acc_to))+amount))
+		bck.kvck.Put(acc_from, marshal.WriteInt(make([]byte, 0), old_amount-amount))
+		reciver_balance, _ := marshal.ReadInt(bck.kvck.Get(acc_to))
+		bck.kvck.Put(acc_to, marshal.WriteInt(make([]byte, 0), reciver_balance+amount))
 	}
 	release_two(bck.lck, acc_from, acc_to)
 }
@@ -64,7 +66,8 @@ func (bck *BankClerk) get_total() uint64 {
 	// For deadlock avoidance, assume bck.accts is sorted
 	for _, acct := range bck.accts {
 		bck.lck.Lock(acct)
-		sum = sum + memkv.DecodeUint64(bck.kvck.Get(acct))
+		bal, _ := marshal.ReadInt(bck.kvck.Get(acct))
+		sum = sum + bal
 	}
 
 	for _, acct := range bck.accts {
@@ -91,9 +94,9 @@ func MakeBankClerkSlice(lockhost memkv.HostName, kvhost memkv.HostName, cm *conn
 	bck.lck.Lock(init_flag)
 	// If init_flag has an empty value, initialize the accounts and set the flag.
 	if std.BytesEqual(bck.kvck.Get(init_flag), make([]byte, 0)) {
-		bck.kvck.Put(bck.accts[0], memkv.EncodeUint64(BAL_TOTAL))
+		bck.kvck.Put(bck.accts[0], marshal.WriteInt(make([]byte, 0), BAL_TOTAL))
 		for _, acct := range bck.accts[1:] {
-			bck.kvck.Put(acct, memkv.EncodeUint64(0))
+			bck.kvck.Put(acct, marshal.WriteInt(make([]byte, 0), 0))
 		}
 		bck.kvck.Put(init_flag, make([]byte, 1))
 	}

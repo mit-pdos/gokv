@@ -1,12 +1,16 @@
 package ctr
 
 import (
+	"sync"
+
 	"github.com/goose-lang/primitive"
 	"github.com/mit-pdos/gokv/erpc"
+	"github.com/mit-pdos/gokv/fencing/ctr/error_gk"
+	"github.com/mit-pdos/gokv/fencing/ctr/getreply_gk"
+	"github.com/mit-pdos/gokv/fencing/ctr/putargs_gk"
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/urpc"
 	"github.com/tchajed/marshal"
-	"sync"
 )
 
 type Server struct {
@@ -17,33 +21,33 @@ type Server struct {
 	lastEpoch uint64
 }
 
-func (s *Server) Put(args *PutArgs) uint64 {
+func (s *Server) Put(args *putargs_gk.S) error_gk.E {
 	s.mu.Lock()
 	// check if epoch is stale
-	if args.epoch < s.lastEpoch {
+	if args.Epoch < s.lastEpoch {
 		s.mu.Unlock()
-		return EStale
+		return error_gk.EStale
 	}
 
-	s.lastEpoch = args.epoch
-	s.v = args.v
+	s.lastEpoch = args.Epoch
+	s.v = args.V
 
 	s.mu.Unlock()
-	return ENone
+	return error_gk.ENone
 }
 
-func (s *Server) Get(epoch uint64, reply *GetReply) {
+func (s *Server) Get(epoch uint64, reply *getreply_gk.S) {
 	s.mu.Lock()
-	reply.err = ENone
+	reply.Err = error_gk.ENone
 	// check if epoch is stale
 	if epoch < s.lastEpoch {
 		s.mu.Unlock()
-		reply.err = EStale
+		reply.Err = error_gk.EStale
 		return
 	}
 	s.lastEpoch = epoch
 
-	reply.val = s.v
+	reply.Val = s.v
 	primitive.Linearize()
 	s.mu.Unlock()
 	return
@@ -59,17 +63,15 @@ func StartServer(me grove_ffi.Address) {
 	handlers[RPC_GET] = func(raw_args []byte, raw_reply *[]byte) {
 		dec := marshal.NewDec(raw_args)
 		epoch := dec.GetInt()
-		reply := new(GetReply)
+		reply := new(getreply_gk.S)
 		s.Get(epoch, reply)
-		*raw_reply = EncGetReply(reply)
+		*raw_reply = getreply_gk.Marshal(make([]byte, 0), *reply)
 	}
 
 	handlers[RPC_PUT] = s.e.HandleRequest(func(raw_args []byte, reply *[]byte) {
-		args := DecPutArgs(raw_args)
-		err := s.Put(args)
-		enc := marshal.NewEnc(8)
-		enc.PutInt(err)
-		*reply = enc.Finish()
+		args, _ := putargs_gk.Unmarshal(raw_args)
+		err := s.Put(&args)
+		*reply = error_gk.Marshal(make([]byte, 8), err)
 	})
 
 	handlers[RPC_FRESHCID] = func(raw_args []byte, reply *[]byte) {

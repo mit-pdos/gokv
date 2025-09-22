@@ -4,11 +4,10 @@ go 1.22
 
 require (
 	github.com/felixge/fgprof v0.9.4
-	github.com/goose-lang/primitive v0.1.0
-	github.com/goose-lang/std v0.4.1
+	github.com/goose-lang/primitive v0.2.0
+	github.com/goose-lang/std v0.6.1
 	github.com/mit-pdos/vmvcc v0.2.0
-	github.com/tchajed/marshal v0.6.2
-	golang.org/x/text v0.16.0
+	github.com/tchajed/marshal v0.6.5
 )
 
 require (

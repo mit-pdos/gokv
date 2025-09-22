@@ -4,12 +4,16 @@ import (
 	"sync"
 
 	pb "github.com/mit-pdos/gokv/reconfig/replica"
+	"github.com/mit-pdos/gokv/reconfig/replica/becomereplicaargs_gk"
+	"github.com/mit-pdos/gokv/reconfig/replica/error_gk"
+	"github.com/mit-pdos/gokv/reconfig/replica/logentry_gk"
+
 	// "github.com/goose-lang/primitive"
 	"github.com/tchajed/marshal"
 )
 
 type FetchAndAppendReply struct {
-	err pb.Error
+	err error_gk.E
 	val []byte
 }
 
@@ -39,7 +43,7 @@ func (s *ValServer) applyThread() {
 		s.mu.Unlock()
 
 		err, le := s.s.GetEntry(appliedIndex + 1)
-		if err == pb.ETruncated { // this is supposed to only happen when a snapshot is installed
+		if err == error_gk.ETruncated { // this is supposed to only happen when a snapshot is installed
 			continue
 		}
 
@@ -54,10 +58,10 @@ func (s *ValServer) applyThread() {
 			e := le.Extra
 			*e.completed = true
 			e.reply.val = s.val
-			e.reply.err = pb.ENone
+			e.reply.err = error_gk.ENone
 			e.cond.Signal()
 		}
-		s.val = append(s.val, le.Op...)
+		s.val = append(s.val, le.Op.Entry...)
 		s.appliedIndex += 1
 
 		// truncate everything that can be truncated
@@ -73,13 +77,13 @@ func (s *ValServer) applyThread() {
 func (cs *ValServer) FetchAndAppend(args []byte, reply *FetchAndAppendReply) {
 	var op []byte = make([]byte, 0, 16)
 
-	reply.err = pb.ENotPrimary // this is the error returned if the op doesn't get committed
+	reply.err = error_gk.ENotPrimary // this is the error returned if the op doesn't get committed
 	op = marshal.WriteBytes(op, args)
 
 	var completed bool = false
 	cond := sync.NewCond(cs.mu)
 
-	err := cs.s.Propose(op,
+	err := cs.s.Propose(logentry_gk.S{Entry: op},
 		LogEntryExtra{
 			completed: &completed,
 			reply:     reply,
@@ -88,13 +92,13 @@ func (cs *ValServer) FetchAndAppend(args []byte, reply *FetchAndAppendReply) {
 		func() { // cancel fn
 			cs.mu.Lock()
 			completed = true
-			reply.err = pb.ENotPrimary
+			reply.err = error_gk.ENotPrimary
 			cond.Signal()
 			cs.mu.Unlock()
 		},
 	)
 
-	if err != pb.ENone {
+	if err != error_gk.ENone {
 		reply.err = err
 		return
 	}
@@ -122,7 +126,7 @@ func (cs *ValServer) setState(index uint64, val []byte) {
 	cs.mu.Unlock()
 }
 
-func (cs *ValServer) truncateAndBecomeReplica(args *pb.BecomeReplicaArgs) pb.Error {
+func (cs *ValServer) truncateAndBecomeReplica(args *becomereplicaargs_gk.S) error_gk.E {
 	// FIXME: what if this request is from an old reconf attempt that failed?
 	// If this replica is in the latest config, then this truncation might trim
 	// off entries that this node has not yet applied, resulting in this node

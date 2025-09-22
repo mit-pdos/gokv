@@ -9,8 +9,8 @@ import (
 
 	"github.com/mit-pdos/gokv/grove_ffi"
 	"github.com/mit-pdos/gokv/vrsm/configservice"
-	"github.com/mit-pdos/gokv/vrsm/e"
 	"github.com/mit-pdos/gokv/vrsm/reconfig"
+	"github.com/mit-pdos/gokv/vrsm/replica/err_gk"
 )
 
 func main() {
@@ -58,7 +58,7 @@ func main() {
 			if err == 0 {
 				fmt.Printf("Finished switching configuration\n")
 				break
-			} else if err != e.Timeout {
+			} else if err != err_gk.Timeout {
 				fmt.Printf("Failed to switch config: %d\n", err)
 				break
 			}
@@ -70,7 +70,7 @@ func main() {
 		fmt.Println("Got config")
 
 		servers := make([]string, 0)
-		for _, srv := range conf {
+		for _, srv := range conf.Addrs {
 			servers = append(servers, grove_ffi.AddressToStr(srv))
 		}
 		fmt.Printf("Configuration is: %v\n", servers)
