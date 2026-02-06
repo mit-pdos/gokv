@@ -91,17 +91,12 @@ func makeConnection(conn net.Conn) Connection {
 
 type Connection *connection
 
-type ConnectRet struct {
-	Err        bool
-	Connection Connection
-}
-
-func Connect(host Address) ConnectRet {
+func Connect(host Address) (bool, Connection) {
 	conn, err := net.Dial("tcp", AddressToStr(host))
 	if err != nil {
-		return ConnectRet{Err: true}
+		return true, nil
 	}
-	return ConnectRet{Err: false, Connection: makeConnection(conn)}
+	return false, makeConnection(conn)
 }
 
 func Send(c Connection, data []byte) bool {
@@ -125,12 +120,7 @@ func Send(c Connection, data []byte) bool {
 	return err != nil
 }
 
-type ReceiveRet struct {
-	Err  bool
-	Data []byte
-}
-
-func Receive(c Connection) ReceiveRet {
+func Receive(c Connection) (bool, []byte) {
 	c.recv_mu.Lock()
 	defer c.recv_mu.Unlock()
 
@@ -144,7 +134,7 @@ func Receive(c Connection) ReceiveRet {
 		// But also, we clearly lost track here of where in the protocol we are,
 		// so close it.
 		c.conn.Close()
-		return ReceiveRet{Err: true}
+		return true, nil
 	}
 	d := marshal.NewDec(header)
 	dataLen := d.GetInt()
@@ -154,8 +144,8 @@ func Receive(c Connection) ReceiveRet {
 	if err2 != nil {
 		// See comment above.
 		c.conn.Close()
-		return ReceiveRet{Err: true}
+		return true, nil
 	}
 
-	return ReceiveRet{Err: false, Data: data}
+	return false, data
 }

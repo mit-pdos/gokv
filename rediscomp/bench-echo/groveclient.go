@@ -3,11 +3,10 @@ package main
 import "github.com/mit-pdos/gokv/grove_ffi"
 
 func groveInitClient() func() {
-	connRet := grove_ffi.Connect(grove_ffi.MakeAddress(serverAddress))
-	if connRet.Err != false {
+	err, conn := grove_ffi.Connect(grove_ffi.MakeAddress(serverAddress))
+	if err != false {
 		panic("error while connecting")
 	}
-	conn := connRet.Connection
 
 	msg := make([]byte, msgSize)
 
@@ -16,10 +15,10 @@ func groveInitClient() func() {
 		if err != false {
 			panic("error while sending")
 		}
-		r := grove_ffi.Receive(conn)
-		if r.Err != false {
+		err, data := grove_ffi.Receive(conn)
+		if err != false {
 			panic("error while receiving")
-		} else if len(r.Data) != msgSize {
+		} else if len(data) != msgSize {
 			panic("did not receive full message back")
 		}
 	}

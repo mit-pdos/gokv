@@ -28,14 +28,14 @@ func StartServer(hostname grove_ffi.Address) {
 
 		go func() {
 			for {
-				r := grove_ffi.Receive(conn)
-				if r.Err != false {
+				err, data := grove_ffi.Receive(conn)
+				if err != false {
 					return
 					// panic("error while receiving")
 				}
 
 				go func() {
-					grove_ffi.Send(conn, r.Data)
+					grove_ffi.Send(conn, data)
 				}()
 			}
 		}()

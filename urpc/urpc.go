@@ -36,12 +36,11 @@ func MakeServer(handlers map[uint64]func([]byte, *[]byte)) *Server {
 func (srv *Server) readThread(conn grove_ffi.Connection) {
 	// lastRpcTime := time.Now()
 	for {
-		r := grove_ffi.Receive(conn)
-		if r.Err {
+		err, data := grove_ffi.Receive(conn)
+		if err {
 			// This connection is *done* -- quit the thread.
 			break
 		}
-		data := r.Data
 		rpcid, data := marshal.ReadInt(data)
 		seqno, data := marshal.ReadInt(data)
 		req := data // remaining data
@@ -87,8 +86,8 @@ type Client struct {
 
 func (cl *Client) replyThread() {
 	for {
-		r := grove_ffi.Receive(cl.conn)
-		if r.Err {
+		err, data := grove_ffi.Receive(cl.conn)
+		if err {
 			// This connection is unusable, so quit the thread and wake all pending requests.
 			cl.mu.Lock()
 			for _, cb := range cl.pending {
@@ -98,7 +97,6 @@ func (cl *Client) replyThread() {
 			cl.mu.Unlock()
 			break
 		}
-		data := r.Data
 
 		seqno, data := marshal.ReadInt(data)
 		reply := data
@@ -119,14 +117,14 @@ func (cl *Client) replyThread() {
 
 func TryMakeClient(host_name grove_ffi.Address) (uint64, *Client) {
 	host := grove_ffi.Address(host_name)
-	a := grove_ffi.Connect(host)
+	err, conn := grove_ffi.Connect(host)
 	var nilClient *Client
-	if a.Err {
+	if err {
 		return 1, nilClient
 	}
 
 	cl := &Client{
-		conn:    a.Connection,
+		conn:    conn,
 		mu:      new(sync.Mutex),
 		seq:     1,
 		pending: make(map[uint64]*Callback)}
