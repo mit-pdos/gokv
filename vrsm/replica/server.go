@@ -326,7 +326,7 @@ func (s *Server) ApplyAsBackup(args *ApplyAsBackupArgs) e.Error {
 
 	cond, ok := s.opAppliedConds[s.nextIndex]
 	if ok {
-		cond.Signal()
+		cond.Broadcast()
 		delete(s.opAppliedConds, s.nextIndex)
 	}
 
@@ -355,7 +355,7 @@ func (s *Server) SetState(args *SetStateArgs) e.Error {
 		s.sm.SetStateAndUnseal(args.State, args.NextIndex, args.Epoch)
 
 		for _, cond := range s.opAppliedConds {
-			cond.Signal()
+			cond.Broadcast()
 		}
 		s.committedNextIndex_cond.Broadcast()
 		s.opAppliedConds = make(map[uint64]*sync.Cond)
@@ -380,7 +380,7 @@ func (s *Server) GetState(args *GetStateArgs) *GetStateReply {
 	committedNextIndex := s.committedNextIndex
 
 	for _, cond := range s.opAppliedConds {
-		cond.Signal()
+		cond.Broadcast()
 	}
 	s.opAppliedConds = make(map[uint64]*sync.Cond)
 	s.committedNextIndex_cond.Broadcast()
